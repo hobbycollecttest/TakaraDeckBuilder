@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { DECK_SIZE, MAX_DECKS, cleanCards, cleanLabel, configured, isUuid, signedIn, sql, withTable } from '../lib/server.js'
+import { DECK_SIZE, MAX_DECKS, cleanCards, cleanLabel, configured, isUuid, signedIn, sql, usernameOf, withTable } from '../lib/server.js'
 
 const GAMES = new Set(['horobeat'])
 const shape = (r: Record<string, unknown>) => ({ id: r.id, name: r.name, cards: r.cards, isPublic: r.is_public === true, updatedAt: r.updated_at })
@@ -13,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method === 'GET') {
       const rows = await withTable(() => sql!`SELECT id, name, cards, is_public, updated_at FROM takaradecks_decks WHERE user_id = ${user.id} AND game = 'horobeat' ORDER BY updated_at DESC LIMIT ${MAX_DECKS}`)
-      return res.status(200).json({ decks: rows.map(shape) })
+      return res.status(200).json({ decks: rows.map(shape), username: await usernameOf(user.id) })
     }
 
     if (req.method === 'PUT') {
@@ -25,8 +25,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const isPublic = body.isPublic === true
       const total = Object.values(cards).reduce((a, b) => a + b, 0)
       if (isPublic && total !== DECK_SIZE) return res.status(400).json({ error: `Only complete ${DECK_SIZE}-card decks can be made public.` })
-      // The name shown on public decks: the account's own name when the token carries one, never the email.
-      const author = cleanLabel(user.name || body.author, 40) || 'Player'
+      // Public decks are shown under the player's chosen username, never their Google name or email.
+      const author = isPublic ? await usernameOf(user.id) : ''
+      if (isPublic && !author) return res.status(400).json({ error: 'Choose a username before making a deck public.', needsUsername: true })
       const json = JSON.stringify(cards)
       if (isUuid(body.id)) {
         const id = body.id

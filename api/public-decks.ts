@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { sql, withTable } from '../lib/server.js'
 
-const PAGE = 60
+const PAGE = 200
 
 // Open to everyone, so it never returns who owns a deck beyond the display name they published under.
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -11,7 +11,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (!sql) return res.status(503).json({ error: 'Public decks are not set up yet.' })
   try {
-    const rows = await withTable(() => sql!`SELECT id, name, author, cards, updated_at FROM takaradecks_decks WHERE is_public AND game = 'horobeat' ORDER BY updated_at DESC LIMIT ${PAGE}`)
+    const rows = await withTable(() => sql!`SELECT d.id, d.name, COALESCE(u.username, NULLIF(d.author, ''), 'Player') AS author, d.cards, d.updated_at FROM takaradecks_decks d LEFT JOIN takaradecks_users u ON u.user_id = d.user_id WHERE d.is_public AND d.game = 'horobeat' ORDER BY d.updated_at DESC LIMIT ${PAGE}`)
     // Vercel's network answers repeat visits for a minute, so browsing does not wake the database each time.
     res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=600')
     return res.status(200).json({ decks: rows.map((r) => ({ id: r.id, name: r.name, author: r.author || 'Player', cards: r.cards, updatedAt: r.updated_at })) })

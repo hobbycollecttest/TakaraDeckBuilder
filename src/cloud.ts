@@ -3,21 +3,30 @@ import { accessToken } from './auth'
 export type CloudDeck = { id: string; name: string; cards: Record<string, number>; isPublic: boolean; updatedAt: string }
 export type PublicDeck = { id: string; name: string; author: string; cards: Record<string, number>; updatedAt: string }
 
-async function call<T>(method: string, body?: unknown, query = ''): Promise<T> {
+export class ApiError extends Error {
+  needsUsername = false
+}
+
+async function call<T>(method: string, body?: unknown, query = '', path = '/api/decks'): Promise<T> {
   const token = await accessToken()
   if (!token) throw new Error('Please sign in again')
-  const res = await fetch(`/api/decks${query}`, {
+  const res = await fetch(`${path}${query}`, {
     method,
     headers: { Authorization: `Bearer ${token}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
     body: body ? JSON.stringify(body) : undefined,
   })
-  const data = (await res.json().catch(() => ({}))) as { error?: string }
-  if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.')
+  const data = (await res.json().catch(() => ({}))) as { error?: string; needsUsername?: boolean }
+  if (!res.ok) {
+    const err = new ApiError(data.error || 'Something went wrong. Please try again.')
+    err.needsUsername = data.needsUsername === true
+    throw err
+  }
   return data as T
 }
 
-export const listDecks = () => call<{ decks: CloudDeck[] }>('GET').then((r) => r.decks)
-export const saveDeck = (deck: { id?: string; name: string; cards: Record<string, number>; isPublic: boolean; author: string }) =>
+export const listDecks = () => call<{ decks: CloudDeck[]; username?: string }>('GET').then((r) => ({ decks: r.decks, username: r.username || '' }))
+export const saveUsername = (username: string) => call<{ username: string }>('PUT', { username }, '', '/api/profile').then((r) => r.username)
+export const saveDeck = (deck: { id?: string; name: string; cards: Record<string, number>; isPublic: boolean }) =>
   call<{ deck: CloudDeck }>('PUT', { game: 'horobeat', ...deck }).then((r) => r.deck)
 export const deleteDeck = (id: string) => call<{ ok: true }>('DELETE', undefined, `?id=${encodeURIComponent(id)}`)
 

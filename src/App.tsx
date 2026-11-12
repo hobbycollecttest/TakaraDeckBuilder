@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import raw from './horobeat.json'
 import { authReady, currentAccount, signInWithGoogle, signOut, type Account } from './auth'
 import { renderDeckImage } from './deckImage'
-import { deleteDeck, listDecks, listPublicDecks, saveDeck as saveCloudDeck, type CloudDeck, type PublicDeck } from './cloud'
+import { ApiError, deleteDeck, listDecks, listPublicDecks, saveDeck as saveCloudDeck, saveUsername, type CloudDeck, type PublicDeck } from './cloud'
 
 type Card = {
   id: string; no: string; name: string; jp: string; set: string; rarity: string; type: string; color: string
@@ -100,7 +100,15 @@ export default function App() {
   const [cloud, setCloud] = useState<CloudDeck[]>([])
   const [cloudId, setCloudId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [isPublic, setIsPublic] = useState(false)
+  // Decks are public unless the player unticks the box; only complete decks are ever published.
+  const [isPublic, setIsPublic] = useState(true)
+  const [username, setUsername] = useState('')
+  const [nameDialog, setNameDialog] = useState(false)
+  const [nameDraft, setNameDraft] = useState('')
+  const [nameError, setNameError] = useState('')
+  const [pq, setPq] = useState('')
+  const [pColors, setPColors] = useState(new Set<string>())
+  const [pSort, setPSort] = useState('newest')
   const [mode, setMode] = useState<'build' | 'browse'>('build')
   const [publicDecks, setPublicDecks] = useState<PublicDeck[] | null>(null)
   const [publicError, setPublicError] = useState('')
@@ -129,9 +137,16 @@ export default function App() {
       .catch((e: Error) => setPublicError(e.message))
   }, [mode])
   useEffect(() => {
-    if (!account) return setCloud([])
+    if (!account) {
+      setCloud([])
+      setUsername('')
+      return
+    }
     listDecks()
-      .then(setCloud)
+      .then((r) => {
+        setCloud(r.decks)
+        setUsername(r.username)
+      })
       .catch((e: Error) => setNote(e.message))
   }, [account])
   useEffect(() => {
@@ -142,6 +157,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
+      setNameDialog(false)
       setOpen(null)
       closePicture()
     }
@@ -240,15 +256,17 @@ export default function App() {
     if (!total || busy) return
     const label = name.trim() || 'Untitled deck'
     if (account) {
+      const publish = isPublic && total === DECK_SIZE
+      if (publish && !username) return askUsername('Choose a username first. It is the name shown on your public decks.')
       setBusy(true)
       try {
-        const saved = await saveCloudDeck({ id: cloudId ?? undefined, name: label, cards: deck, isPublic: isPublic && total === DECK_SIZE, author: account.name })
+        const saved = await saveCloudDeck({ id: cloudId ?? undefined, name: label, cards: deck, isPublic: publish })
         setCloudId(saved.id)
-        setIsPublic(saved.isPublic)
         setCloud((all) => [saved, ...all.filter((d) => d.id !== saved.id)])
         setNote(saved.isPublic ? `Saved "${saved.name}" as a public deck` : `Saved "${saved.name}" to your account`)
       } catch (e) {
-        setNote((e as Error).message)
+        if (e instanceof ApiError && e.needsUsername) askUsername(e.message)
+        else setNote((e as Error).message)
       } finally {
         setBusy(false)
       }
@@ -312,9 +330,49 @@ export default function App() {
     setDeck({})
     setName('')
     setCloudId(null)
-    setIsPublic(false)
+    setIsPublic(true)
     setNote('Started a new deck')
   }
+
+  function askUsername(message = '') {
+    setNameDraft(username)
+    setNameError(message)
+    setNameDialog(true)
+  }
+  async function submitUsername() {
+    const value = nameDraft.trim()
+    if (!/^[A-Za-z0-9_.-]{3,20}$/.test(value)) return setNameError('Use 3 to 20 letters, numbers, dots, dashes or underscores.')
+    setBusy(true)
+    try {
+      setUsername(await saveUsername(value))
+      setNameDialog(false)
+      setNote(`Your username is ${value}`)
+    } catch (e) {
+      setNameError((e as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const publicShown = useMemo(() => {
+    if (!publicDecks) return []
+    const needle = pq.trim().toLowerCase()
+    const rows = publicDecks
+      .map((d) => {
+        const cards = Object.entries(d.cards)
+          .map(([id, n]) => ({ card: BY_ID.get(id), n }))
+          .filter((e): e is { card: Card; n: number } => Boolean(e.card))
+        return { d, cards, colors: COLORS.filter((c) => cards.some((e) => e.card.color === c)) }
+      })
+      .filter(
+        (r) =>
+          [...pColors].every((c) => r.colors.includes(c)) &&
+          (!needle || `${r.d.name} ${r.d.author} ${r.cards.map((e) => `${e.card.name} ${e.card.jp} ${e.card.no}`).join(' ')}`.toLowerCase().includes(needle)),
+      )
+    if (pSort === 'name') rows.sort((a, b) => a.d.name.localeCompare(b.d.name))
+    if (pSort === 'author') rows.sort((a, b) => a.d.author.localeCompare(b.d.author) || a.d.name.localeCompare(b.d.name))
+    return rows
+  }, [publicDecks, pq, pColors, pSort])
 
   // Opening someone's public deck gives you your own copy; saving it never changes theirs.
   function openPublic(d: PublicDeck) {
@@ -324,6 +382,7 @@ export default function App() {
     setDeck(copy)
     setName(d.name)
     setCloudId(null)
+    // A copy of someone else's deck stays private unless you choose to publish it.
     setIsPublic(false)
     setMode('build')
     setPanel(true)
@@ -344,7 +403,7 @@ export default function App() {
     await signOut()
     setAccount(null)
     setCloudId(null)
-    setIsPublic(false)
+    setIsPublic(true)
   }
 
   const status = total === DECK_SIZE ? 'Deck is legal' : total < DECK_SIZE ? `${DECK_SIZE - total} more to reach ${DECK_SIZE}` : `${total - DECK_SIZE} over the ${DECK_SIZE}-card limit`
@@ -364,7 +423,7 @@ export default function App() {
         {authReady ? (
           account ? (
             <div className="who">
-              <span title={account.email}>{account.name}</span>
+              <button className="name" onClick={() => askUsername()} title="Change your username">{username || 'Set username'}</button>
               <button onClick={leave}>Sign out</button>
             </div>
           ) : (
@@ -483,16 +542,34 @@ export default function App() {
           ) : !publicDecks ? (
             <p className="empty">Loading public decks</p>
           ) : publicDecks.length === 0 ? (
-            <p className="empty">No public decks yet. Build a full 50-card deck, tick "Make this deck public" and save it to be the first.</p>
+            <p className="empty">No public decks yet. Build a full 50-card deck, sign in and save it to be the first.</p>
           ) : (
             <>
-              <div className="count">{publicDecks.length} public {publicDecks.length === 1 ? 'deck' : 'decks'}, newest first</div>
+              <div className="toolbar">
+                <input type="search" placeholder="Search deck name, player or a card in the deck" value={pq} onChange={(e) => setPq(e.target.value)} />
+                <div className="pcolors" role="group" aria-label="Deck colors">
+                  {COLORS.map((c) => (
+                    <button key={c} className={`chip color-${c.toLowerCase()} ${pColors.has(c) ? 'on' : ''}`} onClick={() => setPColors(toggle(pColors, c))}>
+                      <i />{c}
+                    </button>
+                  ))}
+                </div>
+                <label className="sort">
+                  Sort
+                  <select value={pSort} onChange={(e) => setPSort(e.target.value)}>
+                    <option value="newest">Newest</option>
+                    <option value="name">Deck name</option>
+                    <option value="author">Player</option>
+                  </select>
+                </label>
+              </div>
+              <div className="count">
+                {publicShown.length} of {publicDecks.length} public {publicDecks.length === 1 ? 'deck' : 'decks'}
+                {pq || pColors.size ? <button className="link" onClick={() => { setPq(''); setPColors(new Set()) }}>Clear filters</button> : null}
+              </div>
+              {publicShown.length === 0 ? <p className="empty">No public decks match. Try a different search or remove a color.</p> : null}
               <ul className="pubs">
-                {publicDecks.map((d) => {
-                  const cards = Object.entries(d.cards)
-                    .map(([id, n]) => ({ card: BY_ID.get(id), n }))
-                    .filter((e): e is { card: Card; n: number } => Boolean(e.card))
-                  const colorsIn = COLORS.filter((c) => cards.some((e) => e.card.color === c))
+                {publicShown.map(({ d, cards, colors: colorsIn }) => {
                   const key = [...cards].sort((a, b) => b.n - a.n || (b.card.cost ?? 0) - (a.card.cost ?? 0)).slice(0, 7)
                   return (
                     <li key={d.id}>
@@ -542,11 +619,17 @@ export default function App() {
           </div>
 
           {account ? (
-            <label className={`public ${total === DECK_SIZE ? '' : 'off'}`}>
-              <input type="checkbox" checked={isPublic && total === DECK_SIZE} disabled={total !== DECK_SIZE} onChange={(e) => setIsPublic(e.target.checked)} />
+            <label className="public">
+              <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
               <span>
-                Make this deck public
-                <small>{total === DECK_SIZE ? 'Anyone can see it under Public decks after you save.' : `Only complete ${DECK_SIZE}-card decks can be public.`}</small>
+                Public deck
+                <small>
+                  {!isPublic
+                    ? 'Private. Only you can see this deck.'
+                    : total === DECK_SIZE
+                      ? 'Anyone can see it under Public decks after you save.'
+                      : `It will be shown under Public decks once it has ${DECK_SIZE} cards. Until then it saves as private.`}
+                </small>
               </span>
             </label>
           ) : null}
@@ -611,7 +694,7 @@ export default function App() {
                 <ul>
                   {cloud.map((d) => (
                     <li key={d.id}>
-                      <button className="row-name" onClick={() => { setDeck(d.cards); setName(d.name); setCloudId(d.id); setIsPublic(d.isPublic); setNote(`Loaded "${d.name}"`) }}>
+                      <button className="row-name" onClick={() => { setDeck(d.cards); setName(d.name); setCloudId(d.id); setIsPublic(cardCount(d.cards) === DECK_SIZE ? d.isPublic : true); setNote(`Loaded "${d.name}"`) }}>
                         {d.name}
                         <small>{Object.values(d.cards).reduce((a, b) => a + b, 0)} cards{d.isPublic ? ', public' : ''}</small>
                       </button>
@@ -633,7 +716,7 @@ export default function App() {
               <ul>
                 {saved.map((s) => (
                   <li key={s.id}>
-                    <button className="row-name" onClick={() => { setDeck(s.deck); setName(s.name); setCloudId(null); setIsPublic(false); setNote(`Loaded "${s.name}"`) }}>
+                    <button className="row-name" onClick={() => { setDeck(s.deck); setName(s.name); setCloudId(null); setIsPublic(true); setNote(`Loaded "${s.name}"`) }}>
                       {s.name}
                       <small>{Object.values(s.deck).reduce((a, b) => a + b, 0)} cards</small>
                     </button>
@@ -664,6 +747,20 @@ export default function App() {
           </div>
         </div>
       ) : null}
+      {nameDialog ? (
+        <div className="modal" onClick={() => setNameDialog(false)}>
+          <form className="sheet namebox" onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); submitUsername() }} role="dialog" aria-modal="true" aria-label="Username">
+            <button type="button" className="x" onClick={() => setNameDialog(false)} aria-label="Close">×</button>
+            <h2>Username</h2>
+            <p className="jp">This is the name other players see on your public decks. Your Google name and email are never shown.</p>
+            <input autoFocus value={nameDraft} onChange={(e) => { setNameDraft(e.target.value); setNameError('') }} maxLength={20} placeholder="3 to 20 characters" aria-label="Username" />
+            {nameError ? <p className="field-error">{nameError}</p> : null}
+            <div className="picture-actions">
+              <button type="submit" className="btn" disabled={busy}>{busy ? 'Saving' : 'Save username'}</button>
+            </div>
+          </form>
+        </div>
+      ) : null}
       {note ? <div className="toast" role="status">{note}</div> : null}
     </div>
   )
@@ -676,6 +773,9 @@ function signInProblem(e: unknown) {
     ? 'Sign-in is not switched on for this web address yet.'
     : 'Sign-in could not start. Check your connection and try again.'
 }
+
+// An unfinished deck is always stored private, so its tick box goes back to the default when it is reopened.
+const cardCount = (cards: Record<string, number>) => Object.values(cards).reduce((a, b) => a + b, 0)
 
 function confirmClear(run: () => void) {
   if (window.confirm('Remove every card from this deck?')) run()

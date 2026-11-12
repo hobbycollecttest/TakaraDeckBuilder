@@ -38,7 +38,7 @@ a { color: inherit; }
 .signin, .who button { border: 1px solid #4a4a50; background: none; color: #fff; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
 .signin:hover, .who button:hover { background: #fff; color: var(--ink); }
 .who { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #c9c9ce; }
-.who span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who .name { max-width: 170px; overflow: hidden; text-overflow: ellipsis; border-color: transparent; text-decoration: underline; text-underline-offset: 3px; padding-left: 4px; padding-right: 4px; }
 .hint { margin-bottom: 18px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 13px; }
 .deck-toggle { display: none; white-space: nowrap; border: 1px solid #4a4a50; background: none; color: #fff; padding: 6px 12px; font-size: 13px; }
 .deck-toggle b { font-family: var(--cond); font-size: 15px; }
@@ -60,7 +60,6 @@ a { color: inherit; }
 .pub-open { padding: 5px 12px; border: 1px solid var(--ink); font-size: 13px; }
 .pub:hover .pub-open { background: var(--ink); color: #fff; }
 .public { display: flex; gap: 9px; align-items: flex-start; margin: -4px 0 16px; cursor: pointer; }
-.public.off { cursor: default; color: var(--ink-3); }
 .public input { width: 15px; height: 15px; margin: 3px 0 0; accent-color: var(--ink); }
 .public span { display: flex; flex-direction: column; font-size: 13px; font-weight: 500; }
 .public small { font-weight: 400; color: var(--ink-3); font-size: 12px; }
@@ -175,6 +174,13 @@ select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); backgroun
 .picture-actions span { color: var(--ink-2); font-size: 13px; }
 .btn { display: inline-block; padding: 9px 16px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font-size: 14px; text-decoration: none; }
 .btn:hover { background: var(--panel); color: var(--ink); }
+.pcolors { display: flex; gap: 4px; }
+.pcolors .chip { padding: 7px 9px; white-space: nowrap; }
+.sheet.namebox { display: block; width: min(420px, 100%); padding: 26px; }
+.namebox h2 { font: 600 20px/1.2 var(--sans); }
+.namebox input { width: 100%; margin-top: 14px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 0; background: var(--panel); }
+.namebox input:focus { outline: 0; border-color: var(--ink); }
+.field-error { margin-top: 8px; color: var(--accent); font-size: 13px; }
 .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 60; padding: 9px 14px; background: var(--ink); color: #fff; font-size: 13px; }
 
 @media (max-width: 1180px) {
@@ -192,11 +198,13 @@ select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); backgroun
   .seg button { padding: 6px 8px; font-size: 12px; }
   .deck-toggle { padding: 6px 9px; }
   .signin, .who button { padding: 6px 8px; font-size: 12px; }
-  .who span { display: none; }
+  .who .name { max-width: 90px; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .tabs { padding: 0 12px; }
   .pub { grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
   .pub-thumbs, .pub-colors { display: none; }
+  .pubview .toolbar { flex-wrap: wrap; }
+  .pubview .toolbar input { flex-basis: 100%; }
   .pool { padding: 12px 12px 50px; border: 0; }
   .filters { display: none; position: fixed; inset: 52px 0 0 0; z-index: 30; max-height: none; background: var(--page); padding: 14px 16px 40px; }
   .filters.show { display: block; }

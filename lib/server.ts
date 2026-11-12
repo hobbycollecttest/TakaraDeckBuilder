@@ -24,6 +24,9 @@ async function setup() {
     )`
   await sql!`ALTER TABLE takaradecks_decks ADD COLUMN IF NOT EXISTS is_public boolean NOT NULL DEFAULT false`
   await sql!`ALTER TABLE takaradecks_decks ADD COLUMN IF NOT EXISTS author text NOT NULL DEFAULT ''`
+  await sql!`CREATE TABLE IF NOT EXISTS takaradecks_users (user_id text PRIMARY KEY, username text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`
+  // Usernames are unique whatever the capitals: "Leo" and "leo" are the same name.
+  await sql!`CREATE UNIQUE INDEX IF NOT EXISTS takaradecks_users_name ON takaradecks_users (lower(username))`
   await sql!`CREATE INDEX IF NOT EXISTS takaradecks_decks_user ON takaradecks_decks (user_id, updated_at DESC)`
   await sql!`CREATE INDEX IF NOT EXISTS takaradecks_decks_public ON takaradecks_decks (game, updated_at DESC) WHERE is_public`
 }
@@ -69,4 +72,9 @@ export function cleanCards(value: unknown) {
 
 // eslint-disable-next-line no-control-regex
 export const cleanLabel = (value: unknown, max: number) => (typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '')
+export const USERNAME = /^[A-Za-z0-9_.-]{3,20}$/
+export async function usernameOf(userId: string) {
+  const rows = await withTable(() => sql!`SELECT username FROM takaradecks_users WHERE user_id = ${userId}`)
+  return rows.length ? (rows[0].username as string) : ''
+}
 export const isUuid = (v: unknown): v is string => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
