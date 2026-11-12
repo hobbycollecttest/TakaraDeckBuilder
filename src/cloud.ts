@@ -1,6 +1,7 @@
 import { accessToken } from './auth'
 
-export type CloudDeck = { id: string; name: string; cards: Record<string, number>; updatedAt: string }
+export type CloudDeck = { id: string; name: string; cards: Record<string, number>; isPublic: boolean; updatedAt: string }
+export type PublicDeck = { id: string; name: string; author: string; cards: Record<string, number>; updatedAt: string }
 
 async function call<T>(method: string, body?: unknown, query = ''): Promise<T> {
   const token = await accessToken()
@@ -16,6 +17,14 @@ async function call<T>(method: string, body?: unknown, query = ''): Promise<T> {
 }
 
 export const listDecks = () => call<{ decks: CloudDeck[] }>('GET').then((r) => r.decks)
-export const saveDeck = (deck: { id?: string; name: string; cards: Record<string, number> }) =>
+export const saveDeck = (deck: { id?: string; name: string; cards: Record<string, number>; isPublic: boolean; author: string }) =>
   call<{ deck: CloudDeck }>('PUT', { game: 'horobeat', ...deck }).then((r) => r.deck)
 export const deleteDeck = (id: string) => call<{ ok: true }>('DELETE', undefined, `?id=${encodeURIComponent(id)}`)
+
+// Anyone can browse public decks, signed in or not.
+export async function listPublicDecks(): Promise<PublicDeck[]> {
+  const res = await fetch('/api/public-decks')
+  const data = (await res.json().catch(() => ({}))) as { decks?: PublicDeck[]; error?: string }
+  if (!res.ok || !data.decks) throw new Error(data.error || 'Public decks could not be loaded. Please try again.')
+  return data.decks
+}

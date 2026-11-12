@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import raw from './horobeat.json'
 import { authReady, currentAccount, signInWithGoogle, signOut, type Account } from './auth'
 import { renderDeckImage } from './deckImage'
-import { deleteDeck, listDecks, saveDeck as saveCloudDeck, type CloudDeck } from './cloud'
+import { deleteDeck, listDecks, listPublicDecks, saveDeck as saveCloudDeck, type CloudDeck, type PublicDeck } from './cloud'
 
 type Card = {
   id: string; no: string; name: string; jp: string; set: string; rarity: string; type: string; color: string
@@ -100,6 +100,10 @@ export default function App() {
   const [cloud, setCloud] = useState<CloudDeck[]>([])
   const [cloudId, setCloudId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [isPublic, setIsPublic] = useState(false)
+  const [mode, setMode] = useState<'build' | 'browse'>('build')
+  const [publicDecks, setPublicDecks] = useState<PublicDeck[] | null>(null)
+  const [publicError, setPublicError] = useState('')
   const [picture, setPicture] = useState<{ url: string; blob: Blob } | null>(null)
   const [drawing, setDrawing] = useState(false)
 
@@ -117,6 +121,13 @@ export default function App() {
       live = false
     }
   }, [])
+  useEffect(() => {
+    if (mode !== 'browse') return
+    setPublicError('')
+    listPublicDecks()
+      .then(setPublicDecks)
+      .catch((e: Error) => setPublicError(e.message))
+  }, [mode])
   useEffect(() => {
     if (!account) return setCloud([])
     listDecks()
@@ -231,10 +242,11 @@ export default function App() {
     if (account) {
       setBusy(true)
       try {
-        const saved = await saveCloudDeck({ id: cloudId ?? undefined, name: label, cards: deck })
+        const saved = await saveCloudDeck({ id: cloudId ?? undefined, name: label, cards: deck, isPublic: isPublic && total === DECK_SIZE, author: account.name })
         setCloudId(saved.id)
+        setIsPublic(saved.isPublic)
         setCloud((all) => [saved, ...all.filter((d) => d.id !== saved.id)])
-        setNote(`Saved "${saved.name}" to your account`)
+        setNote(saved.isPublic ? `Saved "${saved.name}" as a public deck` : `Saved "${saved.name}" to your account`)
       } catch (e) {
         setNote((e as Error).message)
       } finally {
@@ -300,7 +312,22 @@ export default function App() {
     setDeck({})
     setName('')
     setCloudId(null)
+    setIsPublic(false)
     setNote('Started a new deck')
+  }
+
+  // Opening someone's public deck gives you your own copy; saving it never changes theirs.
+  function openPublic(d: PublicDeck) {
+    if (total && !window.confirm(`Open "${d.name}"? Any changes you have not saved will be lost.`)) return
+    const copy: Deck = {}
+    for (const [id, n] of Object.entries(d.cards)) if (BY_ID.has(id)) copy[id] = n
+    setDeck(copy)
+    setName(d.name)
+    setCloudId(null)
+    setIsPublic(false)
+    setMode('build')
+    setPanel(true)
+    setNote(`Opened a copy of "${d.name}"`)
   }
 
   async function removeCloud(d: CloudDeck) {
@@ -317,6 +344,7 @@ export default function App() {
     await signOut()
     setAccount(null)
     setCloudId(null)
+    setIsPublic(false)
   }
 
   const status = total === DECK_SIZE ? 'Deck is legal' : total < DECK_SIZE ? `${DECK_SIZE - total} more to reach ${DECK_SIZE}` : `${total - DECK_SIZE} over the ${DECK_SIZE}-card limit`
@@ -350,7 +378,12 @@ export default function App() {
         </button>
       </header>
 
-      <div className="layout">
+      <nav className="tabs" aria-label="Sections">
+        <button className={mode === 'build' ? 'on' : ''} onClick={() => setMode('build')}>Deck builder</button>
+        <button className={mode === 'browse' ? 'on' : ''} onClick={() => setMode('browse')}>Public decks</button>
+      </nav>
+
+      <div className={`layout ${mode === 'browse' ? 'browse' : ''}`}>
         <aside className={`filters ${filtersOpen ? 'show' : ''}`}>
           <div className="filters-head">
             <h2>Filters</h2>
@@ -444,6 +477,48 @@ export default function App() {
           )}
         </main>
 
+        <main className="pool pubview">
+          {publicError ? (
+            <p className="empty">{publicError}</p>
+          ) : !publicDecks ? (
+            <p className="empty">Loading public decks</p>
+          ) : publicDecks.length === 0 ? (
+            <p className="empty">No public decks yet. Build a full 50-card deck, tick "Make this deck public" and save it to be the first.</p>
+          ) : (
+            <>
+              <div className="count">{publicDecks.length} public {publicDecks.length === 1 ? 'deck' : 'decks'}, newest first</div>
+              <ul className="pubs">
+                {publicDecks.map((d) => {
+                  const cards = Object.entries(d.cards)
+                    .map(([id, n]) => ({ card: BY_ID.get(id), n }))
+                    .filter((e): e is { card: Card; n: number } => Boolean(e.card))
+                  const colorsIn = COLORS.filter((c) => cards.some((e) => e.card.color === c))
+                  const key = [...cards].sort((a, b) => b.n - a.n || (b.card.cost ?? 0) - (a.card.cost ?? 0)).slice(0, 7)
+                  return (
+                    <li key={d.id}>
+                      <button className="pub" onClick={() => openPublic(d)}>
+                        <span className="pub-main">
+                          <b>{d.name}</b>
+                          <small>
+                            by {d.author}, {new Date(d.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </small>
+                        </span>
+                        <span className="pub-colors">
+                          {colorsIn.map((c) => <i key={c} className={`dot color-${c.toLowerCase()}`} title={c} />)}
+                        </span>
+                        <span className="pub-thumbs">
+                          {key.map((e) => <img key={e.card.id} src={img(e.card, view)} alt="" loading="lazy" width={300} height={419} />)}
+                        </span>
+                        <span className="pub-open">Open</span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
+          )}
+        </main>
+
         <section className={`deck ${panel ? 'show' : ''}`}>
           <div className="deck-head">
             <input className="deck-name" placeholder="Untitled deck" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
@@ -465,6 +540,16 @@ export default function App() {
             <button onClick={makePicture} disabled={!total || drawing}>{drawing ? 'Making' : 'Image'}</button>
             <button onClick={() => total && confirmClear(() => setDeck({}))} disabled={!total}>Clear</button>
           </div>
+
+          {account ? (
+            <label className={`public ${total === DECK_SIZE ? '' : 'off'}`}>
+              <input type="checkbox" checked={isPublic && total === DECK_SIZE} disabled={total !== DECK_SIZE} onChange={(e) => setIsPublic(e.target.checked)} />
+              <span>
+                Make this deck public
+                <small>{total === DECK_SIZE ? 'Anyone can see it under Public decks after you save.' : `Only complete ${DECK_SIZE}-card decks can be public.`}</small>
+              </span>
+            </label>
+          ) : null}
 
           {total === 0 ? (
             <p className="empty">Add cards with the + button. A deck is exactly {DECK_SIZE} cards, with up to {MAX_COPIES} copies of the same card name.</p>
@@ -526,9 +611,9 @@ export default function App() {
                 <ul>
                   {cloud.map((d) => (
                     <li key={d.id}>
-                      <button className="row-name" onClick={() => { setDeck(d.cards); setName(d.name); setCloudId(d.id); setNote(`Loaded "${d.name}"`) }}>
+                      <button className="row-name" onClick={() => { setDeck(d.cards); setName(d.name); setCloudId(d.id); setIsPublic(d.isPublic); setNote(`Loaded "${d.name}"`) }}>
                         {d.name}
-                        <small>{Object.values(d.cards).reduce((a, b) => a + b, 0)} cards</small>
+                        <small>{Object.values(d.cards).reduce((a, b) => a + b, 0)} cards{d.isPublic ? ', public' : ''}</small>
                       </button>
                       <button className="link" onClick={() => removeCloud(d)}>Delete</button>
                     </li>
@@ -548,7 +633,7 @@ export default function App() {
               <ul>
                 {saved.map((s) => (
                   <li key={s.id}>
-                    <button className="row-name" onClick={() => { setDeck(s.deck); setName(s.name); setCloudId(null); setNote(`Loaded "${s.name}"`) }}>
+                    <button className="row-name" onClick={() => { setDeck(s.deck); setName(s.name); setCloudId(null); setIsPublic(false); setNote(`Loaded "${s.name}"`) }}>
                       {s.name}
                       <small>{Object.values(s.deck).reduce((a, b) => a + b, 0)} cards</small>
                     </button>
