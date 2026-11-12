@@ -331,7 +331,7 @@ export default function App() {
               <button onClick={leave}>Sign out</button>
             </div>
           ) : (
-            <button className="signin" onClick={() => signInWithGoogle().catch(() => setNote('Sign-in could not start. Please try again.'))}>
+            <button className="signin" onClick={() => signInWithGoogle().catch((e: unknown) => setNote(signInProblem(e)))}>
               Sign in with Google
             </button>
           )
@@ -573,6 +573,14 @@ export default function App() {
       {note ? <div className="toast" role="status">{note}</div> : null}
     </div>
   )
+}
+
+// Neon refuses sign-in from web addresses that are not on its trusted list; say so instead of a vague retry message.
+function signInProblem(e: unknown) {
+  const text = e instanceof Error ? `${e.name} ${e.message}` : String(e)
+  return /callback|origin|trusted|forbidden|403/i.test(text)
+    ? 'Sign-in is not switched on for this web address yet.'
+    : 'Sign-in could not start. Check your connection and try again.'
 }
 
 function confirmClear(run: () => void) {
