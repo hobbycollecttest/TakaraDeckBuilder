@@ -8,6 +8,7 @@ type Card = {
   id: string; no: string; name: string; jp: string; set: string; rarity: string; type: string; color: string
   cost: number | null; power: number | null; boost: number | null; trigger: string; keyword: string; tribe: string
   effect: string; triggerText: string; flavor: string; artist: string
+  v?: number // bumped when a card picture is redone, so browsers fetch the new one
 }
 type View = 'en' | 'jp'
 type Deck = Record<string, number>
@@ -29,7 +30,7 @@ const COLOR_HEX: Record<string, string> = { Red: '#d2332a', Green: '#2f9144', Bl
 
 // The rule counts copies by card name, so every printing of a name shares one limit.
 const nameKey = (c: Card) => c.jp || c.name
-const img = (c: Card, view: View, large = false) => `/cards/horobeat/${view}${large ? '-lg' : ''}/${c.id}.webp`
+const img = (c: Card, view: View, large = false) => `/cards/horobeat/${view}${large ? '-lg' : ''}/${c.id}.webp${c.v && view === 'en' ? `?v=${c.v}` : ''}`
 
 const store = {
   get<T>(key: string, fallback: T): T {
