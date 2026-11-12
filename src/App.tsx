@@ -258,7 +258,7 @@ export default function App() {
         curve: stats.curve,
         groups: TYPES.map((t) => {
           const rows = entries.filter((e) => e.card.type === t)
-          return { label: t, count: rows.reduce((a, r) => a + r.n, 0), cards: rows.map((r) => ({ src: img(r.card, view, true), qty: r.n })) }
+          return { label: t, count: rows.reduce((a, r) => a + r.n, 0), cards: rows.map((r) => ({ src: img(r.card, view), qty: r.n })) }
         }),
         colors: COLORS.filter((c) => stats.color[c]).map((c) => ({ label: c, color: COLOR_HEX[c], count: stats.color[c] })),
         site: location.host,

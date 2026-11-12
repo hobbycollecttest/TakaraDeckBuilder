@@ -11,9 +11,9 @@ const jwks = authBase ? createRemoteJWKSet(new URL(`${authBase}/.well-known/jwks
 const origin = authBase ? new URL(authBase).origin : ''
 const sql = process.env.DATABASE_URL ? neon(process.env.DATABASE_URL) : null
 
-let ready: Promise<unknown> | null = null
-function ensureTable() {
-  ready ??= sql!`
+// The table is only created when a query finds it missing, so normal requests cost one query, not three.
+async function createTable() {
+  await sql!`
     CREATE TABLE IF NOT EXISTS takaradecks_decks (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       user_id text NOT NULL,
@@ -21,8 +21,17 @@ function ensureTable() {
       name text NOT NULL,
       cards jsonb NOT NULL,
       updated_at timestamptz NOT NULL DEFAULT now()
-    )`.then(() => sql!`CREATE INDEX IF NOT EXISTS takaradecks_decks_user ON takaradecks_decks (user_id, updated_at DESC)`)
-  return ready
+    )`
+  await sql!`CREATE INDEX IF NOT EXISTS takaradecks_decks_user ON takaradecks_decks (user_id, updated_at DESC)`
+}
+async function withTable<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run()
+  } catch (err) {
+    if ((err as { code?: string })?.code !== '42P01') throw err
+    await createTable()
+    return run()
+  }
 }
 
 // Signed-in players send the token Neon Auth issued them; it is checked against Neon's public keys.
@@ -60,10 +69,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!user) return res.status(401).json({ error: 'Please sign in again.' })
 
   try {
-    await ensureTable()
-
     if (req.method === 'GET') {
-      const rows = await sql`SELECT id, name, cards, updated_at FROM takaradecks_decks WHERE user_id = ${user} AND game = 'horobeat' ORDER BY updated_at DESC LIMIT ${MAX_DECKS}`
+      const rows = await withTable(() => sql`SELECT id, name, cards, updated_at FROM takaradecks_decks WHERE user_id = ${user} AND game = 'horobeat' ORDER BY updated_at DESC LIMIT ${MAX_DECKS}`)
       return res.status(200).json({ decks: rows.map(shape) })
     }
 
@@ -74,20 +81,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const cards = cleanCards(body.cards)
       if (!game || !cards) return res.status(400).json({ error: 'That deck could not be saved.' })
       const label = name || 'Untitled deck'
+      const json = JSON.stringify(cards)
       if (isUuid(body.id)) {
-        const rows = await sql`UPDATE takaradecks_decks SET name = ${label}, cards = ${JSON.stringify(cards)}::jsonb, updated_at = now() WHERE id = ${body.id} AND user_id = ${user} RETURNING id, name, cards, updated_at`
+        const rows = await withTable(() => sql`UPDATE takaradecks_decks SET name = ${label}, cards = ${json}::jsonb, updated_at = now() WHERE id = ${body.id as string} AND user_id = ${user} RETURNING id, name, cards, updated_at`)
         if (rows.length) return res.status(200).json({ deck: shape(rows[0]) })
       }
-      const [{ n }] = await sql`SELECT count(*)::int AS n FROM takaradecks_decks WHERE user_id = ${user}`
-      if (n >= MAX_DECKS) return res.status(409).json({ error: `You can keep up to ${MAX_DECKS} decks. Delete one to save a new deck.` })
-      const rows = await sql`INSERT INTO takaradecks_decks (user_id, game, name, cards) VALUES (${user}, ${game}, ${label}, ${JSON.stringify(cards)}::jsonb) RETURNING id, name, cards, updated_at`
+      // One statement checks the deck limit and saves, instead of a count followed by an insert.
+      const rows = await withTable(() => sql`
+        INSERT INTO takaradecks_decks (user_id, game, name, cards)
+        SELECT ${user}::text, ${game}::text, ${label}::text, ${json}::jsonb
+        WHERE (SELECT count(*) FROM takaradecks_decks WHERE user_id = ${user}::text) < ${MAX_DECKS}::int
+        RETURNING id, name, cards, updated_at`)
+      if (!rows.length) return res.status(409).json({ error: `You can keep up to ${MAX_DECKS} decks. Delete one to save a new deck.` })
       return res.status(200).json({ deck: shape(rows[0]) })
     }
 
     if (req.method === 'DELETE') {
       const id = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id
       if (!isUuid(id)) return res.status(400).json({ error: 'Unknown deck.' })
-      await sql`DELETE FROM takaradecks_decks WHERE id = ${id} AND user_id = ${user}`
+      await withTable(() => sql`DELETE FROM takaradecks_decks WHERE id = ${id} AND user_id = ${user}`)
       return res.status(200).json({ ok: true })
     }
 
