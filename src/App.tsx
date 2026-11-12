@@ -294,6 +294,15 @@ export default function App() {
     }
   }
 
+  // A new deck is a blank one with no link to a saved deck, so saving it never overwrites the previous deck.
+  function newDeck() {
+    if (total && !window.confirm('Start a new deck? Any changes you have not saved will be lost.')) return
+    setDeck({})
+    setName('')
+    setCloudId(null)
+    setNote('Started a new deck')
+  }
+
   async function removeCloud(d: CloudDeck) {
     if (!window.confirm(`Delete "${d.name}" from your account?`)) return
     try {
@@ -438,6 +447,7 @@ export default function App() {
         <section className={`deck ${panel ? 'show' : ''}`}>
           <div className="deck-head">
             <input className="deck-name" placeholder="Untitled deck" value={name} onChange={(e) => setName(e.target.value)} maxLength={60} />
+            <button className="new" onClick={newDeck}>New deck</button>
             <button className="link only-small" onClick={() => setPanel(false)}>Close</button>
           </div>
           <div className={`meter ${total === DECK_SIZE ? 'ok' : total > DECK_SIZE ? 'over' : ''}`}>
@@ -453,7 +463,7 @@ export default function App() {
             <button onClick={() => copy(shareUrl(), 'Share link copied')} disabled={!total}>Share link</button>
             <button onClick={() => copy(textList(), 'Deck list copied')} disabled={!total}>Copy list</button>
             <button onClick={makePicture} disabled={!total || drawing}>{drawing ? 'Making' : 'Image'}</button>
-            <button onClick={() => total && confirmClear(() => { setDeck({}); setName(''); setCloudId(null) })} disabled={!total}>Clear</button>
+            <button onClick={() => total && confirmClear(() => setDeck({}))} disabled={!total}>Clear</button>
           </div>
 
           {total === 0 ? (
@@ -553,7 +563,6 @@ export default function App() {
 
       <footer className="foot">
         <p>Card images and text © Shogakukan / TOMY. English card text is a reference translation, not an official release.</p>
-        <p>Deck builder by <a href="https://hobbycollect.co">Hobby Collect</a>, official Philippine distributor of HORO-BEAT.</p>
       </footer>
 
       {open ? <Detail card={open} view={view} setView={setView} n={deck[open.id] || 0} copies={copies(open)} canAdd={canAdd(open)} change={change} close={() => setOpen(null)} /> : null}
