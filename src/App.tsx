@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import raw from './horobeat.json'
 import { authReady, currentAccount, signInWithGoogle, signOut, type Account } from './auth'
+import { renderDeckImage } from './deckImage'
 import { deleteDeck, listDecks, saveDeck as saveCloudDeck, type CloudDeck } from './cloud'
 
 type Card = {
@@ -23,7 +24,8 @@ const TRIGGERS = ['Entry Trigger', 'Over Trigger', 'Draw Trigger', 'Last Over Tr
 const KEYWORDS = ['Barrier', 'Double Damage', 'Resonance', 'Ena Reading']
 const SETS = [...new Set(CARDS.map((c) => c.set))].sort()
 const TRIBES = [...new Set(CARDS.map((c) => c.tribe).filter(Boolean))].sort()
-const COSTS = [1, 2, 3, 4, 5, 6, 7, 8]
+const COSTS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+const COLOR_HEX: Record<string, string> = { Red: '#d2332a', Green: '#2f9144', Blue: '#1f79c9' }
 
 // The rule counts copies by card name, so every printing of a name shares one limit.
 const nameKey = (c: Card) => c.jp || c.name
@@ -98,6 +100,8 @@ export default function App() {
   const [cloud, setCloud] = useState<CloudDeck[]>([])
   const [cloudId, setCloudId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [picture, setPicture] = useState<{ url: string; blob: Blob } | null>(null)
+  const [drawing, setDrawing] = useState(false)
 
   useEffect(() => store.set('hb.view', view), [view])
   useEffect(() => store.set('hb.deck', deck), [deck])
@@ -125,7 +129,11 @@ export default function App() {
     return () => clearTimeout(t)
   }, [note])
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(null)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      setOpen(null)
+      closePicture()
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
@@ -160,7 +168,7 @@ export default function App() {
       (c) =>
         (!colors.size || colors.has(c.color)) &&
         (!types.size || types.has(c.type)) &&
-        (!costs.size || (c.cost != null && costs.has(Math.min(c.cost, 8)))) &&
+        (!costs.size || (c.cost != null && costs.has(Math.min(c.cost, 10)))) &&
         (!rarities.size || rarities.has(c.rarity)) &&
         (!triggers.size || triggers.has(c.trigger)) &&
         (!keywords.size || [...keywords].some((k) => c.keyword.includes(k))) &&
@@ -191,7 +199,7 @@ export default function App() {
     const trig: Record<string, number> = {}
     let horobeat = 0
     for (const { card, n } of entries) {
-      if (card.cost != null) curve[Math.min(card.cost, 8) - 1] += n
+      if (card.cost != null) curve[Math.min(Math.max(card.cost, 1), 10) - 1] += n
       color[card.color] = (color[card.color] || 0) + n
       if (card.trigger) trig[card.trigger] = (trig[card.trigger] || 0) + n
       if (card.type === 'Horobeat') horobeat += n
@@ -236,6 +244,53 @@ export default function App() {
     }
     setSaved((s) => [{ id: String(Date.now()), name: label, deck, at: Date.now() }, ...s.filter((x) => x.name !== label)].slice(0, 30))
     setNote(`Saved "${label}" on this device`)
+  }
+
+  const fileName = () => `${(name.trim() || 'horobeat-deck').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'horobeat-deck'}.png`
+  async function makePicture() {
+    if (!total || drawing) return
+    setDrawing(true)
+    try {
+      const blob = await renderDeckImage({
+        name: name.trim(),
+        total,
+        size: DECK_SIZE,
+        groups: TYPES.map((t) => {
+          const rows = entries.filter((e) => e.card.type === t)
+          return { label: t, count: rows.reduce((a, r) => a + r.n, 0), cards: rows.map((r) => ({ src: img(r.card, view, true), qty: r.n })) }
+        }),
+        colors: COLORS.filter((c) => stats.color[c]).map((c) => ({ label: c, color: COLOR_HEX[c], count: stats.color[c] })),
+        site: location.host,
+      })
+      setPicture((old) => {
+        if (old) URL.revokeObjectURL(old.url)
+        return { url: URL.createObjectURL(blob), blob }
+      })
+    } catch (e) {
+      setNote((e as Error).message)
+    } finally {
+      setDrawing(false)
+    }
+  }
+  function closePicture() {
+    setPicture((old) => {
+      if (old) URL.revokeObjectURL(old.url)
+      return null
+    })
+  }
+  const pictureFile = () => (picture ? new File([picture.blob], fileName(), { type: 'image/png' }) : null)
+  const canShare = () => {
+    const f = pictureFile()
+    return Boolean(f && navigator.canShare?.({ files: [f] }))
+  }
+  async function sharePicture() {
+    const f = pictureFile()
+    if (!f) return
+    try {
+      await navigator.share({ files: [f], title: name.trim() || 'HORO-BEAT deck' })
+    } catch {
+      /* the share sheet was closed */
+    }
   }
 
   async function removeCloud(d: CloudDeck) {
@@ -304,9 +359,9 @@ export default function App() {
             {TYPES.map((t) => <Check key={t} label={t} on={types.has(t)} onChange={() => setTypes(toggle(types, t))} />)}
           </Group>
           <Group title="Cost">
-            <div className="costs">
+            <div className="costs five">
               {COSTS.map((n) => (
-                <button key={n} className={costs.has(n) ? 'on' : ''} onClick={() => setCosts(toggle(costs, n))}>{n === 8 ? '8+' : n}</button>
+                <button key={n} className={costs.has(n) ? 'on' : ''} onClick={() => setCosts(toggle(costs, n))}>{n}</button>
               ))}
             </div>
           </Group>
@@ -396,6 +451,7 @@ export default function App() {
             <button onClick={saveDeck} disabled={!total || busy}>{busy ? 'Saving' : 'Save'}</button>
             <button onClick={() => copy(shareUrl(), 'Share link copied')} disabled={!total}>Share link</button>
             <button onClick={() => copy(textList(), 'Deck list copied')} disabled={!total}>Copy list</button>
+            <button onClick={makePicture} disabled={!total || drawing}>{drawing ? 'Making' : 'Image'}</button>
             <button onClick={() => total && confirmClear(() => { setDeck({}); setName(''); setCloudId(null) })} disabled={!total}>Clear</button>
           </div>
 
@@ -436,7 +492,7 @@ export default function App() {
                     <div key={i} className="col">
                       <span>{n || ''}</span>
                       <i style={{ height: `${(n / maxCurve) * 100}%` }} />
-                      <em>{i === 7 ? '8+' : i + 1}</em>
+                      <em>{i + 1}</em>
                     </div>
                   ))}
                 </div>
@@ -500,6 +556,19 @@ export default function App() {
       </footer>
 
       {open ? <Detail card={open} view={view} setView={setView} n={deck[open.id] || 0} copies={copies(open)} canAdd={canAdd(open)} change={change} close={() => setOpen(null)} /> : null}
+      {picture ? (
+        <div className="modal" onClick={closePicture}>
+          <div className="sheet picture" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Deck image">
+            <button className="x" onClick={closePicture} aria-label="Close">×</button>
+            <img src={picture.url} alt={`Picture of ${name.trim() || 'your deck'}`} />
+            <div className="picture-actions">
+              <a className="btn" href={picture.url} download={fileName()}>Download image</a>
+              {canShare() ? <button className="btn" onClick={sharePicture}>Share</button> : null}
+              <span>Cards are shown in {view === 'en' ? 'English' : 'Japanese'}. Switch the card language to change this.</span>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {note ? <div className="toast" role="status">{note}</div> : null}
     </div>
   )
