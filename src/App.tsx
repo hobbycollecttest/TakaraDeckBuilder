@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import raw from './horobeat.json'
+import { authReady, currentAccount, signInWithGoogle, signOut, type Account } from './auth'
+import { deleteDeck, listDecks, saveDeck as saveCloudDeck, type CloudDeck } from './cloud'
 
 type Card = {
   id: string; no: string; name: string; jp: string; set: string; rarity: string; type: string; color: string
@@ -92,6 +94,10 @@ export default function App() {
   const [panel, setPanel] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [note, setNote] = useState('')
+  const [account, setAccount] = useState<Account | null>(null)
+  const [cloud, setCloud] = useState<CloudDeck[]>([])
+  const [cloudId, setCloudId] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => store.set('hb.view', view), [view])
   useEffect(() => store.set('hb.deck', deck), [deck])
@@ -100,6 +106,19 @@ export default function App() {
   useEffect(() => {
     if (shared) history.replaceState(null, '', location.pathname)
   }, [shared])
+  useEffect(() => {
+    let live = true
+    currentAccount().then((a) => live && setAccount(a))
+    return () => {
+      live = false
+    }
+  }, [])
+  useEffect(() => {
+    if (!account) return setCloud([])
+    listDecks()
+      .then(setCloud)
+      .catch((e: Error) => setNote(e.message))
+  }, [account])
   useEffect(() => {
     if (!note) return
     const t = setTimeout(() => setNote(''), 2200)
@@ -198,11 +217,41 @@ export default function App() {
   const textList = () =>
     [name || 'Untitled deck', `${total}/${DECK_SIZE} cards`, '', ...entries.map(({ card, n }) => `${n} ${card.no} ${view === 'jp' && card.jp ? card.jp : card.name}`)].join('\n')
 
-  function saveDeck() {
-    if (!total) return
+  async function saveDeck() {
+    if (!total || busy) return
     const label = name.trim() || 'Untitled deck'
+    if (account) {
+      setBusy(true)
+      try {
+        const saved = await saveCloudDeck({ id: cloudId ?? undefined, name: label, cards: deck })
+        setCloudId(saved.id)
+        setCloud((all) => [saved, ...all.filter((d) => d.id !== saved.id)])
+        setNote(`Saved "${saved.name}" to your account`)
+      } catch (e) {
+        setNote((e as Error).message)
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
     setSaved((s) => [{ id: String(Date.now()), name: label, deck, at: Date.now() }, ...s.filter((x) => x.name !== label)].slice(0, 30))
     setNote(`Saved "${label}" on this device`)
+  }
+
+  async function removeCloud(d: CloudDeck) {
+    if (!window.confirm(`Delete "${d.name}" from your account?`)) return
+    try {
+      await deleteDeck(d.id)
+      setCloud((all) => all.filter((x) => x.id !== d.id))
+      if (cloudId === d.id) setCloudId(null)
+    } catch (e) {
+      setNote((e as Error).message)
+    }
+  }
+  async function leave() {
+    await signOut()
+    setAccount(null)
+    setCloudId(null)
   }
 
   const status = total === DECK_SIZE ? 'Deck is legal' : total < DECK_SIZE ? `${DECK_SIZE - total} more to reach ${DECK_SIZE}` : `${total - DECK_SIZE} over the ${DECK_SIZE}-card limit`
@@ -219,6 +268,18 @@ export default function App() {
           <button className={view === 'en' ? 'on' : ''} onClick={() => setView('en')}>English</button>
           <button className={view === 'jp' ? 'on' : ''} onClick={() => setView('jp')}>日本語</button>
         </div>
+        {authReady ? (
+          account ? (
+            <div className="who">
+              <span title={account.email}>{account.name}</span>
+              <button onClick={leave}>Sign out</button>
+            </div>
+          ) : (
+            <button className="signin" onClick={() => signInWithGoogle().catch(() => setNote('Sign-in could not start. Please try again.'))}>
+              Sign in with Google
+            </button>
+          )
+        ) : null}
         <button className="deck-toggle" onClick={() => setPanel(true)}>
           Deck <b>{total}</b>/{DECK_SIZE}
         </button>
@@ -332,10 +393,10 @@ export default function App() {
           </div>
 
           <div className="actions">
-            <button onClick={saveDeck} disabled={!total}>Save</button>
+            <button onClick={saveDeck} disabled={!total || busy}>{busy ? 'Saving' : 'Save'}</button>
             <button onClick={() => copy(shareUrl(), 'Share link copied')} disabled={!total}>Share link</button>
             <button onClick={() => copy(textList(), 'Deck list copied')} disabled={!total}>Copy list</button>
-            <button onClick={() => total && confirmClear(() => { setDeck({}); setName('') })} disabled={!total}>Clear</button>
+            <button onClick={() => total && confirmClear(() => { setDeck({}); setName(''); setCloudId(null) })} disabled={!total}>Clear</button>
           </div>
 
           {total === 0 ? (
@@ -391,13 +452,36 @@ export default function App() {
             </>
           )}
 
+          {account ? (
+            <div className="saved">
+              <h3>Your decks <span>{cloud.length}</span></h3>
+              {cloud.length ? (
+                <ul>
+                  {cloud.map((d) => (
+                    <li key={d.id}>
+                      <button className="row-name" onClick={() => { setDeck(d.cards); setName(d.name); setCloudId(d.id); setNote(`Loaded "${d.name}"`) }}>
+                        {d.name}
+                        <small>{Object.values(d.cards).reduce((a, b) => a + b, 0)} cards</small>
+                      </button>
+                      <button className="link" onClick={() => removeCloud(d)}>Delete</button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty">No saved decks yet. Build one and press Save.</p>
+              )}
+            </div>
+          ) : authReady ? (
+            <p className="hint">Sign in with Google to keep your decks on your account and open them on any device.</p>
+          ) : null}
+
           {saved.length ? (
             <div className="saved">
               <h3>Saved on this device</h3>
               <ul>
                 {saved.map((s) => (
                   <li key={s.id}>
-                    <button className="row-name" onClick={() => { setDeck(s.deck); setName(s.name); setNote(`Loaded "${s.name}"`) }}>
+                    <button className="row-name" onClick={() => { setDeck(s.deck); setName(s.name); setCloudId(null); setNote(`Loaded "${s.name}"`) }}>
                       {s.name}
                       <small>{Object.values(s.deck).reduce((a, b) => a + b, 0)} cards</small>
                     </button>

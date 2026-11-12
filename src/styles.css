@@ -35,6 +35,11 @@ a { color: inherit; }
 .seg.small { border-color: var(--line); margin-top: 10px; }
 .seg.small button { color: var(--ink-2); }
 .seg.small button.on { background: var(--ink); color: #fff; }
+.signin, .who button { border: 1px solid #4a4a50; background: none; color: #fff; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+.signin:hover, .who button:hover { background: #fff; color: var(--ink); }
+.who { display: flex; align-items: center; gap: 10px; font-size: 13px; color: #c9c9ce; }
+.who span { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hint { margin-bottom: 18px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 13px; }
 .deck-toggle { display: none; white-space: nowrap; border: 1px solid #4a4a50; background: none; color: #fff; padding: 6px 12px; font-size: 13px; }
 .deck-toggle b { font-family: var(--cond); font-size: 15px; }
 
@@ -155,6 +160,8 @@ select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); backgroun
   .brand-game { font-size: 17px; letter-spacing: 0.04em; }
   .seg button { padding: 6px 8px; font-size: 12px; }
   .deck-toggle { padding: 6px 9px; }
+  .signin, .who button { padding: 6px 8px; font-size: 12px; }
+  .who span { display: none; }
   .layout { grid-template-columns: minmax(0, 1fr); }
   .pool { padding: 12px 12px 50px; border: 0; }
   .filters { display: none; position: fixed; inset: 52px 0 0 0; z-index: 30; max-height: none; background: var(--page); padding: 14px 16px 40px; }
