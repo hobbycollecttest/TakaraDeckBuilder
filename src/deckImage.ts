@@ -3,6 +3,7 @@ export type DeckImageInput = {
   name: string
   total: number
   size: number
+  curve: number[]
   groups: { label: string; count: number; cards: ImageCard[] }[]
   colors: { label: string; color: string; count: number }[]
   site: string
@@ -14,6 +15,9 @@ const COLS = 8
 const GAP = 16
 const CARD_W = (W - PAD * 2 - GAP * (COLS - 1)) / COLS
 const CARD_H = CARD_W * (838 / 600)
+const BAR_W = 26
+const BAR_GAP = 10
+const CURVE_W = BAR_W * 10 + BAR_GAP * 9
 const SANS = "'IBM Plex Sans', system-ui, sans-serif"
 const COND = "'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif"
 
@@ -65,10 +69,29 @@ export async function renderDeckImage(input: DeckImageInput): Promise<Blob> {
   // header
   ctx.fillStyle = '#ffffff'
   ctx.font = `600 54px ${SANS}`
-  ctx.fillText(fit(ctx, input.name || 'Untitled deck', W - PAD * 2 - 260), PAD, PAD + 58)
+  ctx.fillText(fit(ctx, input.name || 'Untitled deck', W - PAD * 2 - 260 - CURVE_W - 60), PAD, PAD + 58)
   ctx.font = `700 22px ${COND}`
   ctx.fillStyle = '#b9b9be'
   ctx.fillText('HORO-BEAT', PAD, PAD + 100)
+  // cost curve, between the name and the count
+  const peak = Math.max(1, ...input.curve)
+  const cx = W - PAD - 250 - CURVE_W
+  const base = PAD + 76
+  ctx.textAlign = 'center'
+  input.curve.forEach((n, i) => {
+    const x = cx + i * (BAR_W + BAR_GAP)
+    const h = n ? Math.max(3, (n / peak) * 52) : 1
+    ctx.fillStyle = n ? '#ffffff' : '#3a3a40'
+    ctx.fillRect(x, base - h, BAR_W, h)
+    if (n) {
+      ctx.font = `600 16px ${COND}`
+      ctx.fillStyle = '#d6d6da'
+      ctx.fillText(String(n), x + BAR_W / 2, base - h - 6)
+    }
+    ctx.font = `500 16px ${COND}`
+    ctx.fillStyle = '#8a8b91'
+    ctx.fillText(String(i + 1), x + BAR_W / 2, base + 22)
+  })
   ctx.textAlign = 'right'
   ctx.fillStyle = '#ffffff'
   ctx.font = `700 64px ${COND}`

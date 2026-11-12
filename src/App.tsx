@@ -255,6 +255,7 @@ export default function App() {
         name: name.trim(),
         total,
         size: DECK_SIZE,
+        curve: stats.curve,
         groups: TYPES.map((t) => {
           const rows = entries.filter((e) => e.card.type === t)
           return { label: t, count: rows.reduce((a, r) => a + r.n, 0), cards: rows.map((r) => ({ src: img(r.card, view, true), qty: r.n })) }
