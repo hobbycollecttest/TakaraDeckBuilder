@@ -8,10 +8,10 @@ PAGES = {
                   desc='The full HORO-BEAT Comprehensive Rules translated into English: card types, zones, setup, turn flow, battles, effects and keywords.'),
     'faq': dict(title='HORO-BEAT FAQ: Official Rulings in English', nav='FAQ',
                 desc='Official HORO-BEAT FAQ rulings from Takara Tomy in English: battle order, Ena colors for Boost and Overbeat, triggers, and card-specific answers.'),
-    'haikyu/rules': dict(title='How to Play Haikyu!! VOBACA!! BREAK', nav='Rules', src='haikyu-rules',
-                         desc='A plain-English guide to Haikyu!! VOBACA!! BREAK: deck rules, card types, setup, serving, blocking, receiving, keywords and how to win.'),
+    'haikyu/rules': dict(title='Haikyu!! VOBACA!! BREAK Official Rules', nav='Rules', src='haikyu-rules',
+                         desc='Official English rules for Haikyu!! VOBACA!! BREAK from Takara Tomy: rule sheet, how to play videos, deck rules and rulings by topic.'),
     'haikyu/faq': dict(title='Haikyu!! VOBACA!! BREAK FAQ', nav='FAQ', src='haikyu-faq',
-                       desc='Common Haikyu!! VOBACA!! BREAK rules questions answered in plain English: deck building, Guts, Event cards, declaring Lost and skills.'),
+                       desc='Official English questions and answers for Haikyu!! VOBACA!! BREAK from Takara Tomy, by topic.'),
 }
 strip = lambda s: html.unescape(re.sub(r'<[^>]+>', '', s)).strip()
 slug = lambda s: re.sub(r'[^a-z0-9]+', '-', strip(s).lower()).strip('-')[:60]
