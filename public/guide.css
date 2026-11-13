@@ -56,3 +56,4 @@ a { color: inherit; }
 :root[data-game='haikyu'] .brand-game, :root[data-game='haikyu'] .doc h1, :root[data-game='haikyu'] .doc h2 { font-family: 'Montserrat', sans-serif; font-style: italic; font-weight: 800; letter-spacing: 0; }
 :root[data-game='haikyu'] .doc h2 { border-top: 4px solid #f07800; }
 @media (max-width: 760px) { .games a { height: 58px; padding: 8px 16px; } .links { gap: 10px; font-size: 12px; } .links .build { display: none; } }
+.doc img { display: block; width: 100%; height: auto; margin: 6px 0 14px; border: 1px solid var(--line); }

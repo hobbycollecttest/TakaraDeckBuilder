@@ -4,6 +4,8 @@ import html, json, re
 
 SITE = 'https://takaradecks.vercel.app'
 PAGES = {
+    'how-to-play': dict(title='How to Play HORO-BEAT', nav='How to play',
+                        desc='Learn HORO-BEAT in twelve steps: deck, battlefield, setup, rounds, Ena, battles, damage, Triggers, Waza and Overbeat.'),
     'rules': dict(title='HORO-BEAT Comprehensive Rules in English', nav='Rules',
                   desc='The full HORO-BEAT Comprehensive Rules translated into English: card types, zones, setup, turn flow, battles, effects and keywords.'),
     'faq': dict(title='HORO-BEAT FAQ: Official Rulings in English', nav='FAQ',
