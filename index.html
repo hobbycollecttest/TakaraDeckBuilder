@@ -4,13 +4,38 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>HORO-BEAT Deck Builder | TakaraDecks</title>
-    <meta name="description" content="Build, check and share HORO-BEAT decks. All cards in English and Japanese, with the official 50-card rules built in." />
+    <meta name="description" content="Free HORO-BEAT deck builder with all 194 cards in English and Japanese. Build a 50-card deck, check it against the official rules, save it, and share it as a picture." />
+    <link rel="canonical" href="https://takaradecks.vercel.app/" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <meta name="theme-color" content="#17171a" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TakaraDecks" />
+    <meta property="og:title" content="HORO-BEAT Deck Builder" />
+    <meta property="og:description" content="Free HORO-BEAT deck builder with all 194 cards in English and Japanese. Build a 50-card deck, check it against the official rules, save it, and share it as a picture." />
+    <meta property="og:url" content="https://takaradecks.vercel.app/" />
+    <meta property="og:image" content="https://takaradecks.vercel.app/share.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="HORO-BEAT Deck Builder" />
+    <meta name="twitter:description" content="Free HORO-BEAT deck builder with all 194 cards in English and Japanese. Build a 50-card deck, check it against the official rules, save it, and share it as a picture." />
+    <meta name="twitter:image" content="https://takaradecks.vercel.app/share.jpg" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebApplication","name":"TakaraDecks HORO-BEAT Deck Builder","url":"https://takaradecks.vercel.app/","applicationCategory":"GameApplication","operatingSystem":"Any","inLanguage":["en","ja"],"description":"Free HORO-BEAT deck builder with all 194 cards in English and Japanese. Build a 50-card deck, check it against the official rules, save it, and share it as a picture.","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"}}
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown until the app loads, and read by search engines and link previews. -->
+      <main style="max-width: 640px; margin: 80px auto; padding: 0 20px; font-family: sans-serif">
+        <h1>HORO-BEAT Deck Builder</h1>
+        <p>Build, check and share decks for the HORO-BEAT trading card game by Takara Tomy. All 194 cards are here in English and in the original Japanese, with the official rules built in: exactly 50 cards and up to 4 copies of each card.</p>
+        <p>Search and filter cards by color, cost, type and tribe, see your cost curve, save decks to your account, browse public decks from other players, and download a picture of your deck to share.</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
