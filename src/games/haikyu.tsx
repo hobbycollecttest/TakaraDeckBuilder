@@ -16,6 +16,7 @@ const SCHOOL_HEX: Record<string, string> = {
   Itachiyama: '#9aa300', Kamomedai: '#3d7edb',
 }
 const OTHER = '#6d6e75'
+const LANGS = ['Official English', 'Translated picture', 'Japanese picture only']
 const count = new Map<string, number>()
 for (const c of CARDS) for (const s of c.schools) count.set(s, (count.get(s) || 0) + 1)
 const SCHOOLS = [...count.keys()].sort((a, b) => count.get(b)! - count.get(a)! || a.localeCompare(b))
@@ -24,7 +25,7 @@ const bucket = (c: Card) => (c.type === 'Event' ? 5 : POS.includes(h(c).pos[0]) 
 const byName = (a: Card, b: Card) => a.name.localeCompare(b.name)
 const byNo = (a: Card, b: Card) => a.no.localeCompare(b.no) || RARITIES.indexOf(a.rarity) - RARITIES.indexOf(b.rarity)
 const stat = (key: 'sv' | 'bl' | 'rc' | 'st' | 'at') => (a: Card, b: Card) => (h(b)[key] ?? -1) - (h(a)[key] ?? -1) || byNo(a, b)
-// Cards with no official English printing show the Japanese picture, with the English text beside it.
+// en: 1 = official English picture, 2 = our translated picture, 0 = Japanese picture only (special printings).
 const folder = (c: Card, view: 'en' | 'jp') => (view === 'en' && h(c).en ? 'en' : 'jp')
 
 const game: Game = {
@@ -45,7 +46,7 @@ const game: Game = {
     { key: 'type', title: 'Type', kind: 'checks', options: ['Character', 'Event'], values: (c) => [c.type] },
     { key: 'pos', title: 'Position', kind: 'nums', cols: 5, options: [...POS, 'Other'], values: position },
     { key: 'year', title: 'Year', kind: 'nums', cols: 3, options: ['1st Year', '2nd Year', '3rd Year'], label: (y) => y.replace(' Year', ''), values: (c) => h(c).years },
-    { key: 'en', title: 'Card language', kind: 'checks', options: ['Official English card', 'Japanese only'], values: (c) => [h(c).en ? 'Official English card' : 'Japanese only'] },
+    { key: 'en', title: 'Card language', kind: 'checks', options: LANGS, values: (c) => [LANGS[h(c).en === 1 ? 0 : h(c).en === 2 ? 1 : 2]] },
     { key: 'rarity', title: 'Rarity', kind: 'select', options: RARITIES, values: (c) => [c.rarity] },
     { key: 'set', title: 'Set', kind: 'select', options: [...new Set(CARDS.map((c) => c.set))], values: (c) => [c.set] },
   ],
@@ -83,7 +84,11 @@ const game: Game = {
         {c.text ? <p className="text">{c.text}</p> : null}
         {c.note ? <p className="text note">{c.note}</p> : null}
         <p className="flavor">
-          {c.en ? 'This card has an official English printing. The English picture and text are the official ones.' : 'This card has no official English printing yet. The English text is a reference translation by Hobby Collect.'}
+          {c.en === 1
+            ? 'This card has an official English printing. The English picture and text are the official ones.'
+            : c.en === 2
+              ? 'This card has no official English printing yet. The English picture and text are a reference translation by Hobby Collect.'
+              : 'This special printing is shown with its original Japanese picture. The English text is a reference translation by Hobby Collect.'}
         </p>
       </>
     )
