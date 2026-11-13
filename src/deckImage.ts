@@ -1,6 +1,9 @@
 export type ImageCard = { src: string; qty: number }
 export type DeckImageInput = {
   name: string
+  brand: string
+  curveLabels: string[]
+  legal: boolean
   total: number
   size: number
   curve: number[]
@@ -15,9 +18,7 @@ const COLS = 8
 const GAP = 16
 const CARD_W = (W - PAD * 2 - GAP * (COLS - 1)) / COLS
 const CARD_H = CARD_W * (838 / 600)
-const BAR_W = 26
-const BAR_GAP = 10
-const CURVE_W = BAR_W * 10 + BAR_GAP * 9
+const CURVE_W = 350
 const SANS = "'IBM Plex Sans', system-ui, sans-serif"
 const COND = "'IBM Plex Sans Condensed', 'IBM Plex Sans', system-ui, sans-serif"
 
@@ -50,6 +51,8 @@ function fit(ctx: CanvasRenderingContext2D, text: string, max: number) {
 // Draws the deck as one picture: name and count on top, every card with its quantity, colors and site at the bottom.
 export async function renderDeckImage(input: DeckImageInput): Promise<Blob> {
   await document.fonts?.ready
+  const BAR_GAP = input.curve.length >= 10 ? 10 : 16
+  const BAR_W = (CURVE_W - BAR_GAP * (input.curve.length - 1)) / input.curve.length
   const groups = input.groups.filter((g) => g.cards.length)
   const rows = (n: number) => Math.ceil(n / COLS)
   const HEAD = 150
@@ -72,7 +75,7 @@ export async function renderDeckImage(input: DeckImageInput): Promise<Blob> {
   ctx.fillText(fit(ctx, input.name || 'Untitled deck', W - PAD * 2 - 260 - CURVE_W - 60), PAD, PAD + 58)
   ctx.font = `700 22px ${COND}`
   ctx.fillStyle = '#b9b9be'
-  ctx.fillText('HORO-BEAT', PAD, PAD + 100)
+  ctx.fillText(input.brand, PAD, PAD + 100)
   // cost curve, between the name and the count
   const peak = Math.max(1, ...input.curve)
   const cx = W - PAD - 250 - CURVE_W
@@ -90,7 +93,7 @@ export async function renderDeckImage(input: DeckImageInput): Promise<Blob> {
     }
     ctx.font = `500 16px ${COND}`
     ctx.fillStyle = '#8a8b91'
-    ctx.fillText(String(i + 1), x + BAR_W / 2, base + 22)
+    ctx.fillText(input.curveLabels[i], x + BAR_W / 2, base + 22)
   })
   ctx.textAlign = 'right'
   ctx.fillStyle = '#ffffff'
@@ -104,8 +107,8 @@ export async function renderDeckImage(input: DeckImageInput): Promise<Blob> {
   ctx.font = `700 64px ${COND}`
   ctx.fillText(String(input.total), W - PAD - sizeW - 4, PAD + 58)
   ctx.font = `500 22px ${SANS}`
-  ctx.fillStyle = input.total === input.size ? '#6fcf8a' : '#e0786f'
-  ctx.fillText(input.total === input.size ? 'Legal deck' : input.total < input.size ? `${input.size - input.total} cards short` : `${input.total - input.size} cards over`, W - PAD, PAD + 100)
+  ctx.fillStyle = input.legal ? '#6fcf8a' : '#e0786f'
+  ctx.fillText(input.legal ? 'Legal deck' : input.total === input.size ? 'Not a legal deck' : input.total < input.size ? `${input.size - input.total} cards short` : `${input.total - input.size} cards over`, W - PAD, PAD + 100)
   ctx.textAlign = 'left'
   ctx.fillStyle = '#3a3a40'
   ctx.fillRect(PAD, PAD + HEAD - 22, W - PAD * 2, 1)

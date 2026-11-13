@@ -8,13 +8,18 @@ PAGES = {
                   desc='The full HORO-BEAT Comprehensive Rules translated into English: card types, zones, setup, turn flow, battles, effects and keywords.'),
     'faq': dict(title='HORO-BEAT FAQ: Official Rulings in English', nav='FAQ',
                 desc='Official HORO-BEAT FAQ rulings from Takara Tomy in English: battle order, Ena colors for Boost and Overbeat, triggers, and card-specific answers.'),
+    'haikyu/rules': dict(title='Haikyu!! VOBACA!! BREAK Official Rules', nav='Rules', src='haikyu-rules',
+                         desc='Official English rules for Haikyu!! VOBACA!! BREAK from Takara Tomy: rule sheet, how to play videos, deck rules and rulings by topic.'),
+    'haikyu/faq': dict(title='Haikyu!! VOBACA!! BREAK FAQ', nav='FAQ', src='haikyu-faq',
+                       desc='Official English questions and answers for Haikyu!! VOBACA!! BREAK from Takara Tomy, by topic.'),
 }
 strip = lambda s: html.unescape(re.sub(r'<[^>]+>', '', s)).strip()
 slug = lambda s: re.sub(r'[^a-z0-9]+', '-', strip(s).lower()).strip('-')[:60]
 
 def build(key):
     page = PAGES[key]
-    body = open(f'content/{key}.html', encoding='utf8').read()
+    hv = key.startswith('haikyu/')
+    body = open(f'content/{page.get("src", key)}.html', encoding='utf8').read()
     body = body.replace('href="/blog/horo-beat-faq"', 'href="/faq"').replace('href="/blog/horo-beat-comprehensive-rules"', 'href="/rules"')
     toc, used = [], set()
     def anchor(m):
@@ -32,7 +37,7 @@ def build(key):
             '@context': 'https://schema.org', '@type': 'FAQPage',
             'mainEntity': [{'@type': 'Question', 'name': strip(q), 'acceptedAnswer': {'@type': 'Answer', 'text': re.sub(r'\s+', ' ', strip(a))}} for q, a in qa],
         }, ensure_ascii=False) + '</script>'
-    nav = ''.join(f'<a href="/{k}"{" aria-current=page" if k == key else ""}>{p["nav"]}</a>' for k, p in PAGES.items())
+    nav = ''.join(f'<a href="/{k}"{" aria-current=page" if k == key else ""}>{p["nav"]}</a>' for k, p in PAGES.items() if k.startswith('haikyu/') == hv)
     contents = ''.join(f'<li><a href="#{i}">{html.escape(t)}</a></li>' for i, t in toc)
     out = f'''<!doctype html>
 <html lang="en">
@@ -59,8 +64,8 @@ def build(key):
   </head>
   <body>
     <header class="top">
-      <a class="brand" href="/"><span class="brand-game">HORO-BEAT</span><span class="brand-tool">Deck Builder</span></a>
-      <nav class="links">{nav}<a class="build" href="/">Build a deck</a></nav>
+      <a class="brand" href="{'/haikyu' if hv else '/'}"><span class="brand-game">{'HAIKYU!!' if hv else 'HORO-BEAT'}</span><span class="brand-tool">Deck Builder</span></a>
+      <nav class="links">{nav}<a class="build" href="{'/haikyu' if hv else '/'}">Build a deck</a></nav>
     </header>
     <div class="wrap">
       <aside class="toc"><h2>On this page</h2><ol>{contents}</ol></aside>
@@ -72,6 +77,7 @@ def build(key):
   </body>
 </html>
 '''
+    __import__('os').makedirs('public/haikyu', exist_ok=True)
     open(f'public/{key}.html', 'w', encoding='utf8').write(out)
     print(key, len(out), len(toc))
 

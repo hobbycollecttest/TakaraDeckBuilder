@@ -221,3 +221,10 @@ select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); backgroun
   .sheet-art { max-width: 300px; margin: 0 auto; }
   .facts { grid-template-columns: 1fr; }
 }
+
+select.brand-game { width: auto; flex: none; appearance: none; -webkit-appearance: none; border: 0; background: none; color: inherit; padding: 4px 18px 4px 0; cursor: pointer; background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%); background-position: calc(100% - 9px) 55%, calc(100% - 4px) 55%; background-size: 5px 5px; background-repeat: no-repeat; }
+select.brand-game option { color: #17171a; font: 500 15px var(--sans); letter-spacing: 0; }
+.pip.two { font-size: 10.5px; letter-spacing: -0.02em; }
+.text.note { color: var(--ink-2); font-size: 13px; }
+.ptag { padding: 7px 9px; }
+.brand-tool { white-space: nowrap; }
