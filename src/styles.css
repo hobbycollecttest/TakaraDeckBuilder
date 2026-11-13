@@ -250,26 +250,23 @@ select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); backgroun
 .chip.on { border-color: var(--hi); box-shadow: inset 0 0 0 1px var(--hi); }
 .check input, .public input { accent-color: var(--hi); }
 
-/* ---------- HORO-BEAT: night and gold */
+/* ---------- HORO-BEAT: warm paper, vermilion and gold */
 :root[data-game='horobeat'] {
-  --ink: #f0e7d4; --ink-2: #b9ae99; --ink-3: #8b8172; --line: #3a3340; --line-2: #2b2630; --page: #110e13; --panel: #1a161d;
-  --accent: #d9a441; --ok: #7fd08e; --on-ink: #16121a; --bar: #08070a; --hi: #cfb47a; --disp: 'Cinzel', 'IBM Plex Sans Condensed', serif;
-  color-scheme: dark;
+  --ink: #241a16; --ink-2: #5e5048; --ink-3: #94857a; --line: #e2d6c2; --line-2: #efe7d8; --page: #f6efe2; --panel: #fffdf8;
+  --accent: #b3261e; --ok: #1f7a3d; --on-ink: #fff; --bar: #5c1512; --hi: #b3261e; --disp: 'Cinzel', 'IBM Plex Sans Condensed', serif;
 }
-:root[data-game='horobeat'] body { background: radial-gradient(1200px 600px at 85% -10%, rgba(120, 60, 160, 0.20), transparent 60%), radial-gradient(900px 500px at -10% 30%, rgba(207, 180, 122, 0.10), transparent 60%), var(--page); background-attachment: fixed; }
-:root[data-game='horobeat'] .top { border-bottom: 1px solid #6f5a2c; }
-:root[data-game='horobeat'] .brand-game { color: #e2c98f; letter-spacing: 0.12em; font-weight: 700; }
-:root[data-game='horobeat'] .tabs, :root[data-game='horobeat'] .pool { background: rgba(26, 22, 29, 0.88); }
-:root[data-game='horobeat'] .group legend, :root[data-game='horobeat'] .deck h3 { color: #cfb47a; letter-spacing: 0.12em; }
-:root[data-game='horobeat'] .deck h3 { border-color: #6f5a2c; }
-:root[data-game='horobeat'] .facts { border-color: #6f5a2c; }
-:root[data-game='horobeat'] .meter-num { font-family: var(--disp); color: #e2c98f; }
-:root[data-game='horobeat'] .bar i, :root[data-game='horobeat'] .col i { background: #cfb47a; }
-:root[data-game='horobeat'] .art img { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55); }
-:root[data-game='horobeat'] .new, :root[data-game='horobeat'] .pub-open, :root[data-game='horobeat'] .sheet-actions button { border-color: #6f5a2c; }
-:root[data-game='horobeat'] .btn { background: #cfb47a; border-color: #cfb47a; }
-:root[data-game='horobeat'] .toast { background: #cfb47a; }
-:root[data-game='horobeat'] .sheet { border: 1px solid #6f5a2c; box-shadow: 0 0 60px rgba(120, 60, 160, 0.25); }
+:root[data-game='horobeat'] body { background: radial-gradient(1100px 520px at 88% -8%, rgba(179, 38, 30, 0.10), transparent 62%), radial-gradient(900px 500px at -10% 30%, rgba(190, 150, 70, 0.14), transparent 60%), var(--page); background-attachment: fixed; }
+:root[data-game='horobeat'] .top { background: linear-gradient(90deg, #6b1814, #8f211b); border-bottom: 3px solid #c9a55a; }
+:root[data-game='horobeat'] .brand-game { color: #f3dfae; letter-spacing: 0.12em; font-weight: 700; }
+:root[data-game='horobeat'] .seg, :root[data-game='horobeat'] .signin, :root[data-game='horobeat'] .who button, :root[data-game='horobeat'] .deck-toggle { border-color: rgba(243, 223, 174, 0.55); }
+:root[data-game='horobeat'] .group legend, :root[data-game='horobeat'] .deck h3 { color: #8f211b; letter-spacing: 0.12em; }
+:root[data-game='horobeat'] .deck h3, :root[data-game='horobeat'] .facts { border-color: #c9a55a; }
+:root[data-game='horobeat'] .meter-num { font-family: var(--disp); color: #8f211b; }
+:root[data-game='horobeat'] .bar i, :root[data-game='horobeat'] .col i { background: #b3261e; }
+:root[data-game='horobeat'] .art img { box-shadow: 0 4px 12px rgba(70, 30, 10, 0.22); }
+:root[data-game='horobeat'] .btn { background: #b3261e; border-color: #b3261e; }
+:root[data-game='horobeat'] .sheet { border-top: 5px solid #c9a55a; }
+:root[data-game='horobeat'] .stepper button:not(:disabled):hover, :root[data-game='horobeat'] .actions button:not(:disabled):hover, :root[data-game='horobeat'] .row-step button:not(:disabled):hover { background: #b3261e; border-color: #b3261e; }
 
 /* ---------- Haikyu!!: court white, black and orange */
 :root[data-game='haikyu'] {
