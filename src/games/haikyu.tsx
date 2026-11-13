@@ -16,7 +16,7 @@ const SCHOOL_HEX: Record<string, string> = {
   Itachiyama: '#9aa300', Kamomedai: '#3d7edb',
 }
 const OTHER = '#6d6e75'
-const LANGS = ['Official English', 'Translated picture', 'Japanese picture']
+const LANGS = ['English picture', 'English picture', 'Japanese picture']
 const count = new Map<string, number>()
 for (const c of CARDS) for (const s of c.schools) count.set(s, (count.get(s) || 0) + 1)
 const SCHOOLS = [...count.keys()].sort((a, b) => count.get(b)! - count.get(a)! || a.localeCompare(b))
@@ -46,7 +46,7 @@ const game: Game = {
     { key: 'type', title: 'Type', kind: 'checks', options: ['Character', 'Event'], values: (c) => [c.type] },
     { key: 'pos', title: 'Position', kind: 'nums', cols: 5, options: [...POS, 'Other'], values: position },
     { key: 'year', title: 'Year', kind: 'nums', cols: 3, options: ['1st Year', '2nd Year', '3rd Year'], label: (y) => y.replace(' Year', ''), values: (c) => h(c).years },
-    { key: 'en', title: 'Card language', kind: 'checks', options: LANGS, values: (c) => [LANGS[h(c).en === 1 ? 0 : h(c).en === 2 ? 1 : 2]] },
+    { key: 'en', title: 'Card language', kind: 'checks', options: ['English picture', 'Japanese picture'], values: (c) => [LANGS[h(c).en === 1 ? 0 : h(c).en === 2 ? 1 : 2]] },
     { key: 'rarity', title: 'Rarity', kind: 'select', options: RARITIES, values: (c) => [c.rarity] },
     { key: 'set', title: 'Set', kind: 'select', options: [...new Set(CARDS.map((c) => c.set))], values: (c) => [c.set] },
   ],
@@ -83,16 +83,9 @@ const game: Game = {
       <>
         {c.text ? <p className="text">{c.text}</p> : null}
         {c.note ? <p className="text note">{c.note}</p> : null}
-        <p className="flavor">
-          {c.en === 1
-            ? 'This card has an official English printing. The English picture and text are the official ones.'
-            : c.en === 2
-              ? 'This card has no official English printing yet. The English picture is our own version, made to follow the official English card design. The text is a reference translation by Hobby Collect.'
-              : 'This collector printing is shown with its original Japanese picture. The English text is a reference translation by Hobby Collect.'}
-        </p>
       </>
     )
   },
-  footer: 'Card images and text © H. Furudate / Shueisha, "Haikyu!!" Project, MBS © TOMY. English text on cards without an official English printing is a reference translation.',
+  footer: 'Card images and text © H. Furudate / Shueisha, "Haikyu!!" Project, MBS © TOMY.',
 }
 export default game
