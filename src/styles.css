@@ -46,6 +46,8 @@ a { color: inherit; }
 .tabs { display: flex; gap: 22px; max-width: 1640px; margin: 0 auto; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--panel); }
 .tabs button { border: 0; border-bottom: 2px solid transparent; background: none; padding: 11px 0 9px; font-size: 14px; color: var(--ink-2); }
 .tabs button.on { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.tabs a { padding: 11px 0 9px; border-bottom: 2px solid transparent; font-size: 14px; color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+.tabs a:hover { color: var(--ink); }
 .layout.browse { grid-template-columns: minmax(0, 1fr) 348px; }
 .layout.browse .filters, .layout.browse .pool:not(.pubview), .layout:not(.browse) .pubview { display: none; }
 .pubs li { border-bottom: 1px solid var(--line-2); }

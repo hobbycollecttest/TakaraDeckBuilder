@@ -441,6 +441,8 @@ export default function App() {
       <nav className="tabs" aria-label="Sections">
         <button className={mode === 'build' ? 'on' : ''} onClick={() => setMode('build')}>Deck builder</button>
         <button className={mode === 'browse' ? 'on' : ''} onClick={() => setMode('browse')}>Public decks</button>
+        <a href="/rules">Rules</a>
+        <a href="/faq">FAQ</a>
       </nav>
 
       <div className={`layout ${mode === 'browse' ? 'browse' : ''}`}>
