@@ -25,7 +25,9 @@ const remember = (on: boolean) => {
 }
 
 // The sign-in library is large; visitors who never sign in never download it.
-const load = (authUrl: string) => import('@neon/neon-js/auth').then((m) => m.createAuthClient(authUrl))
+// It talks to this site's own /api/auth, which passes requests on to Neon Auth. That keeps the session
+// cookie on this site, so browsers that block other sites' cookies (Safari, iPhones) stay signed in.
+const load = (_authUrl: string) => import('@neon/neon-js/auth').then((m) => m.createAuthClient(`${window.location.origin}/api/auth`))
 let loading: ReturnType<typeof load> | null = null
 function client() {
   if (!url) return null
@@ -43,23 +45,28 @@ function tokenExpiry(token: string) {
   }
 }
 
-async function session(): Promise<SessionData | null> {
+// "unknown" means the check itself failed (offline, a slow start); that must not sign anyone out.
+async function session(): Promise<SessionData | null | 'unknown'> {
   const c = client()
   if (!c) return null
   try {
-    const result = (await (await c).getSession()) as { data?: SessionData | null }
+    const result = (await (await c).getSession()) as { data?: SessionData | null; error?: unknown }
+    if (result.error) return 'unknown'
     const data = result.data ?? null
     const token = data?.session?.token
     cached = token ? { token, expires: tokenExpiry(token) } : null
     return data
   } catch {
-    return null
+    return 'unknown'
   }
 }
 
 export async function currentAccount(): Promise<Account | null> {
   if (!remembered()) return null
-  const user = (await session())?.user
+  let found = await session()
+  if (found === 'unknown') found = await session()
+  if (found === 'unknown') return null
+  const user = found?.user
   if (!user) {
     remember(false)
     return null
@@ -70,7 +77,8 @@ export async function currentAccount(): Promise<Account | null> {
 // Tokens last 15 minutes; one is reused until its last minute instead of asking for a new one per request.
 export async function accessToken(): Promise<string | null> {
   if (cached && cached.expires - Date.now() > 60_000) return cached.token
-  return (await session())?.session?.token ?? null
+  const found = await session()
+  return found === 'unknown' ? null : (found?.session?.token ?? null)
 }
 
 export async function signInWithGoogle() {

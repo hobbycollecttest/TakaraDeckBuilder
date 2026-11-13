@@ -10,5 +10,11 @@
         }
       ]
     }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/auth/:path*",
+      "destination": "/api/auth?path=:path*"
+    }
   ]
 }
