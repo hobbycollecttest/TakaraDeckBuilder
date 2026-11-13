@@ -4,12 +4,16 @@ import html, json, re
 
 SITE = 'https://takaradecks.vercel.app'
 PAGES = {
+    'how-to-play': dict(title='How to Play HORO-BEAT', nav='How to play',
+                        desc='Learn HORO-BEAT in twelve steps: deck, battlefield, setup, rounds, Ena, battles, damage, Triggers, Waza and Overbeat.'),
     'rules': dict(title='HORO-BEAT Comprehensive Rules in English', nav='Rules',
                   desc='The full HORO-BEAT Comprehensive Rules translated into English: card types, zones, setup, turn flow, battles, effects and keywords.'),
     'faq': dict(title='HORO-BEAT FAQ: Official Rulings in English', nav='FAQ',
                 desc='Official HORO-BEAT FAQ rulings from Takara Tomy in English: battle order, Ena colors for Boost and Overbeat, triggers, and card-specific answers.'),
     'haikyu/rules': dict(title='Haikyu!! VOBACA!! BREAK Official Rules', nav='Rules', src='haikyu-rules',
                          desc='Official English rules for Haikyu!! VOBACA!! BREAK from Takara Tomy: rule sheet, how to play videos, deck rules and rulings by topic.'),
+    'haikyu/comprehensive-rules': dict(title='Haikyu!! VOBACA!! BREAK Comprehensive Rules', nav='Comprehensive rules', src='haikyu-comprehensive',
+                         desc='The Haikyu!! VOBACA!! BREAK Comprehensive Rules ver. 1.06 in English: terms, card details, zones, setup, phases, skills, keywords and appendices.'),
     'haikyu/faq': dict(title='Haikyu!! VOBACA!! BREAK FAQ', nav='FAQ', src='haikyu-faq',
                        desc='Official English questions and answers for Haikyu!! VOBACA!! BREAK from Takara Tomy, by topic.'),
 }
@@ -40,7 +44,7 @@ def build(key):
     nav = ''.join(f'<a href="/{k}"{" aria-current=page" if k == key else ""}>{p["nav"]}</a>' for k, p in PAGES.items() if k.startswith('haikyu/') == hv)
     contents = ''.join(f'<li><a href="#{i}">{html.escape(t)}</a></li>' for i, t in toc)
     out = f'''<!doctype html>
-<html lang="en">
+<html lang="en" data-game="{'haikyu' if hv else 'horobeat'}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -58,11 +62,12 @@ def build(key):
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=Cinzel:wght@600;700&family=Montserrat:ital,wght@1,800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/guide.css" />
     {extra}
   </head>
   <body>
+    <nav class="games" aria-label="Choose a game"><a href="/"{'' if hv else ' class="on"'}><img src="/logos/horobeat.svg" alt="HORO-BEAT" /></a><a href="/haikyu"{' class="on"' if hv else ''}><img src="/logos/haikyu.svg" alt="Haikyu!! VOBACA!! BREAK" /></a></nav>
     <header class="top">
       <a class="brand" href="{'/haikyu' if hv else '/'}"><span class="brand-game">{'HAIKYU!!' if hv else 'HORO-BEAT'}</span><span class="brand-tool">Deck Builder</span></a>
       <nav class="links">{nav}<a class="build" href="{'/haikyu' if hv else '/'}">Build a deck</a></nav>

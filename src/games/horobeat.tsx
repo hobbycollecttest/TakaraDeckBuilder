@@ -19,7 +19,7 @@ const game: Game = {
   title: 'HORO-BEAT',
   fullName: 'HORO-BEAT',
   path: '/',
-  links: [{ label: 'Rules', href: '/rules' }, { label: 'FAQ', href: '/faq' }],
+  links: [{ label: 'How to play', href: '/how-to-play' }, { label: 'Rules', href: '/rules' }, { label: 'FAQ', href: '/faq' }],
   cards: CARDS,
   deckSize: 50,
   maxCopies: 4,

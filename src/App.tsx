@@ -50,6 +50,7 @@ export default function App({ game }: { game: Game }) {
   const [q, setQ] = useState('')
   const [picked, setPicked] = useState<Picked>({})
   const [sort, setSort] = useState('number')
+  const [page, setPage] = useState(0)
   const [open, setOpen] = useState<Card | null>(null)
   const [panel, setPanel] = useState(false)
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -182,6 +183,14 @@ export default function App({ game }: { game: Game }) {
     return { curve, tag, extra: game.extraStats(entries) }
   }, [entries])
 
+  const PAGE = 50
+  const pages = Math.ceil(list.length / PAGE)
+  const shown = list.slice(page * PAGE, (page + 1) * PAGE)
+  useEffect(() => setPage(0), [list])
+  function goPage(n: number) {
+    setPage(n)
+    document.querySelector('.pool')?.scrollIntoView({ block: 'start' })
+  }
   const anyFilter = q || Object.values(picked).some((v) => v.size)
   function clearFilters() {
     setPicked({})
@@ -367,13 +376,18 @@ export default function App({ game }: { game: Game }) {
 
   return (
     <div className="app">
+      <nav className="games" aria-label="Choose a game">
+        {GAMES.map((g) => (
+          <a key={g.key} href={g.path} className={g.key === game.key ? 'on' : ''} aria-current={g.key === game.key ? 'page' : undefined}>
+            <img src={g.logo} alt={g.title} />
+          </a>
+        ))}
+      </nav>
       <header className="top">
-        <div className="brand">
-          <select className="brand-game" aria-label="Game" value={game.key} onChange={(e) => { location.href = GAMES.find((g) => g.key === e.target.value)!.path }}>
-            {GAMES.map((g) => <option key={g.key} value={g.key}>{g.title}</option>)}
-          </select>
+        <a className="brand" href={game.path}>
+          <span className="brand-game">{game.title}</span>
           <span className="brand-tool">Deck Builder</span>
-        </div>
+        </a>
         <div className="seg" role="group" aria-label="Card language">
           <button className={view === 'en' ? 'on' : ''} onClick={() => setView('en')}>English</button>
           <button className={view === 'jp' ? 'on' : ''} onClick={() => setView('jp')}>日本語</button>
@@ -447,14 +461,14 @@ export default function App({ game }: { game: Game }) {
             </label>
           </div>
           <div className="count">
-            {list.length} of {CARDS.length} cards
+            {list.length > PAGE ? `${page * PAGE + 1} to ${Math.min(list.length, (page + 1) * PAGE)} of ${list.length} cards` : `${list.length} of ${CARDS.length} cards`}
             {anyFilter ? <button className="link" onClick={clearFilters}>Clear filters</button> : null}
           </div>
           {list.length === 0 ? (
             <p className="empty">No cards match. Try removing a filter.</p>
           ) : (
             <div className="grid">
-              {list.map((c) => {
+              {shown.map((c) => {
                 const n = deck[c.id] || 0
                 return (
                   <div key={c.id} className={`tile ${n ? 'in' : ''}`}>
@@ -472,6 +486,15 @@ export default function App({ game }: { game: Game }) {
               })}
             </div>
           )}
+          {pages > 1 ? (
+            <nav className="pager" aria-label="Pages">
+              <button onClick={() => goPage(page - 1)} disabled={page === 0}>Previous</button>
+              {Array.from({ length: pages }, (_, i) => (
+                <button key={i} className={i === page ? 'on' : ''} onClick={() => goPage(i)} aria-current={i === page ? 'page' : undefined}>{i + 1}</button>
+              ))}
+              <button onClick={() => goPage(page + 1)} disabled={page >= pages - 1}>Next</button>
+            </nav>
+          ) : null}
         </main>
 
         <main className="pool pubview">

@@ -65,6 +65,6 @@ export const store = {
 }
 
 export const GAMES = [
-  { key: 'horobeat', title: 'HORO-BEAT', path: '/' },
-  { key: 'haikyu', title: 'HAIKYU!!', path: '/haikyu' },
+  { key: 'horobeat', title: 'HORO-BEAT', path: '/', logo: '/logos/horobeat.svg' },
+  { key: 'haikyu', title: 'Haikyu!! VOBACA!! BREAK', path: '/haikyu', logo: '/logos/haikyu.svg' },
 ]

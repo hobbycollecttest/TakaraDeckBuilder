@@ -5,7 +5,7 @@ html { scroll-padding-top: 68px; scroll-behavior: smooth; }
 body { margin: 0; background: var(--page); color: var(--ink); font: 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
 a { color: inherit; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-.top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 20px; height: 52px; padding: 0 20px; background: var(--ink); color: #fff; }
+.top { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 20px; height: 52px; padding: 0 20px; background: var(--bar, #17171a); color: #fff; }
 .brand { display: flex; align-items: baseline; gap: 10px; text-decoration: none; margin-right: auto; }
 .brand-game { font: 700 20px/1 var(--cond); letter-spacing: 0.06em; white-space: nowrap; }
 .brand-tool { font: 500 13px/1 var(--sans); color: #b9b9be; }
@@ -14,7 +14,7 @@ a { color: inherit; }
 .links a:hover, .links a[aria-current] { color: #fff; }
 .links a[aria-current] { font-weight: 600; }
 .links .build { border: 1px solid #4a4a50; padding: 6px 12px; color: #fff; }
-.links .build:hover { background: #fff; color: var(--ink); }
+.links .build:hover { background: #fff; color: #17171a; }
 .wrap { display: grid; grid-template-columns: 240px minmax(0, 760px); gap: 56px; max-width: 1120px; margin: 0 auto; padding: 40px 20px 96px; }
 .toc { position: sticky; top: 84px; align-self: start; max-height: calc(100vh - 110px); overflow: auto; font-size: 14px; }
 .toc h2 { margin: 0 0 10px; font: 600 12px/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
@@ -38,3 +38,23 @@ a { color: inherit; }
   .doc h1 { font-size: 32px; }
 }
 @media (max-width: 520px) { .brand-tool, .links .build { display: none; } }
+
+.games { display: flex; justify-content: center; background: #0b0b0d; border-bottom: 1px solid #2a2a2e; }
+.games a { position: relative; display: grid; place-items: center; width: min(50%, 300px); height: 76px; padding: 10px 26px; opacity: 0.42; }
+.games a img { display: block; height: 54px; width: auto; max-width: 100%; object-fit: contain; filter: invert(1); }
+.games a:hover { opacity: 0.85; background: #17171b; }
+.games a.on { opacity: 1; background: #1d1d22; }
+.games a.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; background: var(--accent); }
+:root[data-game='horobeat'] { --ink: #241a16; --ink-2: #5e5048; --ink-3: #94857a; --line: #e2d6c2; --page: #f6efe2; --panel: #fffdf8; --accent: #b3261e; --bar: #5c1512; }
+:root[data-game='horobeat'] body { background: radial-gradient(1100px 520px at 88% -8%, rgba(179, 38, 30, 0.10), transparent 62%), var(--page); background-attachment: fixed; }
+:root[data-game='horobeat'] .top { background: linear-gradient(90deg, #6b1814, #8f211b); border-bottom: 3px solid #c9a55a; }
+:root[data-game='horobeat'] .brand-game { font-family: 'Cinzel', serif; color: #f3dfae; letter-spacing: 0.08em; }
+:root[data-game='horobeat'] .doc h1, :root[data-game='horobeat'] .doc h2 { font-family: 'Cinzel', serif; color: #8f211b; letter-spacing: 0.03em; }
+:root[data-game='horobeat'] .doc h2 { border-color: #c9a55a; }
+:root[data-game='haikyu'] { --ink: #141414; --page: #f7f3ee; --accent: #f07800; --bar: #111; }
+:root[data-game='haikyu'] body { background: repeating-linear-gradient(-58deg, transparent 0 46px, rgba(240, 120, 0, 0.045) 46px 50px), var(--page); background-attachment: fixed; }
+:root[data-game='haikyu'] .top { border-bottom: 3px solid #f07800; }
+:root[data-game='haikyu'] .brand-game, :root[data-game='haikyu'] .doc h1, :root[data-game='haikyu'] .doc h2 { font-family: 'Montserrat', sans-serif; font-style: italic; font-weight: 800; letter-spacing: 0; }
+:root[data-game='haikyu'] .doc h2 { border-top: 4px solid #f07800; }
+@media (max-width: 760px) { .games a { height: 58px; padding: 8px 16px; } .games a img { height: 40px; } .links { gap: 10px; font-size: 12px; } .links .build { display: none; } }
+.doc img { display: block; width: 100%; height: auto; margin: 6px 0 14px; border: 1px solid var(--line); }
