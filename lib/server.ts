@@ -2,7 +2,9 @@ import { neon } from '@neondatabase/serverless'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 
 export const MAX_DECKS = 50
-export const DECK_SIZE = 50
+// Deck size and the most copies of one card, for each game.
+export const GAMES: Record<string, { size: number; copies: number }> = { horobeat: { size: 50, copies: 4 }, haikyu: { size: 40, copies: 40 } }
+export const gameOf = (v: unknown) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(GAMES, v) ? v : null)
 const MAX_ENTRIES = 120
 
 const authBase = process.env.NEON_AUTH_BASE_URL || ''
@@ -58,13 +60,13 @@ export async function signedIn(authorization: string | undefined) {
   }
 }
 
-export function cleanCards(value: unknown) {
+export function cleanCards(value: unknown, maxCopies: number) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const entries = Object.entries(value as Record<string, unknown>)
   if (!entries.length || entries.length > MAX_ENTRIES) return null
   const cards: Record<string, number> = {}
   for (const [id, n] of entries) {
-    if (!/^[a-z0-9-]{3,24}$/.test(id) || !Number.isInteger(n) || (n as number) < 1 || (n as number) > 4) return null
+    if (!/^[a-z0-9-]{3,24}$/.test(id) || !Number.isInteger(n) || (n as number) < 1 || (n as number) > maxCopies) return null
     cards[id] = n as number
   }
   return cards
