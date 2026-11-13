@@ -12,6 +12,8 @@ PAGES = {
                 desc='Official HORO-BEAT FAQ rulings from Takara Tomy in English: battle order, Ena colors for Boost and Overbeat, triggers, and card-specific answers.'),
     'haikyu/rules': dict(title='Haikyu!! VOBACA!! BREAK Official Rules', nav='Rules', src='haikyu-rules',
                          desc='Official English rules for Haikyu!! VOBACA!! BREAK from Takara Tomy: rule sheet, how to play videos, deck rules and rulings by topic.'),
+    'haikyu/comprehensive-rules': dict(title='Haikyu!! VOBACA!! BREAK Comprehensive Rules', nav='Comprehensive rules', src='haikyu-comprehensive',
+                         desc='The Haikyu!! VOBACA!! BREAK Comprehensive Rules ver. 1.06 in English: terms, card details, zones, setup, phases, skills, keywords and appendices.'),
     'haikyu/faq': dict(title='Haikyu!! VOBACA!! BREAK FAQ', nav='FAQ', src='haikyu-faq',
                        desc='Official English questions and answers for Haikyu!! VOBACA!! BREAK from Takara Tomy, by topic.'),
 }

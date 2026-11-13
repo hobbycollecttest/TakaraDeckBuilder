@@ -234,7 +234,7 @@ select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); backgroun
 /* ---------- game picker: the two logos across the top */
 .games { display: flex; justify-content: center; gap: 0; background: #0b0b0d; border-bottom: 1px solid #2a2a2e; }
 .games a { position: relative; display: grid; place-items: center; width: min(50%, 300px); height: 76px; padding: 10px 26px; opacity: 0.42; transition: opacity 0.15s, background 0.15s; }
-.games a img { height: 100%; width: auto; max-width: 100%; object-fit: contain; filter: invert(1); }
+.games a img { display: block; height: 54px; width: auto; max-width: 100%; object-fit: contain; filter: invert(1); }
 .games a:hover { opacity: 0.85; background: #17171b; }
 .games a.on { opacity: 1; background: #1d1d22; }
 .games a.on::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 4px; background: var(--accent); }
@@ -292,7 +292,7 @@ select { width: 100%; padding: 6px 8px; border: 1px solid var(--line); backgroun
 :root[data-game='haikyu'] .sheet { border-top: 6px solid #f07800; }
 :root[data-game='haikyu'] .sheet-body h2 { font: italic 800 22px/1.2 var(--disp); }
 @media (max-width: 760px) {
-  .games a { height: 58px; padding: 8px 16px; }
+  .games a { height: 58px; padding: 8px 16px; } .games a img { height: 40px; }
   :root[data-game='haikyu'] .top { background: #111; padding-right: 12px; }
   :root[data-game='haikyu'] .brand-game { font-size: 13px; }
   .brand-game { white-space: normal; }
