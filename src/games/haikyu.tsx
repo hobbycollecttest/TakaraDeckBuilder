@@ -32,7 +32,7 @@ const game: Game = {
   title: 'HAIKYU!!',
   fullName: 'Haikyu!! VOBACA!! BREAK',
   path: '/haikyu',
-  links: [{ label: 'Rules', href: '/haikyu/rules' }, { label: 'FAQ', href: '/haikyu/faq' }],
+  links: [{ label: 'Play vs CPU', href: '/haikyu/play' }, { label: 'Rules', href: '/haikyu/rules' }, { label: 'FAQ', href: '/haikyu/faq' }],
   cards: CARDS,
   deckSize: 40,
   maxCopies: 40,

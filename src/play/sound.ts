@@ -66,6 +66,13 @@ const SOUNDS: Record<string, () => void> = {
   heartbreak: () => { tone(98, 40, 0.5, 'sine', 0.5); noise(0.3, 0.3, 5200, 900, 0.04); tone(880, 220, 0.3, 'triangle', 0.08, 0.05) },
   trigger: () => { [659, 880, 1319].forEach((f, i) => tone(f, f, 0.34, 'sine', 0.12, i * 0.08)) },
   recover: () => { tone(440, 660, 0.22, 'sine', 0.09); tone(660, 880, 0.24, 'sine', 0.07, 0.1) },
+  // Volleyball sounds for Haikyu.
+  whistle: () => { tone(2350, 2300, 0.32, 'square', 0.035); tone(2480, 2450, 0.32, 'sine', 0.05) },
+  serve: () => { noise(0.07, 0.4, 1400, 600); tone(240, 120, 0.12, 'sine', 0.25) },
+  spike: () => { noise(0.1, 0.55, 2600, 500); tone(180, 60, 0.22, 'sine', 0.45); noise(0.18, 0.15, 900, 300, 0.12) },
+  bump: () => { noise(0.06, 0.3, 700, 300); tone(200, 150, 0.14, 'sine', 0.3) },
+  block: () => { noise(0.12, 0.5, 1200, 250); tone(130, 55, 0.3, 'sine', 0.5); tone(90, 50, 0.3, 'triangle', 0.2, 0.05) },
+  cheer: () => { noise(0.9, 0.12, 900, 2600); [523, 659, 784].forEach((f, i) => tone(f, f, 0.3, 'triangle', 0.08, i * 0.1)) },
   click: () => tone(900, 700, 0.05, 'square', 0.03),
   win: () => { [392, 523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.5, 'triangle', 0.14, i * 0.13)) },
   lose: () => { [392, 330, 262, 196].forEach((f, i) => tone(f, f * 0.97, 0.55, 'sawtooth', 0.08, i * 0.2)) },
