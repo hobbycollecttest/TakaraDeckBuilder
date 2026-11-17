@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEFS, Match, type Def, type Ev, type Opt, type Req, type Setup, type Side } from '../sim/engine'
 import { play, setSound, unlockSound } from './sound'
+import { PowerNum, useGlide } from './motion'
 import { RemoteMatch, checkRoom, createRoom, joinRoom, leaveRoom, sendChoice, type Payload } from './online'
 import { authReady, currentAccount } from '../auth'
 import { listDecks, type CloudDeck } from '../cloud'
@@ -359,6 +360,16 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
   const [zoom, setZoom] = useState(false)
   const [pile, setPile] = useState<{ title: string; uids: number[] } | null>(null)
   const logRef = useRef<HTMLOListElement>(null)
+  const tableRef = useRef<HTMLElement>(null)
+  const ghostRef = useRef<HTMLImageElement>(null)
+  const drag = useRef<{ uid: number; x0: number; y0: number; on: boolean } | null>(null)
+  const dropRef = useRef<(uid: number, where: string) => void>(() => {})
+  const justDragged = useRef(false)
+  const [dragging, setDragging] = useState<number | null>(null)
+  const lastPw = useRef<number[][]>([[0, 0, 0, 0, 0], [0, 0, 0, 0, 0]])
+  // A new match opens with a short face-off before the first hand is shown.
+  const [intro, setIntro] = useState(() => m.log.length <= 6 && m.s.phase !== 'over')
+  const [resultOpen, setResultOpen] = useState(true)
 
   const spd = speed * CALM
   const ev: Ev | null = cursor < m.events.length ? m.events[cursor] : null
@@ -368,6 +379,14 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
   const mine = !playing && req && req.p === me ? req : null
   const over = !playing && m.s.phase === 'over'
 
+  useGlide(tableRef, v, spd)
+  useEffect(() => { lastPw.current = v.pw.map((r) => [...r]) }, [v])
+  useEffect(() => {
+    if (!intro) return
+    play('drum')
+    const t = setTimeout(() => setIntro(false), 2400)
+    return () => clearTimeout(t)
+  }, [intro])
   useEffect(() => { store.set('hb.speed', speed) }, [speed])
   useEffect(() => { store.set('hb.sound', sound); setSound(sound) }, [sound])
 
@@ -389,20 +408,20 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
 
   // Step through what just happened, with a sound for each event.
   useEffect(() => {
-    if (!ev) return
+    if (!ev || intro) return
     const sfx = ev.t === 'damage' && ev.broken ? 'heartbreak' : ev.t === 'victory' ? (ev.p === me ? 'win' : 'lose') : SOUND[ev.t]
     if (sfx) play(sfx)
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const base = (PACE[ev.t] ?? PACE.note) + (ev.t === 'damage' && ev.broken ? 300 : 0)
     const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / spd)
     return () => clearTimeout(t)
-  }, [cursor, ev, speed])
+  }, [cursor, ev, speed, intro])
   // Once the table has caught up, the computer makes its next choice.
   useEffect(() => {
-    if (playing || !cpu || !m.req || m.req.p !== foe) return
+    if (playing || intro || !cpu || !m.req || m.req.p !== foe) return
     const t = setTimeout(() => act(cpuChoice(m as unknown as Match, cpu)), 520 / spd)
     return () => clearTimeout(t)
-  }, [tick, version, playing, speed])
+  }, [tick, version, playing, speed, intro])
   useEffect(() => {
     const el = logRef.current
     if (el) el.scrollTop = el.scrollHeight
@@ -425,7 +444,9 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
   const only = trayKinds ? [...new Set(opts.filter((o) => o.uid != null).map((o) => o.uid!))] : []
   const chosen = sel != null && cardOpts(sel).length ? sel : only.length === 1 ? only[0] : null
   const chosenOpts = chosen != null ? cardOpts(chosen) : []
-  const plain = opts.filter((o) => o.uid == null && o.t !== 'stack')
+  // Ending a phase gets its own large button on the table.
+  const bigOpt = trayKinds ? undefined : opts.find((o) => o.uid == null && (o.t === 'end' || o.t === 'skip'))
+  const plain = opts.filter((o) => o.uid == null && o.t !== 'stack' && o !== bigOpt)
   const stackOpts = opts.filter((o) => o.t === 'stack')
   const targetAt = (side: Side, line: number) =>
     stackOpts.find((o) => o.side === side && o.line === line) || (side === me ? chosenOpts.find((o) => o.line === line && o.via) : undefined)
@@ -436,7 +457,49 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
     show(uid)
     if (window.innerWidth < 1000) setZoom(true)
   }
+  // Dragging a card from the hand onto a line or the Ena Zone plays it there.
+  dropRef.current = (uid, where) => {
+    const mineOpts = cardOpts(uid)
+    const line = where.startsWith('line-') ? Number(where.slice(5)) : -1
+    const o = where === 'ena' ? mineOpts.find((x) => x.t === 'charge')
+      : mineOpts.find((x) => x.line === line && x.via) || (line === v.line ? mineOpts.find((x) => x.t === 'waza' || x.t === 'boost') : undefined)
+    if (o) void act(o.i)
+  }
+  useEffect(() => {
+    const move = (e: PointerEvent) => {
+      const d = drag.current
+      if (!d) return
+      if (!d.on) {
+        if (Math.hypot(e.clientX - d.x0, e.clientY - d.y0) < 12) return
+        d.on = true
+        setSel(d.uid)
+        setDragging(d.uid)
+        setLook(m.s.cards[d.uid])
+      }
+      if (ghostRef.current) ghostRef.current.style.transform = `translate(${e.clientX}px, ${e.clientY}px) translate(-50%, -62%) rotate(${Math.max(-10, Math.min(10, e.movementX))}deg)`
+      e.preventDefault()
+    }
+    const up = (e: PointerEvent) => {
+      const d = drag.current
+      drag.current = null
+      if (!d || !d.on) return
+      setDragging(null)
+      justDragged.current = true
+      setTimeout(() => { justDragged.current = false }, 80)
+      const hit = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>('[data-drop]')
+      if (hit) dropRef.current(d.uid, hit.dataset.drop!)
+    }
+    window.addEventListener('pointermove', move, { passive: false })
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+    }
+  }, [])
   const pickCard = (uid: number) => {
+    if (justDragged.current) return
     unlockSound()
     play('click')
     show(uid)
@@ -472,11 +535,15 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
             className={`cell ${fightLine === line ? 'fight' : ''} ${target ? 'target' : ''} ${st?.down ? 'down' : ''} ${fx}`}
             onClick={() => (target ? act(target.i) : top != null ? peek(top) : undefined)}
             role={target || top != null ? 'button' : undefined}
+            data-drop={side === me ? `line-${line}` : undefined}
+            onMouseEnter={top != null ? () => show(top) : undefined}
           >
             {top != null ? (
               <>
-                <img className="card" src={img(m.s.cards[top], view)} alt={m.name(top)} draggable={false} />
-                <span className={`pw ${fightLine === line && pw > other ? 'lead' : ''}`}>{pw}</span>
+                <span className="cardwrap" data-uid={top} data-side={side}>
+                  <img className="card" src={img(m.s.cards[top], view)} alt={m.name(top)} draggable={false} />
+                </span>
+                <PowerNum value={pw} from={lastPw.current[side][line] || pw} lead={fightLine === line && pw > other} spd={spd} />
                 {st!.cards.length > 1 ? <span className="under">+{st!.cards.length - 1} under</span> : null}
                 {st!.down ? <span className="state">Downed</span> : null}
                 {v.dd[side][line] ? <span className="dd">×2</span> : null}
@@ -487,11 +554,13 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
             {zone.length ? (
               <span className="zone">
                 {zone.map((z) => (
-                  <img key={z.uid} src={img(m.s.cards[z.uid], view)} alt={m.name(z.uid)} title={`${m.name(z.uid)}${z.boost ? ' (Boost)' : ''}`} />
+                  <img key={z.uid} data-uid={z.uid} data-side={side} src={img(m.s.cards[z.uid], view)} alt={m.name(z.uid)} title={`${m.name(z.uid)}${z.boost ? ' (Boost)' : ''}`} />
                 ))}
               </span>
             ) : null}
             {fx === 'fx-destroy' || fx.includes('fx-clash') ? <i className="burst" /> : null}
+            {fx === 'fx-summon' ? <i className="ring" /> : null}
+            {fx === 'fx-waza' && ev ? <b className="float gain">+{ev.boost ? m.def(ev.uid!).boost : m.def(ev.uid!).power}</b> : null}
           </div>
         )
       })}
@@ -506,41 +575,53 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
     const graveTop = P.grave[P.grave.length - 1]
     const unused = P.ena.filter((e) => !e.used).length
     return (
-      <section className={`half ${side === me ? 'mine' : 'theirs'}`}>
+      <section className={`half ${side === me ? 'mine' : 'theirs'} ${v.phase === 'summon' && v.round > 0 && v.active === side ? 'active' : ''}`}>
         <div key={sideFx(side, ['damage']) ? `h${cursor}` : 'h'} className={`zone-hearts ${sideFx(side, ['damage'])}`}>
           <span className="zlabel">Hearts <b>{P.hearts.length}</b></span>
           <div className="heart-stack">
-            {[...P.hearts].reverse().map((h) => <i key={h.uid} className={`cb ${h.down ? 'down' : ''}`} title={h.down ? 'Downed Heart' : 'Heart'} />)}
+            {[...P.hearts].reverse().map((h) => (
+              <span key={h.uid} className="hslot-heart" data-uid={h.uid} data-side={side}><i className={`cb ${h.down ? 'down' : ''}`} title={h.down ? 'Downed Heart' : 'Heart'} /></span>
+            ))}
             {!P.hearts.length ? <span className="no-hearts">No Hearts left</span> : null}
           </div>
+          {sideFx(side, ['damage']) && ev ? <b className="float hit">−{ev.n}</b> : null}
         </div>
         {row(side)}
-        <div key={sideFx(side, ['charge', 'ena']) ? `e${cursor}` : 'e'} className={`zone-ena ${sideFx(side, ['charge', 'ena'])}`}>
+        <div
+          key={sideFx(side, ['charge', 'ena']) ? `e${cursor}` : 'e'}
+          className={`zone-ena ${sideFx(side, ['charge', 'ena'])} ${side === me && chosenOpts.some((o) => o.t === 'charge') ? 'target-zone' : ''}`}
+          data-drop={side === me ? 'ena' : undefined}
+          onClick={() => { const o = side === me ? chosenOpts.find((x) => x.t === 'charge') : undefined; if (o) void act(o.i) }}
+        >
           <span className="zlabel">Ena <b>{unused}/{P.ena.length}</b></span>
           <div className="ena-cards">
             {P.ena.map((e) => (
-              <img key={e.uid} className={e.used ? 'used' : ''} src={img(m.s.cards[e.uid], view)} alt={m.name(e.uid)} title={`${m.name(e.uid)}${e.used ? ' (used)' : ''}`} draggable={false} onClick={() => peek(e.uid)} />
+              <span key={e.uid} className="eslot" data-uid={e.uid} data-side={side}>
+                <img className={e.used ? 'used' : ''} src={img(m.s.cards[e.uid], view)} alt={m.name(e.uid)} title={`${m.name(e.uid)}${e.used ? ' (used)' : ''}`} draggable={false}
+                  onMouseEnter={() => show(e.uid)} onClick={(c) => { c.stopPropagation(); peek(e.uid) }} />
+              </span>
             ))}
           </div>
         </div>
         <div className="zone-piles">
           <div key={sideFx(side, ['draw']) ? `d${cursor}` : 'd'} className={`pile-slot ${sideFx(side, ['draw'])}`} title="Deck">
-            {P.deck.length ? <i className="cb" /> : <i className="cb none" />}
+            {P.deck.length ? <i className="cb" data-deck={side} /> : <i className="cb none" data-deck={side} />}
             <span className="zlabel">Deck <b>{P.deck.length}</b></span>
           </div>
           <button className="pile-slot" disabled={!P.grave.length} onClick={() => setPile({ title: `${nm(side)}: Graveyard`, uids: [...P.grave].reverse() })}>
-            {graveTop != null ? <img src={img(m.s.cards[graveTop], view)} alt="" draggable={false} /> : <i className="cb none" />}
+            {graveTop != null ? <img data-uid={graveTop} data-side={side} src={img(m.s.cards[graveTop], view)} alt="" draggable={false} /> : <i className="cb none" />}
             <span className="zlabel">Graveyard <b>{P.grave.length}</b></span>
           </button>
         </div>
       </section>
     )
   }
-  const plate = (side: Side) => (
+  const plate = (side: Side, tail?: React.ReactNode) => (
     <div className={`plate ${side === me ? 'mine' : 'theirs'}`}>
       <span className="who-name">{nm(side)}</span>
       {v.first === side && v.round > 0 && v.phase !== 'over' ? <em>First Player</em> : null}
       <span className="plate-stat">Hand <b>{v.ps[side].hand.length}</b></span>
+      {tail}
     </div>
   )
 
@@ -569,12 +650,12 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
     : null
 
   return (
-    <main className="table" onPointerDown={unlockSound} style={{ '--spd': spd } as React.CSSProperties}>
+    <main ref={tableRef} className="table" onPointerDown={unlockSound} style={{ '--spd': spd } as React.CSSProperties}>
       <div className="board">
         <div className="cpu-row">
           {plate(foe)}
           <div className="cpu-hand" aria-label={`${nm(foe)}'s hand: ${v.ps[foe].hand.length} cards`}>
-            {v.ps[foe].hand.map((u) => <i key={u} className="cb" />)}
+            {v.ps[foe].hand.map((u) => <i key={u} className="cb" data-uid={u} data-side={foe} />)}
           </div>
           <div className="controls">
             {extra}
@@ -591,7 +672,8 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
           </ol>
           <span className="phase-step">{step}</span>
         </div>
-        <div className="mat">
+        <div className={`mat ${ev && ev.t === 'damage' ? `shake${cursor % 2}` : ''}`}>
+          <div className="embers" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <i key={i} />)}</div>
           {half(foe)}
           <div className="mid">
             {[0, 1, 2, 3, 4].map((line) => <span key={line} className={fightLine === line ? 'on' : ''}>Line {line + 1}</span>)}
@@ -646,13 +728,24 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
             </div>
           ) : null}
         </div>
-        {plate(me)}
-        <div className="hand">
-          {v.ps[me].hand.map((u) => (
-            <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''}`} onClick={() => pickCard(u)}>
-              <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
-            </button>
-          ))}
+        {plate(me, bigOpt ? <button className="endbtn" onClick={() => act(bigOpt.i)}>{bigOpt.t === 'end' ? 'End Summon Phase' : 'Skip Ena Charge'}</button> : null)}
+        <div className={`hand ${v.ps[me].hand.length > 8 ? 'packed' : v.ps[me].hand.length > 6 ? 'snug' : ''}`}>
+          {v.ps[me].hand.map((u, i, all) => {
+            const off = i - (all.length - 1) / 2
+            return (
+              <span key={u} className="hslot" data-uid={u} data-side={me}>
+                <button
+                  className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''} ${dragging === u ? 'lifted' : ''}`}
+                  style={{ '--rot': `${off * 2.4}deg`, '--dy': `${off * off * 1.6}px` } as React.CSSProperties}
+                  onClick={() => pickCard(u)}
+                  onMouseEnter={() => show(u)}
+                  onPointerDown={(e) => { if (cardOpts(u).length && e.button === 0) drag.current = { uid: u, x0: e.clientX, y0: e.clientY, on: false } }}
+                >
+                  <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
+                </button>
+              </span>
+            )
+          })}
           {!v.ps[me].hand.length ? <span className="empty">Your hand is empty.</span> : null}
         </div>
         <div className="prompt" aria-live="polite">
@@ -682,7 +775,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
                   ))}
                 </div>
               ) : null}
-              <div className="choices" hidden={mine.kind === 'battle'}>
+              <div className="choices" hidden={mine.kind === 'battle' || mine.kind === 'mulligan'}>
                 {chosen != null ? <span className="chosen">{m.name(chosen)}</span> : null}
                 {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o, chosen != null ? m.name(chosen) : '')}</button>)}
                 {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
@@ -721,6 +814,52 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
         </ol>
       </aside>
 
+      <img ref={ghostRef} className="drag-ghost" hidden={dragging == null} src={dragging != null ? img(m.s.cards[dragging], view) : undefined} alt="" />
+      {intro ? (
+        <div className="versus" onClick={() => setIntro(false)}>
+          <div className="vs-side theirs"><span>{nm(foe)}</span></div>
+          <b>VS</b>
+          <div className="vs-side mine"><span>{nm(me)}</span></div>
+          <small>Tap to skip</small>
+        </div>
+      ) : null}
+      {!intro && mine && mine.kind === 'mulligan' ? (
+        <div className="shade opening-shade">
+          <div className="opening">
+            <h2>Your opening hand</h2>
+            <p>{v.first === me ? 'You go first.' : `${nm(foe)} goes first.`} Keep these 6 cards, or redraw all of them once.</p>
+            <div className="opening-cards">
+              {v.ps[me].hand.map((u, i) => (
+                <button key={u} style={{ animationDelay: `${i * 110}ms` }} onClick={() => { show(u); setZoom(true) }}>
+                  <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
+                </button>
+              ))}
+            </div>
+            <div className="opening-actions">
+              {opts.map((o) => <button key={o.i} className={o.t === 'keep' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.t === 'keep' ? 'Keep hand' : 'Redraw'}</button>)}
+            </div>
+            <small>Tap a card to read it.</small>
+          </div>
+        </div>
+      ) : null}
+      {over && resultOpen ? (
+        <div className={`shade result-shade ${m.s.winner === me ? 'won' : 'lost'}`} onClick={() => setResultOpen(false)}>
+          <div className="result-pop" onClick={(e) => e.stopPropagation()}>
+            <i className="rays" />
+            <h2>{m.s.winner === me ? 'Victory' : 'Defeat'}</h2>
+            <p>{m.s.reason}</p>
+            <dl>
+              <div><dt>Rounds</dt><dd>{v.round}</dd></div>
+              <div><dt>Your Hearts</dt><dd>{v.ps[me].hearts.length}</dd></div>
+              <div><dt>Their Hearts</dt><dd>{v.ps[foe].hearts.length}</dd></div>
+            </dl>
+            <div className="opening-actions">
+              {after}
+              <button className="ghost" onClick={() => setResultOpen(false)}>View the table</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {zoom && lookDef ? (
         <div className="shade" onClick={() => setZoom(false)}>
           <div className="zoom" onClick={(e) => e.stopPropagation()}>
