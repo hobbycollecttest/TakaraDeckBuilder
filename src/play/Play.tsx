@@ -11,7 +11,6 @@ const SAVE_VERSION = 1
 const SAVE_KEY = 'hb.play'
 const ME: Side = 0
 const CPU: Side = 1
-const HEX: Record<string, string> = { Red: '#d2332a', Green: '#2f9144', Blue: '#1f79c9' }
 
 const img = (id: string, view: View, large = false) => {
   const v = DEFS.get(id)?.v
@@ -68,7 +67,7 @@ export default function Play() {
   }
 
   return (
-    <div className="app play">
+    <div className={`app play ${playing && save ? 'in-match' : ''}`}>
       <header className="top">
         <a className="brand" href="/">
           <span className="brand-game">HORO-BEAT</span>
@@ -279,34 +278,51 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
     </div>
   )
 
-  const strip = (side: Side) => {
+  // One player's half of the table, laid out like the official play sheet:
+  // Hearts on the left, the five lines in the middle, deck and Graveyard on the right,
+  // and the Ena Zone along the outer edge.
+  const half = (side: Side) => {
     const P = m.P(side)
+    const graveTop = P.grave[P.grave.length - 1]
     return (
-      <div className={`strip ${side === ME ? 'mine' : 'theirs'}`}>
-        <span className="who-name">
-          {m.nm(side)}
-          {m.s.first === side && !over ? <em>First Player</em> : null}
-        </span>
-        <span className="stat" title="Hearts">
-          <span className="hearts">
-            {[...P.hearts].reverse().map((h) => <i key={h.uid} className={h.down ? 'down' : ''} />)}
-            {Array.from({ length: Math.max(0, 5 - P.hearts.length) }, (_, i) => <i key={`x${i}`} className="gone" />)}
-          </span>
-          <b>{P.hearts.length}</b> {P.hearts.length === 1 ? 'Heart' : 'Hearts'}
-        </span>
-        <span className="stat" title="Ena">
-          <span className="ena">
-            {P.ena.map((e) => <i key={e.uid} className={e.used ? 'used' : ''} style={{ background: HEX[m.def(e.uid).color] }} title={m.name(e.uid)} />)}
-          </span>
-          <b>{m.unused(side)}/{P.ena.length}</b> Ena
-        </span>
-        <span className="stat"><b>{P.hand.length}</b> Hand</span>
-        <span className="stat"><b>{P.deck.length}</b> Deck</span>
-        <button className="stat link" onClick={() => setPile({ title: `${m.nm(side)}: Graveyard`, uids: [...P.grave].reverse() })} disabled={!P.grave.length}><b>{P.grave.length}</b> Graveyard</button>
-        <button className="stat link" onClick={() => setPile({ title: `${m.nm(side)}: Ena Zone`, uids: P.ena.map((e) => e.uid) })} disabled={!P.ena.length}>View Ena</button>
-      </div>
+      <section className={`half ${side === ME ? 'mine' : 'theirs'}`}>
+        <div className="zone-hearts">
+          <span className="zlabel">Hearts <b>{P.hearts.length}</b></span>
+          <div className="heart-stack">
+            {[...P.hearts].reverse().map((h) => <i key={h.uid} className={`cb ${h.down ? 'down' : ''}`} title={h.down ? 'Downed Heart' : 'Heart'} />)}
+            {!P.hearts.length ? <span className="no-hearts">No Hearts left</span> : null}
+          </div>
+        </div>
+        {row(side)}
+        <div className="zone-ena">
+          <span className="zlabel">Ena <b>{m.unused(side)}/{P.ena.length}</b></span>
+          <div className="ena-cards">
+            {P.ena.map((e) => (
+              <img key={e.uid} className={e.used ? 'used' : ''} src={img(m.s.cards[e.uid], view)} alt={m.name(e.uid)} title={`${m.name(e.uid)}${e.used ? ' (used)' : ''}`} draggable={false} onClick={() => peek(e.uid)} />
+            ))}
+          </div>
+        </div>
+        <div className="zone-piles">
+          <div className="pile-slot" title="Deck">
+            {P.deck.length ? <i className="cb" /> : <i className="cb none" />}
+            <span className="zlabel">Deck <b>{P.deck.length}</b></span>
+          </div>
+          <button className="pile-slot" disabled={!P.grave.length} onClick={() => setPile({ title: `${m.nm(side)}: Graveyard`, uids: [...P.grave].reverse() })}>
+            {graveTop != null ? <img src={img(m.s.cards[graveTop], view)} alt="" draggable={false} /> : <i className="cb none" />}
+            <span className="zlabel">Graveyard <b>{P.grave.length}</b></span>
+          </button>
+        </div>
+      </section>
     )
   }
+  const plate = (side: Side) => (
+    <div className={`plate ${side === ME ? 'mine' : 'theirs'}`}>
+      <span className="who-name">{m.nm(side)}</span>
+      {m.s.first === side && !over ? <em>First Player</em> : null}
+      <span className="plate-stat">Hand <b>{m.P(side).hand.length}</b></span>
+      {side === ME && m.s.round ? <span className="plate-stat round">Round <b>{m.s.round}</b></span> : null}
+    </div>
+  )
 
   const rounds: { round: number; lines: string[] }[] = []
   for (const l of m.log) {
@@ -318,18 +334,20 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   return (
     <main className="table">
       <div className="board">
-        {strip(CPU)}
-        <div className="cpu-hand" aria-label={`CPU hand: ${m.P(CPU).hand.length} cards`}>
-          {m.P(CPU).hand.map((u) => <i key={u} className="back" />)}
+        <div className="cpu-row">
+          {plate(CPU)}
+          <div className="cpu-hand" aria-label={`CPU hand: ${m.P(CPU).hand.length} cards`}>
+            {m.P(CPU).hand.map((u) => <i key={u} className="cb" />)}
+          </div>
         </div>
-        <div className="field">
-          {row(CPU)}
+        <div className="mat">
+          {half(CPU)}
           <div className="mid">
             {[0, 1, 2, 3, 4].map((line) => <span key={line} className={fightLine === line ? 'on' : ''}>Line {line + 1}</span>)}
           </div>
-          {row(ME)}
+          {half(ME)}
         </div>
-        {strip(ME)}
+        {plate(ME)}
         <div className="hand">
           {m.P(ME).hand.map((u) => (
             <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''}`} onClick={() => pickCard(u)}>
