@@ -39,7 +39,7 @@ export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random):
 
   if (req.kind === 'mulligan') {
     const chars = P.hand.filter((u) => g.isChar(u)).length
-    return find(chars >= 3 || level === 'easy' ? 'keep' : 'mulligan')
+    return find(chars >= 3 || level === 'easy' ? 'keep' : 'pick')
   }
 
   if (req.kind === 'start') {

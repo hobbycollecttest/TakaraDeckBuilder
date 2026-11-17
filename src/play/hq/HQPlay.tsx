@@ -505,7 +505,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
       <div className="hq-info">
         <div className="who theirs">
           <span className="who-name">{nm(foe)}</span>
-          {v.serveRight === foe && v.phase !== 'over' ? <em>Serve right</em> : null}
+          {v.serveRight === foe && v.phase !== 'over' && v.phase !== 'setup' ? <em>Serve right</em> : null}
           <span className="who-stat">Hand <b>{v.ps[foe].hand.length}</b></span>
           <div className="cpu-hand" aria-label={`${nm(foe)}'s hand: ${v.ps[foe].hand.length} cards`}>
             {v.ps[foe].hand.map((u) => <i key={u} className="cb" data-uid={u} data-side={foe} />)}
@@ -612,7 +612,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
       <div className="prompt" aria-live="polite">
         <div className="who mine">
           <span className="who-name">You</span>
-          {v.serveRight === me && v.phase !== 'over' ? <em>Serve right</em> : null}
+          {v.serveRight === me && v.phase !== 'over' && v.phase !== 'setup' ? <em>Serve right</em> : null}
           <span className="who-stat">Hand <b>{P0.hand.length}</b></span>
         </div>
         {over ? (
@@ -643,7 +643,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
               {chosen != null ? <span className="chosen">{nameOf(chosen)}</span> : null}
               {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o)}</button>)}
               {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
-              {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
+              {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' || o.t === 'serve' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
             </div>
             {bigOpt || (lostOpt && mine.kind !== 'start') ? (
               <div className="prompt-end">
@@ -697,7 +697,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
         <div className="shade opening-shade">
           <div className="opening">
             <h2>Your opening hand</h2>
-            <p>{v.serveRight === me ? 'You have the first serve.' : `${nm(foe)} has the first serve.`} Keep these 6 cards, or redraw all of them once.</p>
+            <p>{v.serveRight === me ? 'You have the first serve.' : `${nm(foe)} has the first serve.`} Keep these 6 cards, or put back any of them and draw replacements. You can do this once.</p>
             <div className="opening-cards">
               {P0.hand.map((u, i) => (
                 <button key={u} style={{ animationDelay: `${i * 110}ms` }} onClick={() => { show(u); setZoom(true) }}>
@@ -706,7 +706,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
               ))}
             </div>
             <div className="opening-actions">
-              {opts.map((o) => <button key={o.i} className={o.t === 'keep' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.t === 'keep' ? 'Keep hand' : 'Redraw'}</button>)}
+              {opts.map((o) => <button key={o.i} className={o.t === 'keep' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
             </div>
             <small>Tap a card to read it.</small>
           </div>

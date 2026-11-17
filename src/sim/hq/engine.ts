@@ -77,7 +77,7 @@ export type HQScript = {
   /** Event cards: the phases they can be played in, and what they do. */
   event?: { phases: Phase[]; run: (g: HQ, c: Ctx) => Gen; can?: (g: HQ, p: Side) => boolean; turn1?: boolean }
   /** Character skills used from the hand, such as "[Receive Phase][Hand] Discard this card: ...". */
-  hand?: { phases: Phase[]; cost: 'discard' | 'event'; run: (g: HQ, c: Ctx) => Gen; can?: (g: HQ, p: Side) => boolean; turn1?: boolean }
+  hand?: { phases: Phase[]; cost: 'discard' | 'event' | 'none'; run: (g: HQ, c: Ctx) => Gen; can?: (g: HQ, p: Side) => boolean; turn1?: boolean }
   /** Two names, of which the player picks one when the card enters. */
   alias?: [string, string]
   /** Rough worth of the card's skill to the computer player, from 0 to 3. */
@@ -204,9 +204,10 @@ export class HQ {
     const m = this.s.mods[uid]
     if (base == null) return null
     if (m?.none?.includes(k)) return null
-    if (m && m.fix[k] != null) return m.fix[k]!
+    // A "becomes N" effect replaces everything before it; later +N and −N effects add on top (rule 0-2-12).
     const add = m?.add[k] || 0
-    return base + (m?.noReduce && add < 0 ? 0 : add)
+    const from = m && m.fix[k] != null ? m.fix[k]! : base
+    return from + (m?.noReduce && add < 0 ? 0 : add)
   }
   has(uid: number, team: string) { return this.def(uid).schools.includes(team) || this.def(uid).aff.includes(team) }
   isPos(uid: number, pos: string) { return this.def(uid).pos.includes(pos) }
@@ -272,6 +273,8 @@ export class HQ {
     let got = 0
     for (let i = 0; i < n && P.deck.length; i++, got++) P.hand.push(P.deck.pop()!)
     if (got && !quiet) this.say(`${this.nm(p)} draws ${got} card${got === 1 ? '' : 's'}.`, { t: 'draw', p, n: got })
+    // "Whenever they add a card to their hand" (without "except by drawing") also counts draws.
+    if (got) for (const r of this.rule(p, 'drawOnAdd')) if (r.all) { const who = r.owner as Side; this.say(`${r.src}: ${this.nm(who)} draws for each card added.`); this.draw(who, got) }
     return got
   }
   /** Take a card out of wherever it is now. */
@@ -301,6 +304,11 @@ export class HQ {
     if (!at) return
     this.P(at.p).drop.push(uid)
     if (!quiet) this.say(`${this.name(uid)} goes to the Drop Area.`, { t: 'drop', p: at.p, uid })
+    if (at.from === 'event') for (const r of this.rule(at.p, 'drawOnLeaveEvent')) if (r.uid === uid && !this.s.once.includes(`leave${uid}${r.turn}`)) {
+      this.s.once.push(`leave${uid}${r.turn}`)
+      this.say(`${r.src}: ${this.nm(at.p)} draws 1 card.`)
+      this.draw(at.p, 1)
+    }
   }
   toHand(uid: number, quiet = false) {
     const at = this.lift(uid)
@@ -473,7 +481,10 @@ export class HQ {
     this.s.entry[uid] = entry
     const sc = this.sc(uid)
     if (sc.alias) {
-      const o = yield* this.ask(p, 'name', `Which name does ${this.def(uid).name} use this turn?`, sc.alias.map((n) => ({ t: 'name', label: n, w: 1 })), [uid])
+      const clash = area === 'set' ? this.top(p, 'receive') : area === 'attack' ? this.top(p, 'set') : null
+      const taken = [clash != null ? this.name(clash) : '', ...(area === 'center' || area === 'sides' ? this.blockers(p).filter((x) => x.uid !== uid).map((x) => this.name(x.uid)) : [])]
+      const names = sc.alias.filter((n) => !taken.includes(n))
+      const o = yield* this.ask(p, 'name', `Which name does ${this.def(uid).name} use this turn?`, (names.length ? names : sc.alias).map((n) => ({ t: 'name', label: n, w: 1 })), [uid])
       this.s.alias[uid] = o.label
     }
     if (!quiet) this.say(`${this.nm(p)} plays ${this.def(uid).name} into the ${area === 'center' ? 'Block Area (Center)' : area === 'sides' ? 'Block Area (Side)' : AREA_NAME[area]}.`, { t: 'enter', p, uid, area })
@@ -489,6 +500,12 @@ export class HQ {
       if (r.fixTo != null) this.fix(uid, k, r.fixTo as number)
       else if (r.n) this.pump(uid, k, r.n as number)
       if (r.noReduce) this.noReduce(uid)
+    }
+    for (const r of this.rule(p, 'enterChoose')) {
+      const f = r.pred as ((g: HQ, uid: number) => boolean) | undefined
+      if (f && !f(this, uid)) continue
+      const k = yield* this.pickParam(p, uid, `${r.src}: choose a parameter to get +${r.n}.`)
+      if (k) this.pump(uid, k, r.n as number)
     }
     if (area === 'set') for (const r of this.rule(p, 'aPass')) this.pump(uid, 'st', r.n as number)
     if (area === 'center' || area === 'sides') {
@@ -540,18 +557,35 @@ export class HQ {
   private *run(): Gen {
     const s = this.s
     for (const p of [0, 1] as Side[]) this.shuffle(s.ps[p].deck)
-    s.serveRight = this.rand() < 0.5 ? 0 : 1
-    this.say(`${this.nm(s.serveRight)} has the first right to serve.`)
+    // A player chosen at random decides who takes the first right to serve (rule 4-2-1-2).
+    const chooser: Side = this.rand() < 0.5 ? 0 : 1
+    const serve = yield* this.ask(chooser, 'serve', 'You were picked at random. Do you want the first serve?', [{ t: 'serve', label: 'Serve first', w: 1 }, { t: 'give', label: 'Let my opponent serve', w: 0 }])
+    s.serveRight = serve.t === 'serve' ? chooser : opp(chooser)
+    this.say(`${this.nm(chooser)} ${serve.t === 'serve' ? 'takes' : 'gives up'} the first serve. ${this.nm(s.serveRight)} serves first.`)
     for (const p of [0, 1] as Side[]) this.draw(p, 6, true)
+    // Each player may redraw once: put back any cards they choose, shuffle, and draw back up to 6 (rule 4-2-1-4).
     for (const p of [s.serveRight, opp(s.serveRight)]) {
-      const o = yield* this.ask(p, 'mulligan', 'Keep this hand, or put all 6 back and draw a new hand once?', [{ t: 'keep', label: 'Keep' }, { t: 'mulligan', label: 'Redraw' }])
-      if (o.t === 'mulligan') {
-        const P = s.ps[p]
-        P.deck.push(...P.hand)
-        P.hand = []
+      const o = yield* this.ask(p, 'mulligan', 'Keep this hand, or put some cards back and draw new ones? You can do this once.', [{ t: 'keep', label: 'Keep hand' }, { t: 'pick', label: 'Choose cards to put back' }, { t: 'mulligan', label: 'Put all 6 back' }])
+      const P = s.ps[p]
+      const back: number[] = []
+      if (o.t === 'mulligan') back.push(...P.hand)
+      else if (o.t === 'pick') {
+        for (;;) {
+          const left = P.hand.filter((u) => !back.includes(u))
+          if (!left.length) break
+          const opts: Opt[] = left.map((u) => ({ t: 'card', uid: u, label: this.name(u), w: this.worth(u) < 4 ? 2 : 0 }))
+          opts.push({ t: 'no', label: back.length ? `Done, put back ${back.length}` : 'Done', w: 0.5 })
+          const pick = yield* this.ask(p, 'pick', `Tap the cards to put back into your deck (${back.length} chosen).`, opts)
+          if (pick.t !== 'card') break
+          back.push(pick.uid!)
+        }
+      }
+      if (back.length) {
+        P.hand = P.hand.filter((u) => !back.includes(u))
+        P.deck.push(...back)
         this.shuffle(P.deck)
-        this.draw(p, 6, true)
-        this.say(`${this.nm(p)} redraws.`)
+        this.draw(p, 6 - P.hand.length, true)
+        this.say(`${this.nm(p)} puts back ${back.length} card${back.length === 1 ? '' : 's'} and draws again.`)
       } else this.say(`${this.nm(p)} keeps.`)
     }
     for (const p of [0, 1] as Side[]) for (let i = 0; i < 2; i++) s.ps[p].score.push(s.ps[p].deck.pop()!)
@@ -739,7 +773,7 @@ export class HQ {
           if (sc.event.can && !sc.event.can(this, p)) continue
           opts.push({ t: 'event', uid, label: 'Play this Event' })
         } else if (sc.hand && sc.hand.phases.includes(s.phase)) {
-          if (this.s.turn1[p].includes(d.name) || this.hasRule(p, 'noHandSkill')) continue
+          if (this.s.turn1[p].includes(d.name) || (s.phase === 'receive' && this.hasRule(p, 'noHandSkill'))) continue
           if (sc.hand.can && !sc.hand.can(this, p)) continue
           opts.push({ t: 'hand', uid, label: sc.hand.cost === 'discard' ? 'Discard to use its skill' : 'Send to the Event Area to use its skill' })
         }
@@ -769,6 +803,7 @@ export class HQ {
   private *useHand(p: Side, uid: number): Gen {
     const sc = this.sc(uid).hand!
     if (sc.cost === 'discard') { this.toDrop(uid, true); this.say(`${this.nm(p)} discards ${this.def(uid).name} to use its skill.`, { t: 'skill', p, uid }) }
+    else if (sc.cost === 'none') this.say(`${this.nm(p)} uses the skill of ${this.def(uid).name}.`, { t: 'skill', p, uid })
     else { this.lift(uid); this.P(p).event.push(uid); this.say(`${this.nm(p)} sends ${this.def(uid).name} to the Event Area to use its skill.`, { t: 'skill', p, uid }) }
     yield* sc.run(this, { p, uid, paid: [], seen: [] })
     if (sc.turn1) this.s.turn1[p].push(this.def(uid).name)

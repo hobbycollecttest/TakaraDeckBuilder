@@ -9,7 +9,7 @@ export type CP = (g: HQ, uid: number) => boolean
 export type Cost = { can: (g: HQ, c: Ctx) => boolean; pay: (g: HQ, c: Ctx) => Gen<boolean>; text: string; dear?: boolean }
 
 const opp = (p: Side) => (1 - p) as Side
-const src = (g: HQ, c: Ctx) => g.def(c.uid).name
+const src = (g: HQ, c: Ctx) => g.name(c.uid)
 const PN: Record<Param, string> = { sv: 'Serve', bl: 'Block', rc: 'Receive', st: 'Set', at: 'Attack' }
 
 // ---------- card tests ----------
@@ -43,12 +43,12 @@ export const oppAt = (area: Area, test: CP): Cond => (g, c) => { const t = g.top
 export const onCourt = (test: CP): Cond => (g, c) => g.chars(c.p).some((x) => test(g, x.uid))
 export const inBlock = (test: CP, n = 1): Cond => (g, c) => g.blockers(c.p).filter((x) => test(g, x.uid)).length >= n
 export const eventGE = (n: number, test: CP = ANY): Cond => (g, c) => g.P(c.p).event.filter((u) => test(g, u)).length >= n
-export const eventLE = (n: number): Cond => (g, c) => g.P(c.p).event.length <= n
+export const eventLE = (n: number, test: CP = ANY): Cond => (g, c) => g.P(c.p).event.filter((u) => test(g, u)).length <= n
 export const oppEventGE = (n: number, test: CP = ANY): Cond => (g, c) => g.P(opp(c.p)).event.filter((u) => test(g, u)).length >= n
 export const scoreTotalLE = (n: number): Cond => (g) => g.P(0).score.length + g.P(1).score.length <= n
 export const dropNames = (n: number, test: CP): Cond => (g, c) => new Set(g.P(c.p).drop.filter((u) => test(g, u)).map((u) => g.def(u).name)).size >= n
 export const fromHand: Cond = (g, c) => g.s.entry[c.uid]?.from === 'hand'
-export const enteredBy = (name?: string): Cond => (g, c) => { const b = g.s.entry[c.uid]?.by; return name ? b === name : !!b }
+export const enteredBy = (name?: string): Cond => (g, c) => { const b = g.s.entry[c.uid]?.by; return name ? !!b && b.toUpperCase() === name.toUpperCase() : !!b }
 export const onTopOf = (test: CP): Cond => (g, c) => { const u = g.s.entry[c.uid]?.onTop; return u != null && test(g, u) }
 export const asSide: Cond = (g, c) => !!g.s.entry[c.uid]?.asSide
 export const paidAll = (test: CP): Cond => (g, c) => c.paid.length > 0 && c.paid.every((u) => test(g, u))
@@ -325,7 +325,7 @@ export const dump = (n: number): Eff => function* (g, c) {
 }
 /** "[Back Attack (N)]": this card enters your Attack Area with an Attack Point of N. */
 export const backAttack = (n: number): Eff => function* (g, c) {
-  if (!g.canEnter(c.p, c.uid, 'attack', false) && g.def(c.uid).at == null) return false
+  if (!g.canEnter(c.p, c.uid, 'attack', false)) return false
   g.say(`Back Attack (${n})!`, { t: 'keyword', p: c.p })
   yield* g.enter(c.p, c.uid, 'attack', 'Back Attack')
   g.fix(c.uid, 'at', n)
@@ -352,13 +352,18 @@ const pool = (g: HQ, c: Ctx, zone: Zone, test: CP, areas?: Area[]) => {
   return list.filter((u) => test(g, u))
 }
 /** "Add up to N [cards] from your [zone] to your hand." Different names when asked. */
-export const add = (zone: Zone, test: CP, n = 1, opts: { exact?: boolean; difNames?: boolean; areas?: Area[] } = {}): Eff => function* (g, c) {
+export const add = (zone: Zone, test: CP, n = 1, opts: { exact?: boolean; difNames?: boolean; areas?: Area[]; oneArea?: boolean } = {}): Eff => function* (g, c) {
   const got: number[] = []
+  let areas = opts.areas
+  let lastArea: Area | undefined
   for (let i = 0; i < n; i++) {
-    const list = pool(g, c, zone, test, opts.areas).filter((u) => !got.includes(u) && (!opts.difNames || !got.some((x) => g.def(x).name === g.def(u).name)))
+    // "From the Guts in one of your Areas": after the first card, the rest come from the same Area.
+    if (opts.oneArea && got.length) { areas = lastArea ? [lastArea] : areas }
+    const list = pool(g, c, zone, test, areas).filter((u) => !got.includes(u) && (!opts.difNames || !got.some((x) => g.def(x).name === g.def(u).name)))
     if (opts.exact && list.length < n - i) break
     const uid = yield* g.pickCard(c.p, `Choose a card from your ${zone === 'guts' ? 'Guts' : zone === 'drop' ? 'Drop Area' : zone === 'event' ? 'Event Area' : zone} to add to your hand.`, list, !opts.exact, (u) => g.worth(u), list)
     if (uid == null) break
+    lastArea = g.allGuts(c.p).find((x) => x.uid === uid)?.area
     if (!(yield* g.addByAbility(c.p, uid))) break
     got.push(uid)
   }

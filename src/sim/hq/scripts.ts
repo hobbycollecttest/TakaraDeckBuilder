@@ -9,7 +9,7 @@ import {
   receiveIs, reveal, scoreTotalLE, seenAll, seenCount, seenToBottom, seenToHand, selfGE, self, selfParam, selfToDrop, seq, serveIs, setIs, stuffed, target, targetGE, targetIs, that, thatParam,
   thisEnter, toBottom, toDrawPhase, toEvent, when, type Eff, type CP,
 } from './kit.js'
-import type { HQ, Side } from './engine.js'
+import { AREA_NAME, type Area, type HQ, type Side } from './engine.js'
 
 const opp = (p: Side) => (1 - p) as Side
 const KAR = T('Karasuno'), NEK = T('Nekoma'), SEI = T('Aoba Johsai'), FUK = T('Fukurodani'), DAT = T('Date Tech'), SHI = T('Shiratorizawa')
@@ -61,7 +61,7 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-P01-016': E(['attack'], when(at('set', and(POS('S'), KAR)), may(guts(4), self('at', 2)))),
   'HV-P01-018': E(['set'], may(guts(3), self('st', 1), when(allTeam('Nekoma'), add('event', ANY, 1)))),
   'HV-P01-019': { watch: onEnter({ areas: ['attack'], selfIn: ['set'], test: (g, u) => g.def(u).at === 3, cost: guts(2) }, play('guts', NEK, 'attack', { areas: ['attack'] }), that('at', 2)) },
-  'HV-P01-021': E(['attack'], may(guts(3), self('at', 3), add('guts', NEK, 2, { difNames: true, exact: true }))),
+  'HV-P01-021': E(['attack'], may(guts(3), self('at', 3), add('guts', NEK, 2, { difNames: true, exact: true, oneArea: true }))),
   'HV-P01-023': { watch: onTop(and(NEK, not(N('Morisuke Yaku'))), selfToDrop, that('rc', 2)) },
   'HV-P01-025': E(['attack'], may(guts(2), when(enteredBy('Kenma Kozume'), self('at', 2)), nextEnter(['center'], 'bl', -3))),
   'HV-P01-028': { watch: onTop(N('Lev Haiba'), discard(1, NEK), that('at', 1)) },
@@ -98,16 +98,16 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-P01-073': twin('Kei Tsukishima', 'Tetsuro Kuroo'),
   'HV-P01-074': EV(['attack'], draw(1), one(ANY, 'at', 1), when(oppEv(5, 'draw', 'receive'), that('at', 2))),
   'HV-P01-075': EV(['receive', 'attack'], oneParam(KAR, 1), when(phaseIs('receive'), draw(1))),
-  'HV-P01-076': EVIF(['draw'], handLE(4), add('guts', KAR, 2, { exact: true })), // simplified: any two Karasuno Guts
+  'HV-P01-076': EVIF(['draw'], handLE(4), sameTeamGuts(2)),
   'HV-P01-077': EV1(['receive'], inArea('receive', KAR, 'rc', 2), when(targetIs(N('Yu Nishinoya')), draw(1))),
-  'HV-P01-078': EV(['attack'], draw(2), discardN(1), when(eventLE(3), play('drop', N('Shoyo Hinata'), 'attack', { must: true }), that('at', 1))),
+  'HV-P01-078': EV(['attack'], draw(2), discardN(1), when(eventLE(2, N('FOUR SET')), play('drop', N('Shoyo Hinata'), 'attack', { must: true }), that('at', 1))),
   'HV-P01-079': EV(['block'], draw(1), one(KAR, 'bl', 1, ['center', 'sides']), when(targetIs(N('Kei Tsukishima')), add('court', N('Tadashi Yamaguchi'), 1, { areas: ['serve'] })), nextEnter(['receive'], 'rc', -2)),
   'HV-P01-080': EV(['receive'], draw(1), one(ANY, 'rc', 1), when(oppEv(5, 'set', 'attack'), that('rc', 2))),
   'HV-P01-081': EV(['attack'], draw(1), one(NEK, 'at', 1), when(allTeam('Nekoma'), may(guts(3, ['receive']), that('at', 1)))),
   'HV-P01-082': EV(['receive'], draw(1), choose(['One of your Nekoma characters gets +1 Receive Point.', one(NEK, 'rc', 1)], ['Set the Receive Point of a Nekoma character with 5 or more to 7.', seq(one(and(NEK, (g, u) => (g.param(u, 'rc') ?? 0) >= 5), 'rc', 0), fixThat('rc', 7)), (g, c) => g.chars(c.p).some((x) => g.has(x.uid, 'Nekoma') && (g.param(x.uid, 'rc') ?? 0) >= 5), 2])),
   'HV-P01-083': EV(['attack'], draw(1), when(allTeam('Nekoma'), may(guts(6), one(ANY, 'at', 3)))),
   'HV-P01-084': EVIF(['set'], setIs('Kenma Kozume'), draw(1), inArea('set', ANY, 'st', 1), nextNoPlay(['attack'], (d) => d.pos.includes('MB'), true)),
-  'HV-P01-085': EV(['draw'], draw(1), may(guts(8), thisEnter(SEI, 'area' as never, 1))), // simplified: +1 to the parameter its Area uses
+  'HV-P01-085': EV(['draw'], draw(1), may(guts(8), now('enterChoose', { n: 1, pred: (g: HQ, u: number) => g.has(u, 'Aoba Johsai') }))),
   'HV-P01-086': EV(['draw', 'receive'], add('drop', and(SEI, CHAR), 1, { exact: true })),
   'HV-P01-087': EVIF(['serve', 'set'], either(serveIs('Toru Oikawa'), setIs('Toru Oikawa')), draw(1), one(N('Toru Oikawa'), 'st', 1), next('discardOnAdd')),
   'HV-P01-088': EV(['receive'], drawUpTo(1), one(SEI, 'rc', 1), when(handLE(3), that('rc', 1))),
@@ -126,7 +126,7 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
     const ev = g.P(o).hand.filter((u) => g.def(u).type === 'Event')
     const uid = yield* g.pickCard(o, 'Send an Event card from your hand to your Event Area? If you do not, your opponent draws whenever you add cards next turn.', ev, true, (u) => 5 - g.worth(u))
     if (uid != null) { g.lift(uid); g.P(o).event.push(uid); g.say(`${g.nm(o)} sends ${g.def(uid).name} to the Event Area.`) }
-    else { g.addRule(o, 1, 'drawOnAdd', g.def(c.uid).name, { owner: c.p }); g.say(`${g.def(c.uid).name}: next turn, whenever ${g.nm(o)} adds a card by a skill, ${g.nm(c.p)} draws 1.`) }
+    else { g.addRule(o, 1, 'drawOnAdd', g.def(c.uid).name, { owner: c.p, all: true }); g.say(`${g.def(c.uid).name}: next turn, whenever ${g.nm(o)} adds a card to their hand, ${g.nm(c.p)} draws 1.`) }
   })),
   'HV-P02-005': E(['receive'], when(enteredBy('HELP ME OUT!!!'), may(guts(2), self('rc', 2), add('drop', N('Hisashi Kinoshita'), 1)))),
   'HV-P02-006': E(['receive'], when(oppEv(3, 'serve'), draw(1)), self('rc', 3)),
@@ -181,7 +181,9 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
     const list = g.P(p).hand.filter((u) => g.has(u, 'Karasuno') && g.def(u).type === 'Character')
     const uid = yield* g.pickCard(p, 'Put a Karasuno character card from your hand into the Guts of one of your Areas?', list, true)
     if (uid == null) return
-    const area = (['serve', 'center', 'receive', 'set', 'attack'] as const).find((a) => g.top(p, a) != null) ?? 'receive'
+    const areas = (['serve', 'center', 'receive', 'set', 'attack'] as const).filter((a) => g.top(p, a) != null)
+    const o = areas.length > 1 ? yield* g.ask(p, 'choose', 'Put it into the Guts of which Area?', areas.map((a) => ({ t: 'opt', label: AREA_NAME[a], area: a, w: a === 'attack' ? 2 : 1 }))) : null
+    const area = (o?.area as typeof areas[number] | undefined) ?? areas[0] ?? 'receive'
     g.lift(uid); g.P(p)[area].unshift(uid)
     g.say(`${g.nm(p)} puts ${g.def(uid).name} into their Guts.`)
   } }), ownerFix),
@@ -195,7 +197,7 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-P02-084': EV(['receive'], draw(1), one(INA, 'rc', 1), when(eventGE(2, and(INA, playableAs('serve', 'set', 'attack'))), that('rc', 1))),
   'HV-P02-085': EV(['receive'], one(INA, 'rc', 1), may(discard(1, INA), draw(2))),
   'HV-P02-086': EVIF(['serve', 'draw'], allTeam('Inarizaki'), draw(1), when(phaseIs('serve'), (g, c) => nextEnter(['receive'], 'rc', serveIs('Atsumu Miya')(g, c) ? -2 : -1, NOSKILL)(g, c))),
-  'HV-P02-087': EV(['attack'], draw(1), when(all(setIs('Atsumu Miya'), attackIs('Osamu Miya')), play('guts', N('Atsumu Miya'), 'set', { areas: ['set'] }), play('guts', N('Osamu Miya'), 'attack', { areas: ['attack'] }), oneParam(INA, 1))),
+  'HV-P02-087': EV(['attack'], draw(1), when(all(setIs('Atsumu Miya'), attackIs('Osamu Miya')), play('guts', N('Atsumu Miya'), 'set'), play('guts', N('Osamu Miya'), 'attack'), oneParam(INA, 1))),
   'HV-P02-088': EV(['attack'], draw(1), one(INA, 'at', 1), when(all(setIs('Osamu Miya'), attackIs('Atsumu Miya')), next('noEvent', { phases: ['block'] }))),
   'HV-P02-089': EV(['draw'], function* (g, c) {
     let k = 0
@@ -214,7 +216,7 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-P02-095': EV(['draw'], ifDid(add('drop', and(SHI, CHAR, NOSKILL), 2), when((g, c) => c.seen.length === 2, discardN(1)))),
   'HV-P02-096': EV1(['attack'], draw(1), one(SHI, 'at', 1), when(all(setIs('Kenjiro Shirabu'), at('attack', orig('at', (n) => n === 3))), play('guts', N('Wakatoshi Ushijima'), 'attack', { areas: ['attack'] }), that('at', 1))),
   'HV-P02-097': EV(['attack'], draw(1), one(SHI, 'at', 1), when(attackIs('Wakatoshi Ushijima'), nextNoPlay(['block'], (d) => d.pos.includes('MB'), true))),
-  'HV-P02-098': EV1(['attack'], draw(1), one(SHI, 'at', 1), when(attackIs('Tsutomu Goshiki'), may(discard(1, N('Wakatoshi Ushijima')), function* (g, c) { const t = g.top(c.p, 'attack'); if (t != null) g.pump(t, 'at', 1) }))),
+  'HV-P02-098': EV1(['attack'], draw(1), one(SHI, 'at', 1), when(attackIs('Tsutomu Goshiki'), may(discard(1, N('Wakatoshi Ushijima')), that('at', 1)))),
   'HV-P02-099': EVIF(['draw'], handLE(4), ifDid(add('drop', N('Suguru Daisho'), 1, { exact: true }), add('guts', NOH, 1))),
   'HV-P02-100': EV1(['block', 'receive', 'attack'], draw(1), oneParam(N('Lev Haiba'), 1)),
 
@@ -242,9 +244,14 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-P03-028': { watch: onEnter({ areas: ['set'], selfIn: ['receive'], test: YOU }, function* (g, c) {
     const list = g.guts(c.p, 'receive').filter((u) => g.def(u).name === 'Tobio Kageyama')
     if (!list.length || !(yield* g.yesNo(c.p, `Put "Tobio Kageyama" from your Receive Area Guts on top of ${g.def(c.uid).name}?`, 1))) return
-    yield* g.enter(c.p, list[0], 'receive', g.def(c.uid).name, true)
+    // "Put" is not "enter": the card moves on top without triggering anything.
+    const P = g.P(c.p)
+    P.receive.splice(P.receive.indexOf(list[0]), 1)
+    P.receive.push(list[0])
+    delete g.s.mods[c.uid]
+    g.say(`${g.nm(c.p)} puts Tobio Kageyama on top of ${g.def(c.uid).name}.`)
     g.addRule(c.p, 0, 'baBonus', g.def(c.uid).name, { n: 1 })
-  }) }, // simplified: the card is played on top, which also counts as entering
+  }) },
   'HV-P03-030': E(['block'], when(all(allTeam('Youth'), oppOffGE(8)), thisEnter(ANY, 'rc', 2, ['receive']), toDrawPhase)),
   'HV-P03-031': E(['set'], may(guts(2), when(paidAll(and(NEK, POS('S'))), self('st', 2)), look(3, and(T('Nekoma', 'Nekoma Junior High'), EVENT)))),
   'HV-P03-033': { watch: onEnter({ areas: ['attack'], selfIn: ['serve'], test: NEK, cost: guts(1) }, backAttack(4)) },
@@ -276,7 +283,17 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-P03-075': E(['receive', 'attack'], when(setIs('Sakae Echigo'), may(guts(3), selfParam(3)))),
   'HV-P03-077': twin('Shoyo Hinata', 'Yudai Hyakuzawa'),
   'HV-P03-078': EV(['draw'], look(3, and(T('Johzenji', 'Pseudo-Youth'), CHAR), 1, 'either')),
-  'HV-P03-079': EV(['draw'], look(5, and(PSY, CHAR, POS('WS', 'MB', 'S', 'Li')), 1), when((g, c) => c.seen.length > 0, look(4, and(CHAR, POS('Ball Boy')), 1))),
+  'HV-P03-079': EV(['draw'], function* (g, c) {
+    const P = g.P(c.p)
+    const seen = P.deck.slice(-5).reverse()
+    if (!seen.length) return
+    const first = yield* g.pickCard(c.p, 'Top 5 cards. Add a Pseudo-Youth WS, MB, S or Li character card to your hand?', seen.filter((u) => g.has(u, 'Pseudo-Youth') && g.isChar(u) && ['WS', 'MB', 'S', 'Li'].some((x) => g.isPos(u, x))), true, (u) => g.worth(u), seen)
+    const second = first == null ? null : yield* g.pickCard(c.p, 'Add a Ball Boy character card from the rest?', seen.filter((u) => u !== first && g.isChar(u) && g.isPos(u, 'Ball Boy')), true, (u) => g.worth(u), seen.filter((u) => u !== first))
+    const got = [first, second].filter((u): u is number => u != null)
+    P.deck.splice(P.deck.length - seen.length)
+    P.deck.unshift(...seen.filter((u) => !got.includes(u)).reverse())
+    for (const u of got) { P.deck.push(u); g.say(`${g.nm(c.p)} reveals ${g.def(u).name}.`, { t: 'reveal', p: c.p, uid: u }); yield* g.addByAbility(c.p, u) }
+  }),
   'HV-P03-080': EV(['draw'], may(gutsEach(2, ['receive', 'set', 'attack']), add('event', not(N('SEARCH')), 2))),
   'HV-P03-081': EV1(['block', 'receive', 'attack'], draw(1), when(allTeam('Pseudo-Youth'), oneParam(ANY, 1)), when(eventGE(8), draw(1))),
   'HV-P03-082': EV(['receive'], when(allTeam('Pseudo-Youth'), draw(1)), one(ANY, 'rc', 1), when(eventGE(4), thisEnter(and(PSY, N('Yudai Hyakuzawa')), 'at', 1))),
@@ -285,10 +302,10 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-P03-085': EV1(['attack'], draw(1), one(YOU, 'at', 1), when(targetIs(N('Korai Hoshiumi')), may(guts(3, ['attack']), that('at', 2)))),
   'HV-P03-086': EV(['set'], function* (g, c) { const t = g.top(c.p, 'set'); if (t != null && g.isPos(t, 'S')) g.fix(t, 'st', 2) }, may(evSelfToBottom, add('event', (g, u) => g.def(u).type === 'Event' && g.timings(u).length === 1 && g.timings(u)[0] === 'attack', 1))),
   'HV-P03-087': EV1(['receive', 'attack'], when(either(allTeam('Karasuno'), allTeam('Youth')), draw(1)), one(ANY, 'at', 1), when(targetIs(N('Tobio Kageyama')), may(guts(6), thatParam(2)))),
-  'HV-P03-088': EVIF(['draw'], handLE(4), ifDid(add('guts', NEK, 2, { exact: true, difNames: true }), toBottom('drop', and(NEK, CHAR), 1))),
+  'HV-P03-088': EVIF(['draw'], handLE(4), ifDid(add('guts', NEK, 2, { exact: true, difNames: true, oneArea: true }), toBottom('drop', and(NEK, CHAR), 1))),
   'HV-P03-089': EV(['draw', 'receive'], add('drop', and(NEK, CHAR), 1, { exact: true })),
   'HV-P03-090': EV1(['draw'], add('event', and(EVENT, not(N('THANK YOU FOR TEACHING ME VOLLEYBALL'))), 1, { exact: true })),
-  'HV-P03-091': EV(['serve', 'draw'], draw(1), when(all(phaseIs('serve'), serveIs('Atsumu Miya')), function* (g, c) { g.fix(g.top(c.p, 'serve')!, 'sv', 6) })),
+  'HV-P03-091': EV(['serve', 'draw'], draw(1), when(all(phaseIs('serve'), serveIs('Atsumu Miya')), function* (g, c) { g.fix(g.top(c.p, 'serve')!, 'sv', 6) }), function* (g, c) { g.addRule(c.p, 0, 'drawOnLeaveEvent', g.def(c.uid).name, { uid: c.uid }) }),
   'HV-P03-092': EV(['attack'], draw(1), next('noStuffed'), next('noDeflection'), when(attackIs('Rintaro Suna'), may(guts(2, ['attack']), inArea('attack', ANY, 'at', 2)))),
   'HV-P03-093': EV(['receive'], draw(1), choose(['One of your Inarizaki characters gets +1 Receive Point.', one(INA, 'rc', 1)], ['Play "Shinsuke Kita" from your Receive Area Guts into your Receive Area.', play('guts', N('Shinsuke Kita'), 'receive', { areas: ['receive'] }), (g, c) => g.guts(c.p, 'receive').some((u) => g.def(u).name === 'Shinsuke Kita')])),
   'HV-P03-094': EV1(['draw'], function* (g, c) {
@@ -465,7 +482,7 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HVBP-003': E(['set'], may(guts(2), draw(1))),
   'HVBP-004': E(['set'], may(guts(2), draw(1))),
   'HV-PR-004': E(['set'], may(guts(2), draw(1))),
-  'HVBP-009': E(['receive', 'attack'], may(guts(2), choose(['+1 Receive Point', self('rc', 1), phaseIs('receive'), 2], ['+1 Attack Point', self('at', 1), phaseIs('attack', 'set'), 2], ['+1 Receive Point', self('rc', 1)], ['+1 Attack Point', self('at', 1)]))),
+  'HVBP-009': E(['receive', 'attack'], may(guts(2), choose(['This character gets +1 Receive Point.', self('rc', 1)], ['This character gets +1 Attack Point.', self('at', 1)]))),
   'HVBP-013': EV(['attack'], one(ANY, 'at', 1), when(all(setIs('Tobio Kageyama'), attackIs('Shoyo Hinata')), next('blockMax', { n: 2 }))),
   'HVBP-014': EV(['receive'], one(ANY, 'rc', 1), when(handLE(3), draw(1))),
   'HV-PR-001': { enter: { areas: ['court'], run: seq(when(onTopOf(N('Shoyo Hinata')), selfParam(1))) as never } },
@@ -544,9 +561,8 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
     yield* selfParam(2)(g, c)
     if (k === 2) { g.pump(c.uid, 'at', 1); yield* blockOut(2)(g, c) }
   })),
-  'HV-PR-082': { hand: { phases: ['attack'], cost: 'discard', can: (g, p) => g.guts(p, 'attack').length >= 3 && (() => { const t = g.top(p, 'attack'); return t != null && g.has(t, 'Nekoma') && g.def(t).at === 3 })(), run: function* (g, c) {
-    // Simplified: the card's real cost pays 3 Guts and keeps it in hand until Back Attack plays it.
-    g.lift(c.uid); g.P(c.p).hand.push(c.uid)
+  'HV-PR-082': { hand: { phases: ['attack'], cost: 'none', can: (g, p) => g.guts(p, 'attack').length >= 3 && (() => { const t = g.top(p, 'attack'); return t != null && g.has(t, 'Nekoma') && g.def(t).at === 3 })(), run: function* (g, c) {
+    // Its cost is 3 Guts from the Attack Area; the card stays in hand until Back Attack plays it.
     yield* g.payGuts(c.p, 3, ['attack'])
     yield* backAttack(5)(g, c)
   } } },
@@ -586,6 +602,28 @@ function selfBlockerToDrop(test: CP) {
       c.paid = [uid]
       return true
     },
+  }
+}
+/** "Add 2 Guts with the same affiliation from one of your Areas to your hand." */
+function sameTeamGuts(n: number): Eff {
+  return function* (g, c) {
+    const choices: { area: Area; team: string; uids: number[] }[] = []
+    for (const area of ['serve', 'center', 'receive', 'set', 'attack'] as Area[]) {
+      const gs = g.guts(c.p, area)
+      const teams = new Set(gs.flatMap((u) => g.def(u).schools))
+      for (const team of teams) { const uids = gs.filter((u) => g.has(u, team)); if (uids.length >= n) choices.push({ area, team, uids }) }
+    }
+    if (!choices.length) return false
+    const o = choices.length === 1 ? { n: 0 } : yield* g.ask(c.p, 'choose', 'Take Guts of which team, from which Area?', choices.map((x, i) => ({ t: 'opt', n: i, label: `${x.team}, ${AREA_NAME[x.area]}`, w: x.uids.length })))
+    const pick = choices[o.n ?? 0]
+    const got: number[] = []
+    for (let i = 0; i < n; i++) {
+      const uid = yield* g.pickCard(c.p, `Choose ${pick.team} Guts to add to your hand.`, pick.uids.filter((u) => !got.includes(u)), false, (u) => g.worth(u), pick.uids)
+      if (uid == null) break
+      got.push(uid)
+      yield* g.addByAbility(c.p, uid)
+    }
+    return got.length === n
   }
 }
 /** "Put 1 card from your hand on the top or bottom of your deck." */
