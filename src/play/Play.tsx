@@ -173,13 +173,15 @@ function deckColors(ids: string[]) {
 
 // How long each kind of event stays on screen at normal speed, in milliseconds.
 const PACE: Record<string, number> = {
-  round: 1250, phase: 900, line: 700, first: 900, draw: 380, charge: 520, summon: 720, waza: 780, clash: 1300,
+  round: 1250, phase: 900, line: 700, first: 900, draw: 380, charge: 520, summon: 720, waza: 1150, clash: 1300,
   down: 520, destroy: 700, damage: 760, trigger: 1500, recover: 420, ena: 420, refresh: 420, victory: 2200, note: 520,
 }
 const SOUND: Record<string, string> = {
   round: 'drum', phase: 'drum', line: 'line', first: 'drum', draw: 'draw', charge: 'charge', summon: 'summon', waza: 'waza', clash: 'clash',
   down: 'down', destroy: 'destroy', damage: 'damage', trigger: 'trigger', recover: 'recover', ena: 'charge', refresh: 'draw',
 }
+// Everything runs at this fraction of the original pace, so 1× is unhurried and 3× is brisk.
+const CALM = 0.55
 const PHASES: [View2['phase'], string][] = [['summon', 'Summon'], ['battle', 'Battle'], ['end', 'End']]
 type View2 = ReturnType<Match['snapshot']>
 
@@ -201,6 +203,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   const [pile, setPile] = useState<{ title: string; uids: number[] } | null>(null)
   const logRef = useRef<HTMLOListElement>(null)
 
+  const spd = speed * CALM
   const ev: Ev | null = cursor < m.events.length ? m.events[cursor] : null
   const playing = !!ev
   const v = useMemo(() => (ev ? ev.view : m.snapshot()), [ev, tick])
@@ -227,13 +230,13 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
     if (sfx) play(sfx)
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const base = (PACE[ev.t] ?? PACE.note) + (ev.t === 'damage' && ev.broken ? 300 : 0)
-    const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / speed)
+    const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / spd)
     return () => clearTimeout(t)
   }, [cursor, ev, speed])
   // Once the table has caught up, the CPU makes its next choice.
   useEffect(() => {
     if (playing || !m.req || m.req.p !== CPU) return
-    const t = setTimeout(() => act(cpuChoice(m, save.level)), 380 / speed)
+    const t = setTimeout(() => act(cpuChoice(m, save.level)), 520 / spd)
     return () => clearTimeout(t)
   }, [tick, playing, speed])
   useEffect(() => {
@@ -402,7 +405,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
     : null
 
   return (
-    <main className="table" onPointerDown={unlockSound} style={{ '--spd': speed } as React.CSSProperties}>
+    <main className="table" onPointerDown={unlockSound} style={{ '--spd': spd } as React.CSSProperties}>
       <div className="board">
         <div className="cpu-row">
           {plate(CPU)}
@@ -438,10 +441,43 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
               </div>
             </div>
           ) : null}
+          {mine && mine.kind === 'battle' ? (() => {
+            const line = v.line
+            const you = v.pw[ME][line]
+            const them = v.ps[CPU].lines[line] ? v.pw[CPU][line] : 0
+            const gap = them - you
+            return (
+              <div className={`battle-pop ${line <= 1 ? 'right' : 'left'}`} role="dialog" aria-label="Your battle action">
+                <h3>Line {line + 1} battle</h3>
+                <p className="bp-score"><span>You <b>{you}</b></span><i>vs</i><span>CPU <b>{them}</b></span></p>
+                <p className={`bp-state ${gap > 0 ? 'behind' : gap < 0 ? 'ahead' : ''}`}>
+                  {gap > 0 ? `You are behind by ${gap}.` : gap < 0 ? `You are ahead by ${-gap}.` : 'It is a tie. A tie downs both Horobeat.'}
+                </p>
+                <ul>
+                  {opts.filter((o) => o.uid != null).map((o) => {
+                    const d = m.def(o.uid!)
+                    const add = o.t === 'boost' ? d.boost : d.power
+                    return (
+                      <li key={o.i}>
+                        <button className="bp-card" onClick={() => peek(o.uid!)} aria-label={`Read ${d.name}`}><img src={img(d.id, view)} alt="" /></button>
+                        <div>
+                          <strong>{o.t === 'boost' ? 'Boost' : 'Waza'} <em>+{add}</em></strong>
+                          <span>{d.name}</span>
+                        </div>
+                        <button className="btn" onClick={() => act(o.i)}>{o.t === 'boost' ? 'Use Boost' : 'Use Waza'} · pay {o.t === 'boost' ? 1 : d.cost}</button>
+                      </li>
+                    )
+                  })}
+                </ul>
+                <button className="ghost bp-pass" onClick={() => act(opts.find((o) => o.t === 'pass')!.i)}>Pass</button>
+              </div>
+            )
+          })() : null}
           {ev && ev.t === 'waza' ? (
             <div key={cursor} className={`flash-card ${ev.p === ME ? 'mine' : 'theirs'}`}>
               <img src={img(m.s.cards[ev.uid!], view)} alt="" />
-              <span>{ev.boost ? 'Boost' : 'Waza'}</span>
+              <span>{ev.boost ? 'Boost' : 'Waza'} <b>+{ev.boost ? m.def(ev.uid!).boost : m.def(ev.uid!).power}</b></span>
+              <em>{nm(ev.p!)} · Line {ev.line! + 1}</em>
             </div>
           ) : null}
         </div>
@@ -482,7 +518,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
                   ))}
                 </div>
               ) : null}
-              <div className="choices">
+              <div className="choices" hidden={mine.kind === 'battle'}>
                 {chosen != null ? <span className="chosen">{m.name(chosen)}</span> : null}
                 {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o, chosen != null ? m.name(chosen) : '')}</button>)}
                 {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
