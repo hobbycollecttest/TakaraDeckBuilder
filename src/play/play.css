@@ -23,6 +23,20 @@
 .lobby .start { margin: 22px 0 6px; padding: 12px 28px; font-size: 15px; font-weight: 600; }
 .fine { margin-top: 12px; color: var(--ink-2); font-size: 13px; }
 
+.friend-title { margin-top: 34px; }
+.lobby input.text { width: 170px; padding: 7px 10px; border: 1px solid var(--line); background: #fff; font: inherit; }
+.lobby input.text.code { width: 92px; text-align: center; font: 600 16px/1.2 var(--cond); letter-spacing: 0.2em; text-transform: uppercase; }
+.friend-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.friend-actions span { color: var(--ink-3); }
+.friend-actions .ghost { color: var(--ink); }
+.linkish { padding: 0; border: 0; background: none; color: var(--crimson); font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.fine.problem, .prompt .problem { color: #c0261c; font-weight: 600; }
+.prompt .problem { color: #ff8b80; }
+.lobby.waiting { max-width: 560px; text-align: center; padding-top: 70px; }
+.lobby.waiting .lede { margin: 0 auto; }
+.lobby.waiting .friend-actions { justify-content: center; margin-top: 22px; }
+.room-code { margin: 14px 0 18px; font: 700 64px/1 'Cinzel', var(--disp); letter-spacing: 0.22em; color: var(--ink); padding-left: 0.22em; }
+
 /* ---------- table ---------- */
 /* The match is played on a dark table with the ink clouds and willow from the official artwork. */
 .play.in-match { background: #100e0d; }

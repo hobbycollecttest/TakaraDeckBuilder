@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DEFS, Match, type Ev, type Opt, type Setup, type Side } from '../sim/engine'
+import { DEFS, Match, type Def, type Ev, type Opt, type Req, type Setup, type Side } from '../sim/engine'
 import { play, setSound, unlockSound } from './sound'
+import { RemoteMatch, checkRoom, createRoom, joinRoom, leaveRoom, sendChoice, type Payload } from './online'
+import { authReady, currentAccount } from '../auth'
+import { listDecks, type CloudDeck } from '../cloud'
 import { cpuChoice, type Level } from '../sim/ai'
 import { PRACTICE, expandDeck } from '../sim/decks'
 import { store, type Deck, type View } from '../game'
@@ -10,8 +13,6 @@ import { store, type Deck, type View } from '../game'
 type Save = { v: number; setup: Setup; answers: number[]; level: Level }
 const SAVE_VERSION = 1
 const SAVE_KEY = 'hb.play'
-const ME: Side = 0
-const CPU: Side = 1
 
 const img = (id: string, view: View, large = false) => {
   const v = DEFS.get(id)?.v
@@ -20,7 +21,7 @@ const img = (id: string, view: View, large = false) => {
 
 type Choice = { key: string; label: string; note: string; ids: string[]; error: string }
 
-function deckChoices(): Choice[] {
+function deckChoices(account: CloudDeck[]): Choice[] {
   const out: Choice[] = []
   const add = (key: string, label: string, deck: Deck) => {
     const { ids, error } = expandDeck(deck)
@@ -38,6 +39,8 @@ function deckChoices(): Choice[] {
     add('link', new URLSearchParams(location.hash.slice(1)).get('n') || 'Shared deck', deck)
   }
   add('current', store.get('hb.name', '') || 'Deck in the builder', store.get<Deck>('hb.deck', {}))
+  // Decks saved to the player's account.
+  for (const d of account) add(`account:${d.id}`, d.name || 'Untitled deck', d.cards)
   for (const s of store.get<{ id: string; name: string; deck: Deck }[]>('hb.saved', [])) add(`saved:${s.id}`, s.name || 'Untitled deck', s.deck)
   for (const p of PRACTICE) out.push({ key: `practice:${p.color}`, label: p.name, note: '', ids: p.ids, error: '' })
   return out
@@ -51,6 +54,7 @@ export default function Play() {
   const [playing, setPlaying] = useState(false)
   const [view, setView] = useState<View>(() => store.get<View>('hb.view', 'en'))
   const [matchId, setMatchId] = useState(0)
+  const [room, setRoom] = useState<Payload | null>(null)
   useEffect(() => store.set('hb.view', view), [view])
 
   const start = (ids: string[], cpuIds: string[], level: Level) => {
@@ -68,33 +72,68 @@ export default function Play() {
   }
 
   return (
-    <div className={`app play ${playing && save ? 'in-match' : ''}`} onPointerDown={unlockSound}>
+    <div className={`app play ${(playing && save) || (room && room.status !== 'waiting') ? 'in-match' : ''}`} onPointerDown={unlockSound}>
       <header className="top">
         <a className="brand" href="/">
           <span className="brand-game">HORO-BEAT</span>
-          <span className="brand-tool">Play vs CPU</span>
+          <span className="brand-tool">Play</span>
         </a>
         <div className="seg" role="group" aria-label="Card language">
           <button className={view === 'en' ? 'on' : ''} onClick={() => setView('en')}>English</button>
           <button className={view === 'jp' ? 'on' : ''} onClick={() => setView('jp')}>日本語</button>
         </div>
-        {playing ? <button className="signin" onClick={leave}>Menu</button> : <a className="signin" href="/">Deck builder</a>}
+        {room ? null : playing ? <button className="signin" onClick={leave}>Menu</button> : <a className="signin" href="/">Deck builder</a>}
       </header>
-      {playing && save ? (
-        <Table key={matchId} save={save} view={view} onAgain={() => start(save.setup.decks[0], save.setup.decks[1], save.level)} onMenu={drop} />
+      {room ? (
+        <Room key={room.code} first={room} view={view} onExit={() => { store.set('hb.room', ''); setRoom(null) }} />
+      ) : playing && save ? (
+        <LocalTable key={matchId} save={save} view={view} onAgain={() => start(save.setup.decks[0], save.setup.decks[1], save.level)} onMenu={drop} />
       ) : (
-        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} />
+        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onRoom={(p) => { store.set('hb.room', p.code); setRoom(p) }} />
       )}
     </div>
   )
 }
 
-function Lobby({ save, view, onResume, onStart }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void }) {
-  const choices = useMemo(deckChoices, [])
+function Lobby({ save, view, onResume, onStart, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onRoom: (p: Payload) => void }) {
+  // Decks saved to the account load after the page opens, for players who are signed in.
+  const [account, setAccount] = useState<CloudDeck[]>([])
+  const [signedIn, setSignedIn] = useState<boolean | null>(null)
+  useEffect(() => {
+    let live = true
+    currentAccount()
+      .then((a) => {
+        if (!live) return
+        setSignedIn(!!a)
+        if (a) return listDecks('horobeat').then((r) => live && setAccount(r.decks))
+      })
+      .catch(() => live && setSignedIn(false))
+    return () => { live = false }
+  }, [])
+  const choices = useMemo(() => deckChoices(account), [account])
   const [mine, setMine] = useState(() => (choices.find((c) => !c.error) || choices[0]).key)
+  // Playing a friend.
+  const [name, setName] = useState(() => store.get('hb.pname', ''))
+  const [code, setCode] = useState(() => (new URLSearchParams(location.hash.slice(1)).get('room') || '').toUpperCase().slice(0, 5))
+  const [busy, setBusy] = useState('')
+  const [problem, setProblem] = useState('')
+  const lastRoom = store.get('hb.room', '')
+  const online = async (what: 'create' | 'join' | 'rejoin') => {
+    setProblem('')
+    setBusy(what)
+    store.set('hb.pname', name.trim())
+    try {
+      const who = name.trim() || 'Player'
+      onRoom(what === 'create' ? await createRoom(who, picked.ids) : what === 'join' ? await joinRoom(code, who, picked.ids) : await joinRoom(lastRoom, who))
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+      if (what === 'rejoin') store.set('hb.room', '')
+    }
+    setBusy('')
+  }
   const [theirs, setTheirs] = useState('random')
   const [level, setLevel] = useState<Level>('normal')
-  const picked = choices.find((c) => c.key === mine)!
+  const picked = choices.find((c) => c.key === mine) || choices[choices.length - 1]
   const canResume = useMemo(() => {
     if (!save) return false
     try {
@@ -115,8 +154,8 @@ function Lobby({ save, view, onResume, onStart }: { save: Save | null; view: Vie
 
   return (
     <main className="lobby">
-      <h1>Play HORO-BEAT against the computer</h1>
-      <p className="lede">A full match with the official rules, right in your browser. Your game is saved on this device, so you can close the page and pick it up later.</p>
+      <h1>Play HORO-BEAT</h1>
+      <p className="lede">A full match with the official rules, right in your browser. Practice against the computer, or play a friend with a room code.</p>
       {canResume ? (
         <div className="resume">
           <span>You have a match in progress.</span>
@@ -137,10 +176,14 @@ function Lobby({ save, view, onResume, onStart }: { save: Save | null; view: Vie
               </li>
             ))}
           </ul>
-          <p className="fine">Decks you make in the <a href="/">deck builder</a> on this device show up here once they have 50 cards.</p>
+          <p className="fine">
+            {signedIn === false && authReady
+              ? <>Your saved decks appear here once you <a href="/">sign in on the deck builder</a>. Decks need exactly 50 cards to be played.</>
+              : <>Decks from your account and from the <a href="/">deck builder</a> show up here once they have 50 cards.</>}
+          </p>
         </section>
         <section>
-          <h2>Opponent</h2>
+          <h2>Play the computer</h2>
           <div className="field-row">
             <span>CPU deck</span>
             <div className="seg small">
@@ -159,6 +202,21 @@ function Lobby({ save, view, onResume, onStart }: { save: Save | null; view: Vie
           <button className="btn start" onClick={go} disabled={!!picked.error}>Start match</button>
           <p className="fine">The CPU follows the same rules you do. It decides from its own hand and the cards on the table, and never looks at your hand or either deck.</p>
           <p className="fine">New to the game? Read <a href="/how-to-play">How to play</a> first. It takes about five minutes.</p>
+
+          <h2 className="friend-title">Play a friend</h2>
+          <div className="field-row">
+            <label htmlFor="pname">Your name</label>
+            <input id="pname" className="text" value={name} maxLength={16} placeholder="Player" onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="friend-actions">
+            <button className="btn" onClick={() => online('create')} disabled={!!picked.error || !!busy}>{busy === 'create' ? 'Making room…' : 'Create a room'}</button>
+            <span>or</span>
+            <input className="text code" value={code} maxLength={5} placeholder="CODE" aria-label="Room code" onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} />
+            <button className="btn" onClick={() => online('join')} disabled={!!picked.error || !!busy || code.length !== 5}>{busy === 'join' ? 'Joining…' : 'Join'}</button>
+          </div>
+          {lastRoom ? <p className="fine">You were in room {lastRoom}. <button className="linkish" onClick={() => online('rejoin')} disabled={!!busy}>Go back to it</button></p> : null}
+          {problem ? <p className="fine problem">{problem}</p> : null}
+          <p className="fine">Create a room and send the code to your friend. They pick a deck, type the code and join. Both of you use the deck selected on the left.</p>
         </section>
       </div>
     </main>
@@ -169,6 +227,75 @@ function deckColors(ids: string[]) {
   const n = new Map<string, number>()
   ids.forEach((id) => n.set(DEFS.get(id)!.color, (n.get(DEFS.get(id)!.color) || 0) + 1))
   return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c).join(' / ')
+}
+
+/** A match against a friend. The server runs it; this screen checks in for news. */
+function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () => void }) {
+  const ref = useRef<RemoteMatch | null>(null)
+  if (!ref.current) ref.current = new RemoteMatch(first)
+  const m = ref.current
+  const [version, setVersion] = useState(0)
+  const [sure, setSure] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const kick = useRef<() => void>(() => {})
+
+  // Check in with the server. Often while waiting on the other player, rarely when the
+  // next move is yours, and not at all while the tab is in the background.
+  useEffect(() => {
+    let stop = false
+    let timer = 0
+    let quiet = 0
+    const loop = async () => {
+      if (stop || m.status === 'over') return
+      if (document.visibilityState === 'visible') {
+        try {
+          if (m.apply(await checkRoom(m.code, m.rev))) { quiet = 0; setVersion((n) => n + 1) } else quiet++
+        } catch { quiet++ }
+      }
+      // The check-in above may have ended the match.
+      if (stop || (m.status as string) === 'over') return
+      const myMove = m.status === 'playing' && !!m.req
+      timer = window.setTimeout(loop, m.status === 'waiting' ? 3000 : myMove ? 12000 : quiet < 40 ? 2500 : quiet < 120 ? 5000 : 10000)
+    }
+    kick.current = () => { clearTimeout(timer); timer = window.setTimeout(loop, 1500) }
+    timer = window.setTimeout(loop, 2500)
+    return () => { stop = true; clearTimeout(timer) }
+  }, [])
+
+  const act = async (i: number) => {
+    m.apply(await sendChoice(m.code, m.rev, i))
+    setVersion((n) => n + 1)
+    kick.current()
+  }
+  const leave = async () => {
+    try {
+      const p = await leaveRoom(m.code, m.rev)
+      if (!p.gone) m.apply(p)
+    } catch { /* leaving anyway */ }
+    onExit()
+  }
+  const link = `${location.origin}/play#room=${m.code}`
+
+  if (m.status === 'waiting') {
+    return (
+      <main className="lobby waiting">
+        <h1>Room code</h1>
+        <p className="room-code">{m.code}</p>
+        <p className="lede">Send this code to your friend. The match starts as soon as they join.</p>
+        <div className="friend-actions">
+          <button className="btn" onClick={() => { void navigator.clipboard?.writeText(link).then(() => setCopied(true)) }}>{copied ? 'Link copied' : 'Copy invite link'}</button>
+          <button className="ghost" onClick={leave}>Cancel</button>
+        </div>
+        <p className="fine">Waiting for the other player…</p>
+      </main>
+    )
+  }
+  const foe = (1 - m.side) as Side
+  return (
+    <Table m={m} me={m.side} view={view} version={version} onAct={act} waitText={`Waiting for ${m.nm(foe)}…`}
+      after={<button className="btn" onClick={onExit}>Back to menu</button>}
+      extra={m.status === 'over' ? null : <button className="ctl" onClick={() => (sure ? leave() : setSure(true))} onBlur={() => setSure(false)}>{sure ? 'Leave and lose?' : `Room ${m.code}`}</button>} />
+  )
 }
 
 // How long each kind of event stays on screen at normal speed, in milliseconds.
@@ -185,13 +312,43 @@ const CALM = 0.55
 const PHASES: [View2['phase'], string][] = [['summon', 'Summon'], ['battle', 'Battle'], ['end', 'End']]
 type View2 = ReturnType<Match['snapshot']>
 
-function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgain: () => void; onMenu: () => void }) {
+/** A match against the computer. It lives entirely in this browser. */
+function LocalTable({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgain: () => void; onMenu: () => void }) {
   const ref = useRef<Match | null>(null)
   if (!ref.current) {
     ref.current = Match.replay(save.setup, save.answers)
     ref.current.record = true
   }
   const m = ref.current
+  const send = (i: number) => {
+    m.answer(i)
+    store.set(SAVE_KEY, { ...save, answers: m.answers })
+  }
+  return (
+    <Table m={m} me={0} view={view} version={0} onAct={send} cpu={save.level} waitText="The computer is thinking…"
+      after={<><button className="btn" onClick={onAgain}>Play again</button><button className="ghost" onClick={onMenu}>Change decks</button></>} />
+  )
+}
+
+/** What the table needs from a match, whether it runs here or on the server against a friend. */
+export type TableMatch = {
+  events: Ev[]
+  req: Req | null
+  log: { round: number; text: string }[]
+  s: { cards: Record<number, string>; phase: string; winner: Side | null; reason: string }
+  name(uid: number): string
+  def(uid: number): Def
+  nm(p: Side): string
+  snapshot(): View2
+}
+
+export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra }: {
+  m: TableMatch; me: Side; view: View; version: number; onAct: (i: number) => void | Promise<void>
+  cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode
+}) {
+  const foe = (1 - me) as Side
+  const [busy, setBusy] = useState(false)
+  const [problem, setProblem] = useState('')
   const [tick, setTick] = useState(0)
   // Events are played back one at a time. `cursor` is how many have been shown.
   const [cursor, setCursor] = useState(0)
@@ -206,18 +363,25 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   const spd = speed * CALM
   const ev: Ev | null = cursor < m.events.length ? m.events[cursor] : null
   const playing = !!ev
-  const v = useMemo(() => (ev ? ev.view : m.snapshot()), [ev, tick])
+  const v = useMemo(() => (ev ? ev.view : m.snapshot()), [ev, tick, version])
   const req = m.req
-  const mine = !playing && req && req.p === ME ? req : null
+  const mine = !playing && req && req.p === me ? req : null
   const over = !playing && m.s.phase === 'over'
 
   useEffect(() => { store.set('hb.speed', speed) }, [speed])
   useEffect(() => { store.set('hb.sound', sound); setSound(sound) }, [sound])
 
-  const act = (i: number) => {
+  const act = async (i: number) => {
+    if (busy) return
     unlockSound()
-    m.answer(i)
-    store.set(SAVE_KEY, { ...save, answers: m.answers })
+    setProblem('')
+    setBusy(true)
+    try {
+      await onAct(i)
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : 'That did not go through. Please try again.')
+    }
+    setBusy(false)
     setSel(null)
     setTick((n) => n + 1)
   }
@@ -226,23 +390,23 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   // Step through what just happened, with a sound for each event.
   useEffect(() => {
     if (!ev) return
-    const sfx = ev.t === 'damage' && ev.broken ? 'heartbreak' : ev.t === 'victory' ? (ev.p === ME ? 'win' : 'lose') : SOUND[ev.t]
+    const sfx = ev.t === 'damage' && ev.broken ? 'heartbreak' : ev.t === 'victory' ? (ev.p === me ? 'win' : 'lose') : SOUND[ev.t]
     if (sfx) play(sfx)
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const base = (PACE[ev.t] ?? PACE.note) + (ev.t === 'damage' && ev.broken ? 300 : 0)
     const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / spd)
     return () => clearTimeout(t)
   }, [cursor, ev, speed])
-  // Once the table has caught up, the CPU makes its next choice.
+  // Once the table has caught up, the computer makes its next choice.
   useEffect(() => {
-    if (playing || !m.req || m.req.p !== CPU) return
-    const t = setTimeout(() => act(cpuChoice(m, save.level)), 520 / spd)
+    if (playing || !cpu || !m.req || m.req.p !== foe) return
+    const t = setTimeout(() => act(cpuChoice(m as unknown as Match, cpu)), 520 / spd)
     return () => clearTimeout(t)
-  }, [tick, playing, speed])
+  }, [tick, version, playing, speed])
   useEffect(() => {
     const el = logRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [cursor, tick])
+  }, [cursor, tick, version])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -264,7 +428,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   const plain = opts.filter((o) => o.uid == null && o.t !== 'stack')
   const stackOpts = opts.filter((o) => o.t === 'stack')
   const targetAt = (side: Side, line: number) =>
-    stackOpts.find((o) => o.side === side && o.line === line) || (side === ME ? chosenOpts.find((o) => o.line === line && o.via) : undefined)
+    stackOpts.find((o) => o.side === side && o.line === line) || (side === me ? chosenOpts.find((o) => o.line === line && o.via) : undefined)
 
   const show = (uid: number) => setLook(m.s.cards[uid])
   // On a phone there is no side panel, so a tapped card opens large instead.
@@ -292,7 +456,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   const sideFx = (side: Side, kinds: string[]) => (ev && ev.p === side && kinds.includes(ev.t) ? `fx-${ev.t}` : '')
 
   const row = (side: Side) => (
-    <div className={`lines ${side === ME ? 'mine' : 'theirs'}`}>
+    <div className={`lines ${side === me ? 'mine' : 'theirs'}`}>
       {[0, 1, 2, 3, 4].map((line) => {
         const P = v.ps[side]
         const st = P.lines[line]
@@ -342,7 +506,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
     const graveTop = P.grave[P.grave.length - 1]
     const unused = P.ena.filter((e) => !e.used).length
     return (
-      <section className={`half ${side === ME ? 'mine' : 'theirs'}`}>
+      <section className={`half ${side === me ? 'mine' : 'theirs'}`}>
         <div key={sideFx(side, ['damage']) ? `h${cursor}` : 'h'} className={`zone-hearts ${sideFx(side, ['damage'])}`}>
           <span className="zlabel">Hearts <b>{P.hearts.length}</b></span>
           <div className="heart-stack">
@@ -373,7 +537,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
     )
   }
   const plate = (side: Side) => (
-    <div className={`plate ${side === ME ? 'mine' : 'theirs'}`}>
+    <div className={`plate ${side === me ? 'mine' : 'theirs'}`}>
       <span className="who-name">{nm(side)}</span>
       {v.first === side && v.round > 0 && v.phase !== 'over' ? <em>First Player</em> : null}
       <span className="plate-stat">Hand <b>{v.ps[side].hand.length}</b></span>
@@ -390,16 +554,16 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   }
 
   // What is happening right now, in words.
-  const who = v.active === ME ? 'Your' : "CPU's"
+  const who = v.active === me ? 'Your' : `${nm(foe)}'s`
   const step = v.round === 0 ? 'Getting ready'
     : v.phase === 'summon' ? `${who} Summon Phase`
     : v.phase === 'battle' ? (v.line >= 0 ? `Battle Phase · Line ${v.line + 1}` : 'Battle Phase')
     : v.phase === 'end' ? 'End Phase' : 'Match over'
   const banner = ev && ['round', 'phase', 'line', 'victory', 'trigger', 'first'].includes(ev.t)
-    ? ev.t === 'round' ? { big: `Round ${v.round}`, small: `${nm(v.first)} ${v.first === ME ? 'go' : 'goes'} first` }
+    ? ev.t === 'round' ? { big: `Round ${v.round}`, small: `${nm(v.first)} ${v.first === me ? 'go' : 'goes'} first` }
     : ev.t === 'phase' ? { big: step.replace(/ · .*/, ''), small: '' }
     : ev.t === 'line' ? { big: `Line ${ev.line! + 1}`, small: 'Battle' }
-    : ev.t === 'victory' ? { big: ev.p === ME ? 'You win' : 'You lose', small: 'Finishing Blow' }
+    : ev.t === 'victory' ? { big: ev.p === me ? 'You win' : 'You lose', small: 'Finishing Blow' }
     : ev.t === 'trigger' ? { big: DEFS.get(m.s.cards[ev.uid!])!.trigger, small: m.name(ev.uid!) }
     : { big: ev.text.replace(/\.$/, ''), small: '' }
     : null
@@ -408,11 +572,12 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
     <main className="table" onPointerDown={unlockSound} style={{ '--spd': spd } as React.CSSProperties}>
       <div className="board">
         <div className="cpu-row">
-          {plate(CPU)}
-          <div className="cpu-hand" aria-label={`CPU hand: ${v.ps[CPU].hand.length} cards`}>
-            {v.ps[CPU].hand.map((u) => <i key={u} className="cb" />)}
+          {plate(foe)}
+          <div className="cpu-hand" aria-label={`${nm(foe)}'s hand: ${v.ps[foe].hand.length} cards`}>
+            {v.ps[foe].hand.map((u) => <i key={u} className="cb" />)}
           </div>
           <div className="controls">
+            {extra}
             <div className="seg" role="group" aria-label="Animation speed">
               {[1, 2, 3].map((n) => <button key={n} className={speed === n ? 'on' : ''} onClick={() => setSpeed(n)}>{n}×</button>)}
             </div>
@@ -427,13 +592,13 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
           <span className="phase-step">{step}</span>
         </div>
         <div className="mat">
-          {half(CPU)}
+          {half(foe)}
           <div className="mid">
             {[0, 1, 2, 3, 4].map((line) => <span key={line} className={fightLine === line ? 'on' : ''}>Line {line + 1}</span>)}
           </div>
-          {half(ME)}
+          {half(me)}
           {banner ? (
-            <div key={cursor} className={`banner banner-${ev!.t} ${ev!.t === 'victory' && ev!.p !== ME ? 'lost' : ''}`}>
+            <div key={cursor} className={`banner banner-${ev!.t} ${ev!.t === 'victory' && ev!.p !== me ? 'lost' : ''}`}>
               {ev!.t === 'trigger' ? <img src={img(m.s.cards[ev!.uid!], view)} alt="" /> : null}
               <div>
                 <strong>{banner.big}</strong>
@@ -443,13 +608,13 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
           ) : null}
           {mine && mine.kind === 'battle' ? (() => {
             const line = v.line
-            const you = v.pw[ME][line]
-            const them = v.ps[CPU].lines[line] ? v.pw[CPU][line] : 0
+            const you = v.pw[me][line]
+            const them = v.ps[foe].lines[line] ? v.pw[foe][line] : 0
             const gap = them - you
             return (
               <div className={`battle-pop ${line <= 1 ? 'right' : 'left'}`} role="dialog" aria-label="Your battle action">
                 <h3>Line {line + 1} battle</h3>
-                <p className="bp-score"><span>You <b>{you}</b></span><i>vs</i><span>CPU <b>{them}</b></span></p>
+                <p className="bp-score"><span>You <b>{you}</b></span><i>vs</i><span>{nm(foe)} <b>{them}</b></span></p>
                 <p className={`bp-state ${gap > 0 ? 'behind' : gap < 0 ? 'ahead' : ''}`}>
                   {gap > 0 ? `You are behind by ${gap}.` : gap < 0 ? `You are ahead by ${-gap}.` : 'It is a tie. A tie downs both Horobeat.'}
                 </p>
@@ -474,29 +639,28 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
             )
           })() : null}
           {ev && ev.t === 'waza' ? (
-            <div key={cursor} className={`flash-card ${ev.p === ME ? 'mine' : 'theirs'}`}>
+            <div key={cursor} className={`flash-card ${ev.p === me ? 'mine' : 'theirs'}`}>
               <img src={img(m.s.cards[ev.uid!], view)} alt="" />
               <span>{ev.boost ? 'Boost' : 'Waza'} <b>+{ev.boost ? m.def(ev.uid!).boost : m.def(ev.uid!).power}</b></span>
               <em>{nm(ev.p!)} · Line {ev.line! + 1}</em>
             </div>
           ) : null}
         </div>
-        {plate(ME)}
+        {plate(me)}
         <div className="hand">
-          {v.ps[ME].hand.map((u) => (
+          {v.ps[me].hand.map((u) => (
             <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''}`} onClick={() => pickCard(u)}>
               <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
             </button>
           ))}
-          {!v.ps[ME].hand.length ? <span className="empty">Your hand is empty.</span> : null}
+          {!v.ps[me].hand.length ? <span className="empty">Your hand is empty.</span> : null}
         </div>
         <div className="prompt" aria-live="polite">
           {over ? (
             <>
-              <p className="result">{m.s.winner === ME ? 'You win.' : 'You lose.'} <span>{m.s.reason}</span></p>
+              <p className="result">{m.s.winner === me ? 'You win.' : 'You lose.'} <span>{m.s.reason}</span></p>
               <div className="choices">
-                <button className="btn" onClick={onAgain}>Play again</button>
-                <button className="ghost" onClick={onMenu}>Change decks</button>
+                {after}
               </div>
             </>
           ) : playing ? (
@@ -505,10 +669,10 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
               <div className="choices"><button className="ghost" onClick={skip}>Skip animation</button></div>
             </>
           ) : !mine ? (
-            <p className="wait">The CPU is thinking…</p>
+            <p className="wait">{waitText}</p>
           ) : (
             <>
-              <p>{mine.text}</p>
+              <p>{problem ? <span className="problem">{problem} </span> : null}{mine.text}</p>
               {tray.length ? (
                 <div className="tray">
                   {tray.map((u) => (

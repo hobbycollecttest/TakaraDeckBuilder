@@ -4,8 +4,8 @@
 // request with the legal options, and continues when it gets the answer. A match is
 // fully described by its setup (seed and both decks) plus the list of answers, so a
 // saved game is tiny and can be rebuilt anywhere by replaying those answers.
-import raw from '../horobeat.json'
-import { SCRIPTS } from './scripts'
+import raw from '../horobeat.json' with { type: 'json' }
+import { SCRIPTS } from './scripts.js'
 
 export type Side = 0 | 1
 export type Color = 'Red' | 'Green' | 'Blue'

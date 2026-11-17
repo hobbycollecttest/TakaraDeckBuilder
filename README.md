@@ -15,6 +15,8 @@ Deck builder for Takara Tomy card games, starting with HORO-BEAT. Built by Hobby
 
 Everything runs in the player's browser. A match is saved on their device as a seed plus the list of choices made, so it uses no server, database or storage.
 
+Friend matches (`api/match.ts`, `src/play/online.ts`) are the exception. Two players join with a room code and the server keeps the match in the `takaradecks_matches` table, sending each player only what they may see. A waiting player checks in every few seconds with one small read; rooms older than two days are deleted when a new one is made.
+
 Check the rules after any change with `npx tsx scripts/sim-rules.ts` and `npx tsx scripts/sim-test.ts 1000`.
 
 ## Run it
