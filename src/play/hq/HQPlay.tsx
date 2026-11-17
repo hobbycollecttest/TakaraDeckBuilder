@@ -8,6 +8,8 @@ import { useGlide } from '../motion'
 import { authReady, currentAccount } from '../../auth'
 import { listDecks, type CloudDeck } from '../../cloud'
 import { store, type View } from '../../game'
+import { checkRoom, createRoom, joinRoom, leaveRoom, sendChoice } from '../online'
+import { HQRemote, type Payload } from './online'
 
 type Save = { v: number; setup: Setup; answers: number[]; level: Level }
 const SAVE_VERSION = 1
@@ -52,6 +54,7 @@ export default function HQPlay() {
   const [playing, setPlaying] = useState(false)
   const [view, setView] = useState<View>(() => store.get<View>('haikyu.view', 'en'))
   const [matchId, setMatchId] = useState(0)
+  const [room, setRoom] = useState<Payload | null>(null)
   useEffect(() => store.set('haikyu.view', view), [view])
 
   const start = (ids: string[], cpuIds: string[], level: Level) => {
@@ -67,7 +70,7 @@ export default function HQPlay() {
     setPlaying(false)
   }
   return (
-    <div className={`app play hq ${playing && save ? 'in-match' : ''}`} onPointerDown={unlockSound}>
+    <div className={`app play hq ${(playing && save) || (room && room.status !== 'waiting') ? 'in-match' : ''}`} onPointerDown={unlockSound}>
       <header className="top">
         <a className="brand" href="/haikyu">
           <span className="brand-game">Haikyu!! VOBACA!! BREAK</span>
@@ -77,18 +80,20 @@ export default function HQPlay() {
           <button className={view === 'en' ? 'on' : ''} onClick={() => setView('en')}>English</button>
           <button className={view === 'jp' ? 'on' : ''} onClick={() => setView('jp')}>日本語</button>
         </div>
-        {playing ? <button className="signin" onClick={() => setPlaying(false)}>Menu</button> : <a className="signin" href="/haikyu">Deck builder</a>}
+        {playing ? <button className="signin" onClick={() => setPlaying(false)}>Menu</button> : room ? null : <a className="signin" href="/haikyu">Deck builder</a>}
       </header>
-      {playing && save ? (
+      {room ? (
+        <Room key={room.code} first={room} view={view} onExit={() => { store.set('haikyu.room', ''); setRoom(null) }} />
+      ) : playing && save ? (
         <LocalTable key={matchId} save={save} view={view} onAgain={() => start(save.setup.decks[0], save.setup.decks[1], save.level)} onMenu={drop} />
       ) : (
-        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} />
+        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onRoom={(p) => { store.set('haikyu.room', p.code); setRoom(p) }} />
       )}
     </div>
   )
 }
 
-function Lobby({ save, view, onResume, onStart }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void }) {
+function Lobby({ save, view, onResume, onStart, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onRoom: (p: Payload) => void }) {
   const [account, setAccount] = useState<CloudDeck[]>([])
   const [signedIn, setSignedIn] = useState<boolean | null>(null)
   useEffect(() => {
@@ -107,6 +112,26 @@ function Lobby({ save, view, onResume, onStart }: { save: Save | null; view: Vie
   const picked = choices.find((c) => c.key === mine) || choices[choices.length - 1]
   const [theirs, setTheirs] = useState('random')
   const [level, setLevel] = useState<Level>('normal')
+  // Playing a friend.
+  const [name, setName] = useState(() => store.get('haikyu.pname', '') || store.get('hb.pname', ''))
+  const [code, setCode] = useState(() => (new URLSearchParams(location.hash.slice(1)).get('room') || '').toUpperCase().slice(0, 5))
+  const [busy, setBusy] = useState('')
+  const [problem, setProblem] = useState('')
+  const lastRoom = store.get('haikyu.room', '')
+  const online = async (what: 'create' | 'join' | 'rejoin') => {
+    setProblem('')
+    setBusy(what)
+    store.set('haikyu.pname', name.trim())
+    try {
+      const who = name.trim() || 'Player'
+      const p = what === 'create' ? await createRoom(who, picked.ids, 'haikyu') : what === 'join' ? await joinRoom(code, who, picked.ids, 'haikyu') : await joinRoom(lastRoom, who, undefined, 'haikyu')
+      onRoom(p as unknown as Payload)
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
+      if (what === 'rejoin') store.set('haikyu.room', '')
+    }
+    setBusy('')
+  }
   const canResume = useMemo(() => {
     if (!save) return false
     try { return HQ.replay(save.setup, save.answers).s.phase !== 'over' } catch { return false }
@@ -164,10 +189,91 @@ function Lobby({ save, view, onResume, onStart }: { save: Save | null; view: Vie
           <button className="btn start" onClick={go} disabled={!!picked.error}>Start match</button>
           <p className="fine">The CPU follows the same rules you do. It decides from its own hand and the cards on the court, and never looks at your hand or either deck.</p>
           <p className="fine">New to the game? The <a href="/haikyu/rules">rules page</a> explains a rally in a few minutes.</p>
-          <p className="fine">Playing a friend with a room code is coming next.</p>
+          <h2 className="friend-title">Play a friend</h2>
+          <div className="field-row">
+            <label htmlFor="pname">Your name</label>
+            <input id="pname" className="text" value={name} maxLength={16} placeholder="Player" onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="friend-actions">
+            <button className="btn" onClick={() => online('create')} disabled={!!picked.error || !!busy}>{busy === 'create' ? 'Making room…' : 'Create a room'}</button>
+            <span>or</span>
+            <input className="text code" value={code} maxLength={5} placeholder="CODE" aria-label="Room code" onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} />
+            <button className="btn" onClick={() => online('join')} disabled={!!picked.error || !!busy || code.length !== 5}>{busy === 'join' ? 'Joining…' : 'Join'}</button>
+          </div>
+          {lastRoom ? <p className="fine">You were in room {lastRoom}. <button className="linkish" onClick={() => online('rejoin')} disabled={!!busy}>Go back to it</button></p> : null}
+          {problem ? <p className="fine problem">{problem}</p> : null}
+          <p className="fine">Create a room and send the code to your friend. They pick a deck, type the code and join. Both of you use the deck selected on the left.</p>
         </section>
       </div>
     </main>
+  )
+}
+
+/** A match against a friend, kept on the server and joined with a room code. */
+function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () => void }) {
+  const ref = useRef<HQRemote | null>(null)
+  if (!ref.current) ref.current = new HQRemote(first)
+  const m = ref.current
+  const [version, setVersion] = useState(0)
+  const [sure, setSure] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const kick = useRef<() => void>(() => {})
+
+  // Check in with the server. Often while waiting on the other player, rarely when the
+  // next move is yours, and not at all while the tab is in the background.
+  useEffect(() => {
+    let stop = false
+    let timer = 0
+    let quiet = 0
+    const loop = async () => {
+      if (stop || m.status === 'over') return
+      if (document.visibilityState === 'visible') {
+        try {
+          if (m.apply((await checkRoom(m.code, m.rev)) as unknown as Payload)) { quiet = 0; setVersion((n) => n + 1) } else quiet++
+        } catch { quiet++ }
+      }
+      if (stop || (m.status as string) === 'over') return
+      const myMove = m.status === 'playing' && !!m.req
+      timer = window.setTimeout(loop, m.status === 'waiting' ? 3000 : myMove ? 12000 : quiet < 40 ? 2500 : quiet < 120 ? 5000 : 10000)
+    }
+    kick.current = () => { clearTimeout(timer); timer = window.setTimeout(loop, 1500) }
+    timer = window.setTimeout(loop, 2500)
+    return () => { stop = true; clearTimeout(timer) }
+  }, [])
+
+  const act = async (i: number) => {
+    m.apply((await sendChoice(m.code, m.rev, i)) as unknown as Payload)
+    setVersion((n) => n + 1)
+    kick.current()
+  }
+  const leave = async () => {
+    try {
+      const p = await leaveRoom(m.code, m.rev)
+      if (!p.gone) m.apply(p as unknown as Payload)
+    } catch { /* leaving anyway */ }
+    onExit()
+  }
+  const link = `${location.origin}/haikyu/play#room=${m.code}`
+
+  if (m.status === 'waiting') {
+    return (
+      <main className="lobby waiting">
+        <h1>Room code</h1>
+        <p className="room-code">{m.code}</p>
+        <p className="lede">Send this code to your friend. The match starts as soon as they join.</p>
+        <div className="friend-actions">
+          <button className="btn" onClick={() => { void navigator.clipboard?.writeText(link).then(() => setCopied(true)) }}>{copied ? 'Link copied' : 'Copy invite link'}</button>
+          <button className="ghost" onClick={leave}>Cancel</button>
+        </div>
+        <p className="fine">Waiting for the other player…</p>
+      </main>
+    )
+  }
+  const foe = (1 - m.side) as Side
+  return (
+    <Table m={m} me={m.side} view={view} version={version} onAct={act} waitText={`Waiting for ${m.nm(foe)}…`}
+      after={<button className="btn" onClick={onExit}>Back to menu</button>}
+      extra={m.status === 'over' ? null : <button className="ctl" onClick={() => (sure ? leave() : setSure(true))} onBlur={() => setSure(false)}>{sure ? 'Leave and lose?' : `Room ${m.code}`}</button>} />
   )
 }
 
@@ -243,8 +349,20 @@ function Num({ value, spd, className = '' }: { value: number; spd: number; class
   return <b className={`${className} ${moving ? (value > shown ? 'rising' : 'falling') : ''}`}>{shown}</b>
 }
 
-function Table({ m, me, view, onAct, cpu, waitText, after }: {
-  m: HQ; me: Side; view: View; onAct: (i: number) => void | Promise<void>; cpu?: Level; waitText: string; after: React.ReactNode
+/** What the table needs from a match, whether it runs here against the computer or on the server against a friend. */
+type TableMatch = {
+  events: Ev[]
+  req: HQ['req']
+  log: { round: number; text: string }[]
+  s: { cards: Record<number, string> | string[]; phase: string; winner: Side | null; reason: string }
+  name(uid: number): string
+  def(uid: number): ReturnType<HQ['def']>
+  nm(p: Side): string
+  snapshot(): HView
+}
+
+function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }: {
+  m: TableMatch; me: Side; view: View; version?: number; onAct: (i: number) => void | Promise<void>; cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode
 }) {
   const foe = (1 - me) as Side
   const [busy, setBusy] = useState(false)
@@ -271,7 +389,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
   const spd = speed * CALM
   const ev: Ev | null = cursor < m.events.length ? m.events[cursor] : null
   const playing = !!ev
-  const v = useMemo(() => (ev ? ev.view : m.snapshot()), [ev, tick])
+  const v = useMemo(() => (ev ? ev.view : m.snapshot()), [ev, tick, version])
   const req = m.req
   const mine = !playing && req && req.p === me ? req : null
   const over = !playing && m.s.phase === 'over'
@@ -317,7 +435,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
   // Once the table has caught up, the computer makes its next choice.
   useEffect(() => {
     if (playing || intro || !cpu || !m.req || m.req.p !== foe) return
-    const t = setTimeout(() => act(cpuChoice(m, cpu)), 480 / spd)
+    const t = setTimeout(() => act(cpuChoice(m as HQ, cpu)), 480 / spd)
     return () => clearTimeout(t)
   }, [tick, playing, speed, intro])
   useEffect(() => {
@@ -523,6 +641,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
             {[1, 2, 3].map((n) => <button key={n} className={speed === n ? 'on' : ''} onClick={() => setSpeed(n)}>{n}×</button>)}
           </div>
           <button className="ctl" onClick={() => { unlockSound(); setSoundOn(!sound) }} aria-pressed={sound}>Sound {sound ? 'on' : 'off'}</button>
+          {extra}
         </div>
       </div>
 
@@ -643,7 +762,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
               {chosen != null ? <span className="chosen">{nameOf(chosen)}</span> : null}
               {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o)}</button>)}
               {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
-              {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' || o.t === 'serve' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
+              {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' || o.t === 'serve' || o.t === 'order' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
             </div>
             {bigOpt || (lostOpt && mine.kind !== 'start') ? (
               <div className="prompt-end">

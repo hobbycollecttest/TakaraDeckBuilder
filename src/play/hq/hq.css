@@ -36,7 +36,7 @@
 .phases li { border-right: 1px solid var(--edge); border-bottom: 1px solid var(--edge); margin: 0 -1px -1px 0; }
 .phases li.on { background: var(--hq); color: #fff; }
 .phase-step { font: 600 12.5px/1.3 var(--cond); letter-spacing: 0.04em; text-transform: uppercase; color: var(--hq-ink); }
-.hq-table .controls { margin: 0; padding: 0; }
+.hq-table .controls { margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .hq-table .seg { border-color: var(--edge); }
 .hq-table .seg button { color: var(--mute); }
 .hq-table .seg button.on { background: var(--hq-ink); color: #fff; }

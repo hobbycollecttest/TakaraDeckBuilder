@@ -1,6 +1,29 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { cleanLabel, sql } from '../lib/server.js'
-import { DEFS, Match, type Ev, type Side, type View } from '../src/sim/engine.js'
+import { DEFS, Match, type View } from '../src/sim/engine.js'
+import { DEFS as HQ_DEFS, HQ, type View as HQView } from '../src/sim/hq/engine.js'
+
+type Side = 0 | 1
+type Setup = { seed: number; decks: [string[], string[]]; names: [string, string] }
+type AnyEv = { uid?: number; view: unknown; [k: string]: unknown }
+type Engine = {
+  answer(i: number): void
+  record: boolean
+  events: AnyEv[]
+  req: { p: Side; show?: number[]; opts: { uid?: number }[] } | null
+  log: { round: number; text: string }[]
+  s: { cards: string[]; phase: string; winner: Side | null; reason: string }
+  snapshot(): unknown
+}
+/** What the room server needs to know about each game. */
+type Game = {
+  label: string
+  start(setup: Setup): Engine
+  cleanDeck(value: unknown): string[] | null
+  deckRule: string
+  redact(view: unknown, me: Side): unknown
+  seen(view: unknown, into: Set<number>): void
+}
 
 // Matches between two people, joined with a room code. The server keeps the real game:
 // both decks, the shuffle seed and the list of choices made so far. Each player is only
@@ -10,7 +33,7 @@ import { DEFS, Match, type Ev, type Side, type View } from '../src/sim/engine.js
 // answers "nothing new" most of the time; the game is only replayed when something changed.
 
 type Row = {
-  code: string; seed: number; seat0: string; seat1: string | null; name0: string; name1: string | null
+  game: string; code: string; seed: number; seat0: string; seat1: string | null; name0: string; name1: string | null
   deck0: string[]; deck1: string[] | null; answers: number[]; rev: number; status: string; quit: number | null
 }
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
@@ -30,21 +53,24 @@ async function setup() {
       rev integer NOT NULL DEFAULT 0,
       status text NOT NULL DEFAULT 'waiting',
       quit smallint,
+      game text NOT NULL DEFAULT 'horobeat',
       updated_at timestamptz NOT NULL DEFAULT now()
     )`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS game text NOT NULL DEFAULT 'horobeat'`
 }
 async function withTable<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run()
   } catch (err) {
+    // A missing table, or a table from before the game column, is set up and the request retried.
     const e = err as { code?: string; message?: string }
-    if (e?.code !== '42P01' && !/does not exist/i.test(e?.message || '')) throw err
+    if (e?.code !== '42P01' && e?.code !== '42703' && !/does not exist/i.test(e?.message || '')) throw err
     await setup()
     return run()
   }
 }
 
-function cleanDeck(value: unknown): string[] | null {
+function hbDeck(value: unknown): string[] | null {
   if (!Array.isArray(value) || value.length !== 50) return null
   const names = new Map<string, number>()
   for (const id of value) {
@@ -57,7 +83,7 @@ function cleanDeck(value: unknown): string[] | null {
 }
 
 /** Hide what this player may not see: the other hand, both decks, and the faces of Hearts. */
-function redact(view: View, me: Side): View {
+function hbRedact(view: View, me: Side): View {
   return {
     ...view,
     ps: view.ps.map((P, p) => ({
@@ -69,7 +95,7 @@ function redact(view: View, me: Side): View {
     })) as View['ps'],
   }
 }
-function seen(view: View, into: Set<number>) {
+function hbSeen(view: View, into: Set<number>) {
   for (const P of view.ps) {
     for (const u of [...P.hand, ...P.check, ...P.grave]) if (u >= 0) into.add(u)
     for (const e of P.ena) into.add(e.uid)
@@ -78,26 +104,70 @@ function seen(view: View, into: Set<number>) {
   }
 }
 
+function hqDeck(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length !== 40) return null
+  let events = 0
+  for (const id of value) {
+    const d = typeof id === 'string' ? HQ_DEFS.get(id) : undefined
+    if (!d) return null
+    if (d.type === 'Event') events++
+  }
+  return events <= 8 ? (value as string[]) : null
+}
+/** Haikyu: hide both decks, the other player's hand, and both players' face-down Score cards. */
+function hqRedact(view: HQView, me: Side): HQView {
+  return {
+    ...view,
+    ps: view.ps.map((P, p) => ({
+      ...P,
+      deck: P.deck.map(() => -1),
+      score: P.score.map((_, i) => -1000 - p * 100 - i),
+      hand: p === me ? P.hand : P.hand.map((_, i) => -2000 - i),
+    })) as HQView['ps'],
+  }
+}
+function hqSeen(view: HQView, into: Set<number>) {
+  for (const P of view.ps) for (const key of ['hand', 'drop', 'event', 'serve', 'center', 'sides', 'receive', 'set', 'attack'] as const) for (const u of P[key]) if (u >= 0) into.add(u)
+}
+const GAMES: Record<string, Game> = {
+  horobeat: {
+    label: 'HORO-BEAT', deckRule: 'That deck is not a legal 50-card deck.', cleanDeck: hbDeck,
+    start: (s) => new Match(s) as unknown as Engine,
+    redact: (v, me) => hbRedact(v as View, me), seen: (v, into) => hbSeen(v as View, into),
+  },
+  haikyu: {
+    label: 'Haikyu!! VOBACA!! BREAK', deckRule: 'That deck is not a legal deck. It needs exactly 40 cards with no more than 8 Events.', cleanDeck: hqDeck,
+    start: (s) => new HQ(s) as unknown as Engine,
+    redact: (v, me) => hqRedact(v as HQView, me), seen: (v, into) => hqSeen(v as HQView, into),
+  },
+}
+const gameOf = (row: Row) => GAMES[row.game] || GAMES.horobeat
+const replay = (row: Row, names: [string, string], upTo: number, record: boolean) => {
+  const m = gameOf(row).start({ seed: row.seed, decks: [row.deck0, row.deck1!], names })
+  for (let i = 0; i < upTo; i++) m.answer(row.answers[i])
+  m.record = record
+  return m
+}
+
 /** Everything one player's screen needs, starting from the last change they have already seen. */
 function stateFor(row: Row, side: Side, clientRev: number) {
   const names: [string, string] = [row.name0, row.name1 || 'Opponent']
-  if (row.status === 'waiting' || !row.deck1) return { rev: row.rev, status: 'waiting', code: row.code, side, names }
+  if (row.status === 'waiting' || !row.deck1) return { rev: row.rev, status: 'waiting', code: row.code, game: row.game, side, names }
   const answers = row.answers
   const from = clientRev >= 0 && clientRev <= answers.length ? clientRev : answers.length
-  const m = new Match({ seed: row.seed, decks: [row.deck0, row.deck1], names })
-  for (let i = 0; i < from; i++) m.answer(answers[i])
-  m.record = true
+  const G = gameOf(row)
+  const m = replay(row, names, from, true)
   for (let i = from; i < answers.length; i++) m.answer(answers[i])
 
   const visible = new Set<number>()
-  const events: Ev[] = m.events.map((e) => {
-    const view = redact(e.view, side)
-    seen(view, visible)
+  const events = m.events.map((e) => {
+    const view = G.redact(e.view, side)
+    G.seen(view, visible)
     if (e.uid != null) visible.add(e.uid)
     return { ...e, view }
   })
-  const view = redact(m.snapshot(), side)
-  seen(view, visible)
+  const view = G.redact(m.snapshot(), side)
+  G.seen(view, visible)
   const req = m.req && m.req.p === side ? m.req : null
   if (req) {
     req.show?.forEach((u) => visible.add(u))
@@ -115,7 +185,7 @@ function stateFor(row: Row, side: Side, clientRev: number) {
     reason = `${names[row.quit]} left the match.`
   }
   return {
-    rev: row.rev, status: phase === 'over' ? 'over' : 'playing', code: row.code, side, names,
+    rev: row.rev, status: phase === 'over' ? 'over' : 'playing', code: row.code, game: row.game, side, names,
     events, view, req: phase === 'over' ? null : req, turn: m.req ? m.req.p : null,
     log: m.log, cards, phase, winner, reason,
   }
@@ -151,15 +221,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!isSeat(seat)) return res.status(400).json({ error: 'Please reload the page and try again.' })
     const name = cleanLabel(body.name, 16) || 'Player'
 
+    const game = typeof body.game === 'string' && GAMES[body.game] ? body.game : 'horobeat'
     if (body.op === 'create') {
-      const deck = cleanDeck(body.deck)
-      if (!deck) return res.status(400).json({ error: 'That deck is not a legal 50-card deck.' })
+      const deck = GAMES[game].cleanDeck(body.deck)
+      if (!deck) return res.status(400).json({ error: GAMES[game].deckRule })
       // Old rooms are cleared out whenever a new one is made.
       await withTable(() => sql!`DELETE FROM takaradecks_matches WHERE updated_at < now() - interval '2 days'`)
       for (let tries = 0; tries < 5; tries++) {
         const code = newCode()
         const rows = await sql!`
-          INSERT INTO takaradecks_matches (code, seat0, name0, deck0) VALUES (${code}, ${seat}, ${name}, ${JSON.stringify(deck)}::jsonb)
+          INSERT INTO takaradecks_matches (code, seat0, name0, deck0, game) VALUES (${code}, ${seat}, ${name}, ${JSON.stringify(deck)}::jsonb, ${game})
           ON CONFLICT (code) DO NOTHING RETURNING *`
         if (rows.length) return res.status(200).json(stateFor(rows[0] as Row, 0, -1))
       }
@@ -172,11 +243,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!row) return res.status(404).json({ error: 'That room was not found. Check the code, or ask for a new one.' })
 
     if (body.op === 'join') {
+      if (gameOf(row) !== GAMES[game]) return res.status(409).json({ error: `That room is for ${gameOf(row).label}. Open the ${gameOf(row).label} play page to join it.` })
       const mine = sideOf(row, seat)
       if (mine != null) return res.status(200).json(stateFor(row, mine, -1))
       if (row.status !== 'waiting') return res.status(409).json({ error: 'That room already has two players.' })
-      const deck = cleanDeck(body.deck)
-      if (!deck) return res.status(400).json({ error: 'That deck is not a legal 50-card deck.' })
+      const deck = gameOf(row).cleanDeck(body.deck)
+      if (!deck) return res.status(400).json({ error: gameOf(row).deckRule })
       const seed = Math.floor(Math.random() * 2 ** 31)
       const rows = await sql!`
         UPDATE takaradecks_matches SET seat1 = ${seat}, name1 = ${name}, deck1 = ${JSON.stringify(deck)}::jsonb, seed = ${seed}, status = 'playing', updated_at = now()
@@ -206,7 +278,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (row.status !== 'playing' || !row.deck1) return res.status(409).json({ error: 'This match is not in progress.' })
       // A choice made against an out-of-date table is refused; the player is sent the current one.
       if (clientRev !== row.rev) return res.status(200).json(stateFor(row, side, clientRev))
-      const m = Match.replay({ seed: row.seed, decks: [row.deck0, row.deck1], names: [row.name0, row.name1 || ''] }, row.answers)
+      const m = replay(row, [row.name0, row.name1 || ''], row.answers.length, false)
       if (!m.req || m.req.p !== side) return res.status(409).json({ error: 'It is not your turn to choose.' })
       if (!Number.isInteger(i) || (i as number) < 0 || (i as number) >= m.req.opts.length) return res.status(400).json({ error: 'That is not a legal choice.' })
       m.answer(i as number)

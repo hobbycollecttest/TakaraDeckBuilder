@@ -108,6 +108,9 @@ const opp = (p: Side) => (1 - p) as Side
 const AREAS: Area[] = ['serve', 'center', 'sides', 'receive', 'set', 'attack']
 const NONE: HQScript = {}
 
+/** A skill that has triggered and is waiting to resolve. */
+export type Waiting = { p: Side; uid: number; label: string; run: Gen<unknown>; still: () => boolean }
+
 export class HQ {
   s: State
   req: Req | null = null
@@ -466,7 +469,7 @@ export class HQ {
     return true
   }
   /** Put a character card into an Area as a character, and resolve what that triggers. */
-  *enter(p: Side, uid: number, area: Area, by = '', quiet = false): Gen<boolean> {
+  *enter(p: Side, uid: number, area: Area, by = '', quiet = false, defer?: Waiting[]): Gen<boolean> {
     const at = this.lift(uid)
     const from = at?.from ?? 'hand'
     const P = this.P(p)
@@ -528,17 +531,42 @@ export class HQ {
         if ((this.def(uid).bl ?? 0) >= (r.n as number)) this.draw(r.owner as Side, 1)
       }
     }
-    // The card's own [Enter] skill, then skills that react to it.
+    // The card's own [Enter] skill and every skill that reacts to it wait together, and the
+    // players choose the order they resolve in (rule 5-4).
     const own = sc.enter
     const zone = area === 'center' || area === 'sides' ? 'block' : area
+    const waiting: Waiting[] = []
     if (own && (own.areas.includes('court') || own.areas.includes(zone as never) || own.areas.includes(area)) && !this.silenced(p, uid)) {
-      yield* own.run(this, { p, uid, area, paid: [], seen: [], by })
+      waiting.push({ p, uid, label: `${this.name(uid)} (${AREA_NAME[area]})`, run: own.run(this, { p, uid, area, paid: [], seen: [], by }), still: () => this.areaOf(p, uid) != null })
     }
-    yield* this.notify({ t: 'enter', p, uid, area, entry })
+    waiting.push(...this.triggered({ t: 'enter', p, uid, area, entry }))
+    if (defer) defer.push(...waiting)
+    else yield* this.resolve(waiting)
     return true
   }
+  /** Resolve skills that are waiting at the same time. The turn player resolves all of theirs first,
+   *  choosing the order when there is more than one, then the other player does the same (rule 5-4-2).
+   *  A skill whose card has left its place before its turn comes does not resolve (rule 6-6-3). */
+  *resolve(list: Waiting[]): Gen {
+    for (const side of [this.s.turn, opp(this.s.turn)] as Side[]) {
+      let mine = list.filter((x) => x.p === side)
+      while (mine.length) {
+        let pick = mine[0]
+        if (mine.length > 1) {
+          const o = yield* this.ask(side, 'order', 'These skills trigger at the same time. Choose which one resolves first.',
+            mine.map((x, i) => ({ t: 'order', n: i, label: x.label, w: mine.length - i })), mine.map((x) => x.uid))
+          pick = mine[o.n!]
+        }
+        mine = mine.filter((x) => x !== pick)
+        if (pick.still()) yield* pick.run
+      }
+    }
+  }
   /** Let every card that reacts to something have its say. */
-  *notify(e: Watch): Gen {
+  *notify(e: Watch): Gen { yield* this.resolve(this.triggered(e)) }
+  /** The skills that something just set off, waiting to resolve. */
+  triggered(e: Watch): Waiting[] {
+    const out: Waiting[] = []
     for (const side of [e.p, opp(e.p)] as Side[]) {
       const lookers = this.chars(side).map((c) => ({ uid: c.uid, area: c.area as Area | 'under' }))
       if (e.t === 'enter' && side === e.p && e.entry.onTop != null) lookers.push({ uid: e.entry.onTop, area: 'under' })
@@ -548,9 +576,16 @@ export class HQ {
         if (!w) continue
         if (l.area !== 'under' && this.silenced(side, l.uid)) continue
         const g = w(this, { p: side, uid: l.uid, area: l.area === 'under' ? undefined : l.area, paid: [], seen: [] }, e)
-        if (g) yield* g
+        if (!g) continue
+        const here = l.area
+        out.push({
+          p: side, uid: l.uid, run: g,
+          label: here === 'under' ? `${this.name(l.uid)} (under ${this.name(e.uid)})` : `${this.name(l.uid)} (${AREA_NAME[here]})`,
+          still: () => (here === 'under' ? (['serve', 'center', 'receive', 'set', 'attack'] as Area[]).some((a) => this.P(side)[a].includes(l.uid)) : this.areaOf(side, l.uid) != null),
+        })
       }
     }
+    return out
   }
 
   // ---------- the match ----------
@@ -694,8 +729,10 @@ export class HQ {
       picked.push(o.uid!)
       pickedNames.push(this.def(o.uid!).name)
     }
-    // All blockers are shown and placed together, then their skills resolve.
-    for (let i = 0; i < picked.length; i++) yield* this.enter(p, picked[i], i === 0 ? 'center' : 'sides')
+    // All blockers enter together, then all of their skills wait and resolve together.
+    const waiting: Waiting[] = []
+    for (let i = 0; i < picked.length; i++) yield* this.enter(p, picked[i], i === 0 ? 'center' : 'sides', '', false, waiting)
+    yield* this.resolve(waiting)
   }
   private *receiveTurn(p: Side): Gen {
     const s = this.s
