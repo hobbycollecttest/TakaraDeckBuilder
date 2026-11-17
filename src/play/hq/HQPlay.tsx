@@ -200,9 +200,23 @@ const SOUND: Record<string, string> = {
 }
 const CALM = 0.55
 const PHASES: [HView['phase'], string][] = [['serve', 'Serve'], ['block', 'Block'], ['draw', 'Draw'], ['receive', 'Receive'], ['set', 'Set'], ['attack', 'Attack'], ['end', 'End']]
-const SLOTS: { area: Area; label: string }[] = [
-  { area: 'serve', label: 'Serve' }, { area: 'center', label: 'Block' }, { area: 'receive', label: 'Receive' }, { area: 'set', label: 'Set' }, { area: 'attack', label: 'Attack' },
-]
+// The board follows the layout of the official play sheet: Block across the net, Receive, Set and
+// Attack in the middle, Serve and Event along the back, Score cards on the left, Deck and Drop on the right.
+// Positions are percent of the sheet (left, top, width, height) for the player who owns it, net at the top.
+type Spot = 'center' | 'side0' | 'side1' | 'receive' | 'set' | 'attack' | 'serve' | 'event' | 'score' | 'deck' | 'drop' | 'band' | 'logo'
+const BOX: Record<Spot, [number, number, number, number]> = {
+  band: [13, 0, 74, 32.5],
+  side0: [15, 1.5, 22, 29.5], center: [39, 1.5, 22, 29.5], side1: [63, 1.5, 22, 29.5],
+  receive: [15, 35, 22, 31.5], set: [39, 35, 22, 31.5], attack: [63, 35, 22, 31.5],
+  logo: [15, 69, 22, 31], serve: [39, 69, 22, 31], event: [63, 69, 22, 31],
+  score: [1, 1.5, 11, 64], deck: [88, 1.5, 11, 46], drop: [88, 50.5, 11, 49.5],
+}
+const LABEL: Partial<Record<Spot, string>> = { center: 'Center Blocker', side0: 'Side Blocker', side1: 'Side Blocker', receive: 'Receive', set: 'Set', attack: 'Attack', serve: 'Serve', event: 'Event', score: 'Score', deck: 'Deck', drop: 'Drop' }
+/** The opponent's sheet is turned around, so their Areas mirror yours across the net. */
+const boxStyle = (k: Spot, mine: boolean): React.CSSProperties => {
+  const [l, tp, w, h] = BOX[k]
+  return { left: `${mine ? l : 100 - l - w}%`, top: `${mine ? tp : 100 - tp - h}%`, width: `${w}%`, height: `${h}%` }
+}
 const P_SHORT: Record<Param, string> = { sv: 'SV', bl: 'BL', rc: 'RC', st: 'ST', at: 'AT' }
 
 /** A number that counts to its new value instead of jumping. */
@@ -320,7 +334,7 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
   const cardOpts = (uid: number) => opts.filter((o) => o.uid === uid)
   const P0 = v.ps[me]
   const inHand = (u: number) => P0.hand.includes(u)
-  const onCourt = (u: number) => [0, 1].some((s) => SLOTS.some(({ area }) => v.ps[s][area].includes(u)) || v.ps[s].sides.includes(u))
+  const onCourt = (u: number) => ([0, 1] as Side[]).some((s) => (['serve', 'center', 'sides', 'receive', 'set', 'attack'] as Area[]).some((a) => v.ps[s][a].includes(u)))
   // Cards to choose from that are not in your hand or on the court are laid out in a tray.
   const tray = mine ? [...new Set([...(mine.show || []).filter((u) => !inHand(u) || mine.kind !== 'free'), ...opts.filter((o) => o.uid != null && !inHand(o.uid) && !onCourt(o.uid)).map((o) => o.uid!)])] : []
   const only = mine && mine.kind !== 'free' && mine.kind !== 'enter' ? [...new Set(opts.filter((o) => o.uid != null).map((o) => o.uid!))] : []
@@ -387,100 +401,80 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
   // The area the current choice is about, so it can light up.
   const askArea = mine && mine.kind === 'enter' ? opts.find((o) => o.area)?.area : undefined
 
-  /** One Area on the court: the top character, its number for this Area, and its Guts. */
-  const slot = (side: Side, area: Area, label: string) => {
-    const P = v.ps[side]
-    const list = P[area]
+  /** The character on top of one Area, its number for that Area, and its Guts. */
+  const spot = (side: Side, key: Spot, area: Area | null, list: number[], extra = '') => {
     const top = list.length ? list[list.length - 1] : null
-    const k = AREA_PARAM[area]
-    const n = top != null ? v.pv[top]?.[k] ?? null : null
-    const live = v.turn === side && ((area === 'serve' && v.phase === 'serve') || (area === 'center' && v.phase === 'block') || (area === 'receive' && v.phase === 'receive') || (area === 'set' && v.phase === 'set') || (area === 'attack' && v.phase === 'attack'))
-    const target = side === me && askArea && (askArea === area || (area === 'center' && askArea === 'sides'))
+    const k = area ? AREA_PARAM[area] : null
+    const n = top != null && k ? v.pv[top]?.[k] ?? null : null
+    const live = area && v.turn === side && ((area === 'serve' && v.phase === 'serve') || ((area === 'center' || area === 'sides') && v.phase === 'block') || (area === 'receive' && v.phase === 'receive') || (area === 'set' && v.phase === 'set') || (area === 'attack' && v.phase === 'attack'))
+    const target = side === me && askArea && area && (askArea === area || (area === 'sides' && askArea === 'sides' && !top))
     const fx = ev && ev.t === 'enter' && ev.uid != null && list.includes(ev.uid) ? 'fx-enter' : ev && (ev.t === 'pump' || ev.t === 'cut') && ev.uid === top ? `fx-${ev.t}` : ''
     const pick = top != null ? opts.find((o) => o.uid === top && o.t === 'card') : undefined
-    const sides = area === 'center' ? P.sides : []
     return (
-      <div key={area} className={`court-slot a-${area} ${live ? 'live' : ''} ${target ? 'target' : ''} ${pick ? 'pickable' : ''} ${fx}`} data-drop={side === me ? area : undefined}
+      <div key={key} data-label={LABEL[key]} className={`spot z-${key} ${live ? 'live' : ''} ${target ? 'target' : ''} ${pick ? 'pickable' : ''} ${fx} ${extra}`} style={boxStyle(key, side === me)}
+        data-drop={side === me && area ? (area === 'sides' ? 'center' : area) : undefined}
         onClick={() => (pick ? act(pick.i) : top != null ? peek(top) : undefined)} role={pick || top != null ? 'button' : undefined}>
-        <span className="slot-label">{label}</span>
-        <div className="slot-cards">
-          {top != null ? (
-            <span key={top} className="cardwrap" data-uid={top} data-side={side} onMouseEnter={() => show(top)}>
-              <img className="card" src={img(m.s.cards[top], view)} alt={nameOf(top)} draggable={false} />
-              {v.alias[top] ? <span className="alias">{v.alias[top]}</span> : null}
-            </span>
-          ) : <span className="slot-empty" />}
-          {sides.map((u, i) => {
-            const sp = opts.find((o) => o.uid === u && o.t === 'card')
-            return (
-              <span key={u} className={`side-blocker s${i} ${sp ? 'pickable' : ''}`} data-uid={u} data-side={side}
-                onClick={(e) => { e.stopPropagation(); if (sp) void act(sp.i); else peek(u) }} onMouseEnter={() => show(u)}>
-                <img src={img(m.s.cards[u], view)} alt={nameOf(u)} draggable={false} />
-                <b className="mini-num">{v.pv[u]?.bl ?? 0}</b>
-              </span>
-            )
-          })}
-        </div>
-        {top != null && n != null ? <span className="param"><i>{P_SHORT[k]}</i><Num value={area === 'center' ? n + sides.reduce((a, u) => a + (v.pv[u]?.bl ?? 0), 0) : n} spd={spd} /></span> : null}
-        {list.length > 1 ? <span className="guts" title="Guts: cards under the character, paid as costs">{list.length - 1} Guts</span> : null}
+        {top != null ? (
+          <span key={top} className="pcard" data-uid={top} data-side={side} onMouseEnter={() => show(top)}>
+            <img src={img(m.s.cards[top], view)} alt={nameOf(top)} draggable={false} />
+            {v.alias[top] ? <span className="alias">{v.alias[top]}</span> : null}
+            {n != null && k ? <span className="param"><i>{P_SHORT[k]}</i><Num value={n} spd={spd} /></span> : null}
+            {list.length > 1 ? <span className="guts" title="Guts: cards under the character, paid as costs">{list.length - 1} Guts</span> : null}
+          </span>
+        ) : null}
         {fx === 'fx-enter' ? <i className="ring" /> : null}
-        {(fx === 'fx-pump' || fx === 'fx-cut') && ev ? <b className={`float ${fx === 'fx-pump' ? 'gain' : 'hit'}`}>{ev.text.match(/[+−-]\d+ \w+/)?.[0]?.replace(/ (\w+)$/, (_m, w: string) => ` ${w}`) ?? ''}</b> : null}
+        {(fx === 'fx-pump' || fx === 'fx-cut') && ev ? <b className={`float ${fx === 'fx-pump' ? 'gain' : 'hit'}`}>{ev.text.match(/[+−-]\d+/)?.[0] ?? ''}</b> : null}
       </div>
     )
   }
 
-  const half = (side: Side) => {
+  /** One player's play sheet, laid out like the official one. */
+  const sheet = (side: Side) => {
     const P = v.ps[side]
+    const mineSide = side === me
     const dropTop = P.drop[P.drop.length - 1]
     const evFx = ev && ev.p === side && (ev.t === 'event' || ev.t === 'skill') ? 'fx-event' : ''
-    const evTarget = side === me && chosenOpts.some((o) => o.t === 'event' || o.t === 'hand')
+    const evTarget = mineSide && chosenOpts.some((o) => o.t === 'event' || o.t === 'hand')
+    // A Side Blocker sits in each side box; the first one goes on the left.
+    const sideList = (i: number) => (P.sides[i] != null ? [P.sides[i]] : [])
+    const evOff = Math.min(26, 74 / Math.max(1, P.event.length - 1))
     return (
-      <section className={`court-half ${side === me ? 'mine' : 'theirs'} ${v.turn === side && v.phase !== 'end' ? 'active' : ''}`}>
-        <div key={ev && ev.t === 'score' && ev.p === side ? `sc${cursor}` : 'sc'} className={`zone-score ${ev && ev.t === 'score' && ev.p === side ? 'fx-score' : ''}`}>
-          <span className="zlabel">Score <b>{P.score.length}</b></span>
-          <div className="score-stack">
-            {P.score.map((u) => <i key={u} className="cb" data-uid={u} data-side={side} title="Score card" />)}
-            {!P.score.length ? <span className="no-score">Last set</span> : null}
-          </div>
+      <section className={`sheet ${mineSide ? 'mine' : 'theirs'} ${v.turn === side && v.phase !== 'end' && v.phase !== 'setup' ? 'active' : ''}`}>
+        <div className="spot z-band" style={boxStyle('band', mineSide)}><span>Block</span></div>
+        <div className="spot z-logo" style={boxStyle('logo', mineSide)}><img src="/sim/hq-logo.svg" alt="" draggable={false} /></div>
+        {spot(side, 'center', 'center', P.center)}
+        {spot(side, 'side0', 'sides', sideList(0), 'small-num')}
+        {spot(side, 'side1', 'sides', sideList(1), 'small-num')}
+        {spot(side, 'receive', 'receive', P.receive)}
+        {spot(side, 'set', 'set', P.set)}
+        {spot(side, 'attack', 'attack', P.attack)}
+        {spot(side, 'serve', 'serve', P.serve)}
+        <div key={evFx ? `ev${cursor}` : 'ev'} data-label="Event" className={`spot z-event events ${evFx} ${evTarget ? 'target' : ''}`} style={boxStyle('event', mineSide)} data-drop={mineSide ? 'event' : undefined}
+          onClick={() => { const o = evTarget ? chosenOpts.find((x) => x.t === 'event' || x.t === 'hand') : undefined; if (o) void act(o.i); else if (P.event.length) setPile({ title: `${nm(side)}: Event Area`, uids: [...P.event].reverse() }) }}>
+          {P.event.map((u, i) => (
+            <span key={u} className="ecard" data-uid={u} data-side={side} style={{ left: `${i * evOff}%` }} onMouseEnter={() => show(u)}>
+              <img src={img(m.s.cards[u], view)} alt={m.name(u)} title={m.name(u)} draggable={false} />
+            </span>
+          ))}
+          {P.event.length ? <b className="count">{P.event.length}</b> : null}
         </div>
-        <div className="areas">
-          {SLOTS.map(({ area, label }) => slot(side, area, label))}
+        <div key={ev && ev.t === 'score' && ev.p === side ? `sc${cursor}` : 'sc'} data-label="Score" className={`spot z-score score ${ev && ev.t === 'score' && ev.p === side ? 'fx-score' : ''}`} style={boxStyle('score', mineSide)} title="Score cards">
+          {P.score.map((u, i) => <i key={u} className="cb" data-uid={u} data-side={side} style={{ marginTop: i ? '-62%' : 0 }} />)}
+          <b className="count">{P.score.length}</b>
         </div>
-        <div key={evFx ? `ev${cursor}` : 'ev'} className={`zone-events ${evFx} ${evTarget ? 'target-zone' : ''}`} data-drop={side === me ? 'event' : undefined}
-          onClick={() => { const o = evTarget ? chosenOpts.find((x) => x.t === 'event' || x.t === 'hand') : undefined; if (o) void act(o.i) }}>
-          <span className="zlabel">Events <b>{P.event.length}</b></span>
-          <div className="event-cards">
-            {P.event.map((u) => (
-              <span key={u} className="eslot" data-uid={u} data-side={side}>
-                <img src={img(m.s.cards[u], view)} alt={m.name(u)} title={m.name(u)} draggable={false} onMouseEnter={() => show(u)} onClick={(c) => { c.stopPropagation(); peek(u) }} />
-              </span>
-            ))}
-          </div>
+        <div key={ev && ev.t === 'draw' && ev.p === side ? `d${cursor}` : 'd'} data-label="Deck" className={`spot z-deck deck ${ev && ev.t === 'draw' && ev.p === side ? 'fx-draw' : ''}`} style={boxStyle('deck', mineSide)} title="Deck">
+          {P.deck.length ? <i className="cb" data-deck={side} /> : <i className="cb none" data-deck={side} />}
+          <b className="count">{P.deck.length}</b>
         </div>
-        <div className="zone-piles">
-          <div key={ev && ev.t === 'draw' && ev.p === side ? `d${cursor}` : 'd'} className={`pile-slot ${ev && ev.t === 'draw' && ev.p === side ? 'fx-draw' : ''}`} title="Deck">
-            {P.deck.length ? <i className="cb" data-deck={side} /> : <i className="cb none" data-deck={side} />}
-            <span className="zlabel">Deck <b>{P.deck.length}</b></span>
-          </div>
-          <button className="pile-slot" disabled={!P.drop.length} onClick={() => setPile({ title: `${nm(side)}: Drop Area`, uids: [...P.drop].reverse() })}>
-            {dropTop != null ? <img data-uid={dropTop} data-side={side} src={img(m.s.cards[dropTop], view)} alt="" draggable={false} /> : <i className="cb none" />}
-            <span className="zlabel">Drop <b>{P.drop.length}</b></span>
-          </button>
-        </div>
+        <button data-label="Drop" className="spot z-drop drop" style={boxStyle('drop', mineSide)} disabled={!P.drop.length} onClick={() => setPile({ title: `${nm(side)}: Drop Area`, uids: [...P.drop].reverse() })} title="Drop Area">
+          {dropTop != null ? <img data-uid={dropTop} data-side={side} src={img(m.s.cards[dropTop], view)} alt="" draggable={false} /> : null}
+          <b className="count">{P.drop.length}</b>
+        </button>
       </section>
     )
   }
 
   const offOf = (side: Side) => v.off[side]
-  const plate = (side: Side, tail?: React.ReactNode) => (
-    <div className={`plate ${side === me ? 'mine' : 'theirs'}`}>
-      <span className="who-name">{nm(side)}</span>
-      {v.serveRight === side && v.phase !== 'over' ? <em>Serve right</em> : null}
-      <span className="plate-stat">Hand <b>{v.ps[side].hand.length}</b></span>
-      {tail}
-    </div>
-  )
-
   // The log only shows what has already been played back on the table.
   const shown = m.log.length - (m.events.length - cursor)
   const sets: { round: number; lines: string[] }[] = []
@@ -508,46 +502,50 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
 
   return (
     <main ref={tableRef} className="table hq-table" onPointerDown={unlockSound} style={{ '--spd': spd } as React.CSSProperties}>
-      <div className="board">
-        <div className="cpu-row">
-          {plate(foe)}
+      <div className="hq-info">
+        <div className="who theirs">
+          <span className="who-name">{nm(foe)}</span>
+          {v.serveRight === foe && v.phase !== 'over' ? <em>Serve right</em> : null}
+          <span className="who-stat">Hand <b>{v.ps[foe].hand.length}</b></span>
           <div className="cpu-hand" aria-label={`${nm(foe)}'s hand: ${v.ps[foe].hand.length} cards`}>
             {v.ps[foe].hand.map((u) => <i key={u} className="cb" data-uid={u} data-side={foe} />)}
           </div>
-          <div className="controls">
-            <div className="seg" role="group" aria-label="Animation speed">
-              {[1, 2, 3].map((n) => <button key={n} className={speed === n ? 'on' : ''} onClick={() => setSpeed(n)}>{n}×</button>)}
-            </div>
-            <button className="ctl" onClick={() => { unlockSound(); setSoundOn(!sound) }} aria-pressed={sound}>Sound {sound ? 'on' : 'off'}</button>
-          </div>
         </div>
-        <div className="phasebar" aria-live="polite">
-          <span className="phase-round">Set <b>{Math.max(v.setNo, 1)}</b></span>
+        <div className="phases" aria-live="polite">
+          <span className="phase-set">Set <b>{Math.max(v.setNo, 1)}</b></span>
           <ol>
             {PHASES.map(([key, label]) => <li key={key} className={v.phase === key ? 'on' : ''}>{label}</li>)}
           </ol>
           <span className="phase-step">{step}</span>
         </div>
+        <div className="controls">
+          <div className="seg" role="group" aria-label="Animation speed">
+            {[1, 2, 3].map((n) => <button key={n} className={speed === n ? 'on' : ''} onClick={() => setSpeed(n)}>{n}×</button>)}
+          </div>
+          <button className="ctl" onClick={() => { unlockSound(); setSoundOn(!sound) }} aria-pressed={sound}>Sound {sound ? 'on' : 'off'}</button>
+        </div>
+      </div>
+
+      <div className="hq-center">
         <div className={`court ${ev && (ev.t === 'lost' || (ev.t === 'judge' && !ev.win)) ? `shake${cursor % 2}` : ''}`}>
-          {half(foe)}
+          {sheet(foe)}
           <div className="net">
-            <div className={`net-off theirs ${v.turn !== me && offOf(foe) != null ? '' : ''}`}>
-              <span>{nm(foe)} offense</span>
+            <div className="net-off theirs">
+              <span>{nm(foe)}</span>
               {offOf(foe) != null ? <Num value={offOf(foe)!} spd={spd} className="off-num" /> : <b className="off-num dim">–</b>}
               <small>{v.offKind[foe]}</small>
             </div>
             <div className="net-mid">
               <span className="sets"><b>{v.sets[me]}</b><i>Sets</i><b>{v.sets[foe]}</b></span>
-              {v.def != null ? <span className="def-now">Defense <b>{v.def}</b></span> : null}
             </div>
             <div className="net-off mine">
-              <span>Your offense</span>
-              {offOf(me) != null ? <Num value={offOf(me)!} spd={spd} className="off-num" /> : <b className="off-num dim">–</b>}
               <small>{v.offKind[me]}</small>
+              {offOf(me) != null ? <Num value={offOf(me)!} spd={spd} className="off-num" /> : <b className="off-num dim">–</b>}
+              <span>You</span>
             </div>
           </div>
-          {half(me)}
-          {ball ? <i key={cursor} className={`ball ${ball}`} /> : null}
+          {sheet(me)}
+          {ball ? <img key={cursor} className={`ball ${ball}`} src="/sim/hq-ball.svg" alt="" /> : null}
           {banner ? (
             <div key={cursor} className={`banner banner-${ev!.t} ${(ev!.t === 'victory' || ev!.t === 'interval') && ev!.p !== me ? 'lost' : ''} ${ev!.t === 'lost' && ev!.p === me ? 'lost' : ''}`}>
               <div>
@@ -579,22 +577,17 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
             const blockO = opts.find((o) => o.t === 'block')
             const recvO = opts.find((o) => o.t === 'receive')!
             return (
-              <div className="battle-pop start-pop" role="dialog" aria-label="Block or receive">
+              <div className="start-pop" role="dialog" aria-label="Block or receive">
                 <h3>Your turn</h3>
-                <p className="bp-score"><span>{nm(foe)}'s offense <b>{off}</b></span><i>{v.offKind[foe]}</i></p>
-                <p className="bp-state">Block it with up to three characters, or let it through and receive it with one.</p>
+                <p className="sp-off">{nm(foe)}'s offense <b>{off}</b> <i>{v.offKind[foe]}</i></p>
                 <div className="start-choices">
-                  {blockO ? <button className="btn" onClick={() => act(blockO.i)}><b>Block</b><span>Total Block Point ≥ {off}</span></button> : null}
-                  <button className="btn" onClick={() => act(recvO.i)}><b>Receive</b><span>Draw 1, Receive Point ≥ {off}, then set and attack</span></button>
+                  {blockO ? <button className="btn" onClick={() => act(blockO.i)}><b>Block</b><span>Up to 3 characters, total Block Point {off} or more</span></button> : null}
+                  <button className="btn" onClick={() => act(recvO.i)}><b>Receive</b><span>Draw 1, Receive Point {off} or more, then set and attack</span></button>
                 </div>
               </div>
             )
           })() : null}
         </div>
-        {plate(me, <>
-          {lostOpt && mine && mine.kind !== 'start' ? <button className={`ghost lostbtn ${sure ? 'sure' : ''}`} onClick={lostSure}>{sure ? 'Tap again to declare Lost' : 'Declare Lost'}</button> : null}
-          {bigOpt ? <button className="endbtn" onClick={() => act(bigOpt.i)}>{bigOpt.label}</button> : null}
-        </>)}
         <div className={`hand ${P0.hand.length > 9 ? 'packed' : P0.hand.length > 7 ? 'snug' : ''}`}>
           {P0.hand.map((u, i, all) => {
             const off = i - (all.length - 1) / 2
@@ -614,40 +607,52 @@ function Table({ m, me, view, onAct, cpu, waitText, after }: {
           })}
           {!P0.hand.length ? <span className="empty">Your hand is empty.</span> : null}
         </div>
-        <div className="prompt" aria-live="polite">
-          {over ? (
-            <>
-              <p className="result">{m.s.winner === me ? 'You win.' : 'You lose.'} <span>{m.s.reason}</span></p>
-              <div className="choices">{after}</div>
-            </>
-          ) : playing ? (
-            <>
-              <p className="caption" key={cursor}>{ev!.text}</p>
-              <div className="choices"><button className="ghost" onClick={skip}>Skip animation</button></div>
-            </>
-          ) : !mine ? (
-            <p className="wait">{waitText}</p>
-          ) : (
-            <>
-              <p>{problem ? <span className="problem">{problem} </span> : null}{mine.text}{mine.kind === 'enter' ? <span className="hint"> Drag a card onto the area, or tap it.</span> : mine.kind === 'pick' && !tray.length && opts.some((o) => o.uid != null && onCourt(o.uid)) ? <span className="hint"> Tap a highlighted card on the court.</span> : null}</p>
-              {tray.length ? (
-                <div className="tray">
-                  {tray.map((u) => (
-                    <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : 'dim'} ${chosen === u ? 'sel' : ''}`} onClick={() => pickCard(u)}>
-                      <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-              <div className="choices" hidden={mine.kind === 'mulligan' || mine.kind === 'start'}>
-                {chosen != null ? <span className="chosen">{nameOf(chosen)}</span> : null}
-                {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o)}</button>)}
-                {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
-                {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
-              </div>
-            </>
-          )}
+      </div>
+
+      <div className="prompt" aria-live="polite">
+        <div className="who mine">
+          <span className="who-name">You</span>
+          {v.serveRight === me && v.phase !== 'over' ? <em>Serve right</em> : null}
+          <span className="who-stat">Hand <b>{P0.hand.length}</b></span>
         </div>
+        {over ? (
+          <>
+            <p className="result">{m.s.winner === me ? 'You win.' : 'You lose.'} <span>{m.s.reason}</span></p>
+            <div className="choices">{after}</div>
+          </>
+        ) : playing ? (
+          <>
+            <p className="caption" key={cursor}>{ev!.text}</p>
+            <div className="choices"><button className="ghost" onClick={skip}>Skip animation</button></div>
+          </>
+        ) : !mine ? (
+          <p className="wait">{waitText}</p>
+        ) : (
+          <>
+            <p>{problem ? <span className="problem">{problem} </span> : null}{mine.text}{mine.kind === 'enter' ? <span className="hint"> Drag a card onto the sheet, or tap it.</span> : mine.kind === 'pick' && !tray.length && opts.some((o) => o.uid != null && onCourt(o.uid)) ? <span className="hint"> Tap a highlighted card on the sheet.</span> : null}</p>
+            {tray.length ? (
+              <div className="tray">
+                {tray.map((u) => (
+                  <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : 'dim'} ${chosen === u ? 'sel' : ''}`} onClick={() => pickCard(u)}>
+                    <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            <div className="choices" hidden={mine.kind === 'mulligan' || mine.kind === 'start'}>
+              {chosen != null ? <span className="chosen">{nameOf(chosen)}</span> : null}
+              {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o)}</button>)}
+              {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
+              {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
+            </div>
+            {bigOpt || (lostOpt && mine.kind !== 'start') ? (
+              <div className="prompt-end">
+                {bigOpt ? <button className="endbtn" onClick={() => act(bigOpt.i)}>{bigOpt.label}</button> : null}
+                {lostOpt && mine.kind !== 'start' ? <button className={`ghost lostbtn ${sure ? 'sure' : ''}`} onClick={lostSure}>{sure ? 'Tap again to declare Lost' : 'Declare Lost'}</button> : null}
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
 
       <aside className="side">
