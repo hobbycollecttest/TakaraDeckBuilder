@@ -44,6 +44,11 @@ export type State = {
   winner: Side | null
   reason: string
 }
+/** What the table looks like at one moment, for drawing it. */
+export type View = { ps: [PlayerState, PlayerState]; first: Side; round: number; phase: State['phase']; active: Side; line: number; pw: number[][]; dd: boolean[][] }
+/** Something that just happened, with the table as it stood right after. The play screen animates these one by one. */
+export type Ev = { t: string; text: string; p?: Side; line?: number; uid?: number; n?: number; broken?: number; winner?: Side | null; boost?: boolean; view: View }
+type Fx = Omit<Ev, 'text' | 'view'>
 export type Setup = { seed: number; decks: [string[], string[]]; names: [string, string] }
 export type Gen<T = void> = Generator<Req, T, number>
 type From = 'hand' | 'check' | 'effect'
@@ -105,6 +110,9 @@ export class Match {
   req: Req | null = null
   log: { round: number; text: string }[] = []
   answers: number[] = []
+  /** Turn on to keep a step-by-step record for animation. Off for tests and replays. */
+  record = false
+  events: Ev[] = []
   private gen: Gen
   private rand: () => number
   private line1: Side | null = null
@@ -148,7 +156,7 @@ export class Match {
       this.s.phase = 'over'
       this.s.line = -1
       this.req = null
-      this.say(`${this.nm(e.winner)} wins. ${e.reason}`)
+      this.say(`${this.nm(e.winner)} wins. ${e.reason}`, { t: 'victory', p: e.winner })
     }
   }
 
@@ -217,7 +225,16 @@ export class Match {
   }
 
   // ---------- small actions ----------
-  say(text: string) {
+  snapshot(): View {
+    const s = this.s
+    const lines = [0, 1, 2, 3, 4]
+    return {
+      ps: JSON.parse(JSON.stringify(s.ps)), first: s.first, round: s.round, phase: s.phase, active: s.active, line: s.line,
+      pw: ([0, 1] as Side[]).map((p) => lines.map((l) => this.power(p, l))),
+      dd: ([0, 1] as Side[]).map((p) => lines.map((l) => this.hasDD(p, l))),
+    }
+  }
+  say(text: string, fx: Fx = { t: 'note' }) {
     // The person at the table is called "You", so the grammar is fixed up to match.
     if (this.setup.names.includes('You')) {
       text = text
@@ -226,6 +243,7 @@ export class Match {
         .replace(/^your/, 'Your')
     }
     this.log.push({ round: this.s.round, text })
+    if (this.record) this.events.push({ ...fx, text, view: this.snapshot() })
   }
   private shuffle(list: number[]) {
     for (let i = list.length - 1; i > 0; i--) {
@@ -237,14 +255,14 @@ export class Match {
     const P = this.P(p)
     let got = 0
     for (let i = 0; i < n && P.deck.length; i++, got++) P.hand.push(P.deck.pop()!)
-    if (got && !quiet) this.say(`${this.nm(p)} draws ${got} card${got === 1 ? '' : 's'}.`)
+    if (got && !quiet) this.say(`${this.nm(p)} draws ${got} card${got === 1 ? '' : 's'}.`, { t: 'draw', p, n: got })
     return got
   }
   recover(p: Side, line: number) {
     const st = this.P(p).lines[line]
     if (st && st.down) {
       st.down = false
-      this.say(`${this.name(this.top(p, line)!)} recovers.`)
+      this.say(`${this.name(this.top(p, line)!)} recovers.`, { t: 'recover', p, line })
     }
   }
   /** Stand up to n used Ena back up, preferring one color if given. */
@@ -254,7 +272,7 @@ export class Match {
       if (done >= n) break
       if (e.used && (!color || this.def(e.uid).color === color)) { e.used = false; done++ }
     }
-    if (done) this.say(`${this.nm(p)} returns ${done} Ena to unused.`)
+    if (done) this.say(`${this.nm(p)} returns ${done} Ena to unused.`, { t: 'ena', p })
     return done
   }
   deckToEna(p: Side) {
@@ -262,7 +280,7 @@ export class Match {
     if (!P.deck.length) return
     const uid = P.deck.pop()!
     P.ena.push({ uid, used: true })
-    this.say(`${this.nm(p)} puts ${this.name(uid)} from the deck into Ena, used.`)
+    this.say(`${this.nm(p)} puts ${this.name(uid)} from the deck into Ena, used.`, { t: 'ena', p })
   }
   discard(p: Side, uid: number) {
     const P = this.P(p)
@@ -360,7 +378,7 @@ export class Match {
     const P = this.P(p)
     if (via === 'new') {
       P.lines[line] = { cards: [uid], down: false }
-      this.say(`${this.nm(p)} plays ${this.name(uid)} to Line ${line + 1}.`)
+      this.say(`${this.nm(p)} plays ${this.name(uid)} to Line ${line + 1}.`, { t: 'summon', p, line, uid })
       const f = this.sc(uid).onPlay
       if (f) yield* f(this, p, uid)
       return
@@ -368,9 +386,9 @@ export class Match {
     const st = P.lines[line]!
     const base = st.cards[st.cards.length - 1]
     const wasDown = st.down
-    this.say(`${this.nm(p)} Overbeats ${this.name(base)} with ${this.name(uid)} on Line ${line + 1}.`)
     st.cards.push(uid)
     st.down = false
+    this.say(`${this.nm(p)} Overbeats ${this.name(base)} with ${this.name(uid)} on Line ${line + 1}.`, { t: 'summon', p, line, uid })
     const f = this.sc(uid).onPlay
     if (f) yield* f(this, p, uid)
     const g = this.sc(base).onOverbeaten
@@ -401,7 +419,7 @@ export class Match {
       return
     }
     st.down = true
-    this.say(`${this.name(uid)} is downed.`)
+    this.say(`${this.name(uid)} is downed.`, { t: 'down', p, line })
     const f = this.sc(uid).onDowned
     if (f) yield* f(this, p, line)
   }
@@ -415,10 +433,10 @@ export class Match {
     P.grave.push(...st.cards.slice(0, -1))
     if (sc.toEnaOnDestroy) {
       P.ena.push({ uid, used: false })
-      this.say(`${this.name(uid)} is destroyed and goes to Ena instead of the Graveyard.`)
+      this.say(`${this.name(uid)} is destroyed and goes to Ena instead of the Graveyard.`, { t: 'destroy', p, line, uid })
     } else {
       P.grave.push(uid)
-      this.say(`${this.name(uid)} is destroyed.`)
+      this.say(`${this.name(uid)} is destroyed.`, { t: 'destroy', p, line, uid })
     }
     if (sc.onDestroyed) yield* sc.onDestroyed(this, p)
   }
@@ -438,7 +456,7 @@ export class Match {
         broken++
       } else h.down = true
     }
-    this.say(`${this.nm(p)} takes ${n} damage. ${broken ? `${broken} Heart${broken === 1 ? '' : 's'} destroyed, ` : ''}${P.hearts.length} Heart${P.hearts.length === 1 ? '' : 's'} left.`)
+    this.say(`${this.nm(p)} takes ${n} damage. ${broken ? `${broken} Heart${broken === 1 ? '' : 's'} destroyed, ` : ''}${P.hearts.length} Heart${P.hearts.length === 1 ? '' : 's'} left.`, { t: 'damage', p, n, broken })
     yield* this.checkProcess(p)
   }
   private *checkProcess(p: Side): Gen {
@@ -467,14 +485,14 @@ export class Match {
       P.check.splice(P.check.indexOf(uid), 1)
       if (o.t === 'trig-draw') {
         P.grave.push(uid)
-        this.say(`${this.nm(p)} reveals ${this.name(uid)}: Draw Trigger.`)
+        this.say(`${this.nm(p)} reveals ${this.name(uid)}: Draw Trigger.`, { t: 'trigger', p, uid })
         this.draw(p, 3)
       } else if (o.t === 'trig-play') {
-        this.say(`${this.nm(p)} reveals ${this.name(uid)}: ${this.def(uid).trigger}.`)
+        this.say(`${this.nm(p)} reveals ${this.name(uid)}: ${this.def(uid).trigger}.`, { t: 'trigger', p, uid })
         yield* this.enter(p, uid, o.via!, o.line!)
       } else {
         P.hand.push(uid)
-        this.say(`${this.nm(p)} reveals ${this.name(uid)}: Last Over Trigger.`)
+        this.say(`${this.nm(p)} reveals ${this.name(uid)}: Last Over Trigger.`, { t: 'trigger', p, uid })
         this.draw(p, 1)
         if (P.hearts.length <= 1) {
           const spots = this.freeSpots(p, uid, 'check', false)
@@ -502,7 +520,7 @@ export class Match {
   /** Put a Waza into a line's Waza Zone and resolve its "when used" effects. */
   *useWaza(p: Side, uid: number, line: number): Gen {
     this.P(p).waza[line].push({ uid, boost: false })
-    this.say(`${this.nm(p)} uses ${this.name(uid)} on Line ${line + 1}.`)
+    this.say(`${this.nm(p)} uses ${this.name(uid)} on Line ${line + 1}.`, { t: 'waza', p, line, uid })
     const f = this.rawScript(uid).wazaOnUse
     if (f) yield* f(this, p, line)
     const t = this.top(p, line)
@@ -552,7 +570,9 @@ export class Match {
     }
     for (;;) {
       s.round++
-      this.say(`Round ${s.round}. ${this.nm(s.first)} is the First Player.`)
+      s.phase = 'summon'
+      s.active = s.first
+      this.say(`Round ${s.round}. ${this.nm(s.first)} is the First Player.`, { t: 'round', p: s.first })
       yield* this.summonPhase()
       yield* this.battlePhase()
       this.endPhase()
@@ -565,6 +585,7 @@ export class Match {
     for (const p of this.order()) {
       const P = s.ps[p]
       s.active = p
+      this.say(`${this.nm(p)}'s Summon Phase.`, { t: 'phase', p })
       if (s.round > 1) {
         if (!P.deck.length) throw new Over((1 - p) as Side, `${this.nm(p)} has no cards left to draw.`)
         this.draw(p, 1)
@@ -576,7 +597,7 @@ export class Match {
         if (o.t === 'charge') {
           P.hand.splice(P.hand.indexOf(o.uid!), 1)
           P.ena.push({ uid: o.uid!, used: false })
-          this.say(`${this.nm(p)} charges ${this.name(o.uid!)} as Ena.`)
+          this.say(`${this.nm(p)} charges ${this.name(o.uid!)} as Ena.`, { t: 'charge', p, uid: o.uid! })
         }
       }
       for (;;) {
@@ -619,6 +640,7 @@ export class Match {
     const s = this.s
     s.phase = 'battle'
     this.line1 = null
+    this.say('Battle Phase.', { t: 'phase' })
     for (let line = 0; line < 5; line++) {
       if (!s.ps[0].lines[line] && !s.ps[1].lines[line]) continue
       yield* this.lineBattle(line)
@@ -629,6 +651,7 @@ export class Match {
   private *lineBattle(line: number): Gen {
     const s = this.s
     s.line = line
+    this.say(`Line ${line + 1} battle.`, { t: 'line', line })
     for (const p of this.order()) {
       const t = this.top(p, line)
       const f = t != null ? this.sc(t).onBattleStart : undefined
@@ -656,7 +679,7 @@ export class Match {
           } else {
             this.pay(turn, 1, d.color, false)
             P.waza[line].push({ uid: o.uid!, boost: true })
-            this.say(`${this.nm(turn)} Boosts with ${d.name} on Line ${line + 1}.`)
+            this.say(`${this.nm(turn)} Boosts with ${d.name} on Line ${line + 1}.`, { t: 'waza', p: turn, line, uid: o.uid!, boost: true })
             const t = this.top(turn, line)
             const f = t != null ? this.sc(t).onBoostUsed : undefined
             if (f) yield* f(this, turn, line)
@@ -674,10 +697,10 @@ export class Match {
       const a = this.power(0, line)
       const b = this.power(1, line)
       winner = a > b ? 0 : b > a ? 1 : null
-      this.say(`Line ${line + 1}: ${this.name(fighters[0])} ${a} vs ${this.name(fighters[1])} ${b}. ${winner == null ? 'Draw.' : `${this.nm(winner)} wins the battle.`}`)
+      this.say(`Line ${line + 1}: ${this.name(fighters[0])} ${a} vs ${this.name(fighters[1])} ${b}. ${winner == null ? 'Draw.' : `${this.nm(winner)} wins the battle.`}`, { t: 'clash', line, winner })
     } else if (fighters[0] != null || fighters[1] != null) {
       winner = fighters[0] != null ? 0 : 1
-      this.say(`Line ${line + 1}: ${this.name(fighters[winner]!)} wins with no one across from it.`)
+      this.say(`Line ${line + 1}: ${this.name(fighters[winner]!)} wins with no one across from it.`, { t: 'clash', line, winner })
     } else fought = false
     if (line === 0) this.line1 = fought ? winner : null
 
@@ -732,7 +755,9 @@ export class Match {
   private endPhase() {
     const s = this.s
     s.phase = 'end'
+    s.line = -1
     s.silenced = []
+    this.say('End Phase.', { t: 'phase' })
     s.first = this.line1 != null ? this.line1 : ((1 - s.first) as Side)
     for (const p of [0, 1] as Side[]) {
       const P = s.ps[p]
@@ -743,9 +768,10 @@ export class Match {
       const n = this.unused(p)
       if (n) {
         const got = this.draw(p, n, true)
-        if (got) this.say(`Ena Draw: ${this.nm(p)} draws ${got}.`)
+        if (got) this.say(`Ena Draw: ${this.nm(p)} draws ${got}.`, { t: 'draw', p, n: got })
       }
     }
     for (const p of [0, 1] as Side[]) for (const e of s.ps[p].ena) e.used = false
+    this.say('All Ena return to unused.', { t: 'refresh' })
   }
 }

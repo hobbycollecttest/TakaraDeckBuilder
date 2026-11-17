@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DEFS, Match, type Opt, type Setup, type Side } from '../sim/engine'
+import { DEFS, Match, type Ev, type Opt, type Setup, type Side } from '../sim/engine'
+import { play, setSound, unlockSound } from './sound'
 import { cpuChoice, type Level } from '../sim/ai'
 import { PRACTICE, expandDeck } from '../sim/decks'
 import { store, type Deck, type View } from '../game'
@@ -67,7 +68,7 @@ export default function Play() {
   }
 
   return (
-    <div className={`app play ${playing && save ? 'in-match' : ''}`}>
+    <div className={`app play ${playing && save ? 'in-match' : ''}`} onPointerDown={unlockSound}>
       <header className="top">
         <a className="brand" href="/">
           <span className="brand-game">HORO-BEAT</span>
@@ -170,36 +171,75 @@ function deckColors(ids: string[]) {
   return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([c]) => c).join(' / ')
 }
 
+// How long each kind of event stays on screen at normal speed, in milliseconds.
+const PACE: Record<string, number> = {
+  round: 1250, phase: 900, line: 700, first: 900, draw: 380, charge: 520, summon: 720, waza: 780, clash: 1300,
+  down: 520, destroy: 700, damage: 760, trigger: 1500, recover: 420, ena: 420, refresh: 420, victory: 2200, note: 520,
+}
+const SOUND: Record<string, string> = {
+  round: 'drum', phase: 'drum', line: 'line', first: 'drum', draw: 'draw', charge: 'charge', summon: 'summon', waza: 'waza', clash: 'clash',
+  down: 'down', destroy: 'destroy', damage: 'damage', trigger: 'trigger', recover: 'recover', ena: 'charge', refresh: 'draw',
+}
+const PHASES: [View2['phase'], string][] = [['summon', 'Summon'], ['battle', 'Battle'], ['end', 'End']]
+type View2 = ReturnType<Match['snapshot']>
+
 function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgain: () => void; onMenu: () => void }) {
   const ref = useRef<Match | null>(null)
-  if (!ref.current) ref.current = Match.replay(save.setup, save.answers)
+  if (!ref.current) {
+    ref.current = Match.replay(save.setup, save.answers)
+    ref.current.record = true
+  }
   const m = ref.current
   const [tick, setTick] = useState(0)
+  // Events are played back one at a time. `cursor` is how many have been shown.
+  const [cursor, setCursor] = useState(0)
+  const [speed, setSpeed] = useState(() => store.get('hb.speed', 1))
+  const [sound, setSoundOn] = useState(() => store.get('hb.sound', true))
   const [sel, setSel] = useState<number | null>(null)
   const [look, setLook] = useState<string | null>(null)
   const [zoom, setZoom] = useState(false)
   const [pile, setPile] = useState<{ title: string; uids: number[] } | null>(null)
   const logRef = useRef<HTMLOListElement>(null)
 
+  const ev: Ev | null = cursor < m.events.length ? m.events[cursor] : null
+  const playing = !!ev
+  const v = useMemo(() => (ev ? ev.view : m.snapshot()), [ev, tick])
   const req = m.req
-  const mine = req && req.p === ME ? req : null
+  const mine = !playing && req && req.p === ME ? req : null
+  const over = !playing && m.s.phase === 'over'
+
+  useEffect(() => { store.set('hb.speed', speed) }, [speed])
+  useEffect(() => { store.set('hb.sound', sound); setSound(sound) }, [sound])
+
   const act = (i: number) => {
+    unlockSound()
     m.answer(i)
     store.set(SAVE_KEY, { ...save, answers: m.answers })
     setSel(null)
     setTick((n) => n + 1)
   }
+  const skip = () => setCursor(m.events.length)
 
-  // The CPU takes a short pause before each choice so you can follow what it does.
+  // Step through what just happened, with a sound for each event.
   useEffect(() => {
-    if (!m.req || m.req.p !== CPU) return
-    const t = setTimeout(() => act(cpuChoice(m, save.level)), m.req.kind === 'battle' ? 700 : 520)
+    if (!ev) return
+    const sfx = ev.t === 'damage' && ev.broken ? 'heartbreak' : ev.t === 'victory' ? (ev.p === ME ? 'win' : 'lose') : SOUND[ev.t]
+    if (sfx) play(sfx)
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const base = (PACE[ev.t] ?? PACE.note) + (ev.t === 'damage' && ev.broken ? 300 : 0)
+    const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / speed)
     return () => clearTimeout(t)
-  }, [tick])
+  }, [cursor, ev, speed])
+  // Once the table has caught up, the CPU makes its next choice.
+  useEffect(() => {
+    if (playing || !m.req || m.req.p !== CPU) return
+    const t = setTimeout(() => act(cpuChoice(m, save.level)), 380 / speed)
+    return () => clearTimeout(t)
+  }, [tick, playing, speed])
   useEffect(() => {
     const el = logRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [tick])
+  }, [cursor, tick])
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return
@@ -230,27 +270,39 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
     if (window.innerWidth < 1000) setZoom(true)
   }
   const pickCard = (uid: number) => {
+    unlockSound()
+    play('click')
     show(uid)
     setSel(cardOpts(uid).length ? uid : null)
   }
   const lookDef = look ? DEFS.get(look)! : null
-  const over = m.s.phase === 'over'
-  const fightLine = m.s.line
+  const fightLine = v.line
+  const nm = (side: Side) => m.nm(side)
+
+  /** The animation, if any, that the current event plays on one cell of the table. */
+  const cellFx = (side: Side, line: number) => {
+    if (!ev || ev.line !== line) return ''
+    if (ev.t === 'clash') return ev.winner == null ? 'fx-clash' : ev.winner === side ? 'fx-clash fx-won' : 'fx-clash fx-lost'
+    if (ev.p !== side) return ''
+    return ev.t === 'summon' || ev.t === 'waza' || ev.t === 'down' || ev.t === 'destroy' || ev.t === 'recover' ? `fx-${ev.t}` : ''
+  }
+  const sideFx = (side: Side, kinds: string[]) => (ev && ev.p === side && kinds.includes(ev.t) ? `fx-${ev.t}` : '')
 
   const row = (side: Side) => (
     <div className={`lines ${side === ME ? 'mine' : 'theirs'}`}>
       {[0, 1, 2, 3, 4].map((line) => {
-        const P = m.P(side)
+        const P = v.ps[side]
         const st = P.lines[line]
         const top = st ? st.cards[st.cards.length - 1] : null
         const target = targetAt(side, line)
-        const pw = top != null ? m.power(side, line) : 0
-        const other = m.top((1 - side) as Side, line) != null ? m.power((1 - side) as Side, line) : -1
+        const pw = v.pw[side][line]
+        const other = v.ps[1 - side].lines[line] ? v.pw[1 - side][line] : -1
         const zone = P.waza[line]
+        const fx = cellFx(side, line)
         return (
           <div
-            key={line}
-            className={`cell ${fightLine === line ? 'fight' : ''} ${target ? 'target' : ''} ${st?.down ? 'down' : ''}`}
+            key={fx ? `${line}-${cursor}` : line}
+            className={`cell ${fightLine === line ? 'fight' : ''} ${target ? 'target' : ''} ${st?.down ? 'down' : ''} ${fx}`}
             onClick={() => (target ? act(target.i) : top != null ? peek(top) : undefined)}
             role={target || top != null ? 'button' : undefined}
           >
@@ -260,7 +312,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
                 <span className={`pw ${fightLine === line && pw > other ? 'lead' : ''}`}>{pw}</span>
                 {st!.cards.length > 1 ? <span className="under">+{st!.cards.length - 1} under</span> : null}
                 {st!.down ? <span className="state">Downed</span> : null}
-                {m.hasDD(side, line) ? <span className="dd">×2</span> : null}
+                {v.dd[side][line] ? <span className="dd">×2</span> : null}
               </>
             ) : (
               <span className="slot">{line + 1}</span>
@@ -272,6 +324,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
                 ))}
               </span>
             ) : null}
+            {fx === 'fx-destroy' || fx.includes('fx-clash') ? <i className="burst" /> : null}
           </div>
         )
       })}
@@ -282,11 +335,12 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   // Hearts on the left, the five lines in the middle, deck and Graveyard on the right,
   // and the Ena Zone along the outer edge.
   const half = (side: Side) => {
-    const P = m.P(side)
+    const P = v.ps[side]
     const graveTop = P.grave[P.grave.length - 1]
+    const unused = P.ena.filter((e) => !e.used).length
     return (
       <section className={`half ${side === ME ? 'mine' : 'theirs'}`}>
-        <div className="zone-hearts">
+        <div key={sideFx(side, ['damage']) ? `h${cursor}` : 'h'} className={`zone-hearts ${sideFx(side, ['damage'])}`}>
           <span className="zlabel">Hearts <b>{P.hearts.length}</b></span>
           <div className="heart-stack">
             {[...P.hearts].reverse().map((h) => <i key={h.uid} className={`cb ${h.down ? 'down' : ''}`} title={h.down ? 'Downed Heart' : 'Heart'} />)}
@@ -294,8 +348,8 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
           </div>
         </div>
         {row(side)}
-        <div className="zone-ena">
-          <span className="zlabel">Ena <b>{m.unused(side)}/{P.ena.length}</b></span>
+        <div key={sideFx(side, ['charge', 'ena']) ? `e${cursor}` : 'e'} className={`zone-ena ${sideFx(side, ['charge', 'ena'])}`}>
+          <span className="zlabel">Ena <b>{unused}/{P.ena.length}</b></span>
           <div className="ena-cards">
             {P.ena.map((e) => (
               <img key={e.uid} className={e.used ? 'used' : ''} src={img(m.s.cards[e.uid], view)} alt={m.name(e.uid)} title={`${m.name(e.uid)}${e.used ? ' (used)' : ''}`} draggable={false} onClick={() => peek(e.uid)} />
@@ -303,11 +357,11 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
           </div>
         </div>
         <div className="zone-piles">
-          <div className="pile-slot" title="Deck">
+          <div key={sideFx(side, ['draw']) ? `d${cursor}` : 'd'} className={`pile-slot ${sideFx(side, ['draw'])}`} title="Deck">
             {P.deck.length ? <i className="cb" /> : <i className="cb none" />}
             <span className="zlabel">Deck <b>{P.deck.length}</b></span>
           </div>
-          <button className="pile-slot" disabled={!P.grave.length} onClick={() => setPile({ title: `${m.nm(side)}: Graveyard`, uids: [...P.grave].reverse() })}>
+          <button className="pile-slot" disabled={!P.grave.length} onClick={() => setPile({ title: `${nm(side)}: Graveyard`, uids: [...P.grave].reverse() })}>
             {graveTop != null ? <img src={img(m.s.cards[graveTop], view)} alt="" draggable={false} /> : <i className="cb none" />}
             <span className="zlabel">Graveyard <b>{P.grave.length}</b></span>
           </button>
@@ -317,28 +371,57 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
   }
   const plate = (side: Side) => (
     <div className={`plate ${side === ME ? 'mine' : 'theirs'}`}>
-      <span className="who-name">{m.nm(side)}</span>
-      {m.s.first === side && !over ? <em>First Player</em> : null}
-      <span className="plate-stat">Hand <b>{m.P(side).hand.length}</b></span>
-      {side === ME && m.s.round ? <span className="plate-stat round">Round <b>{m.s.round}</b></span> : null}
+      <span className="who-name">{nm(side)}</span>
+      {v.first === side && v.round > 0 && v.phase !== 'over' ? <em>First Player</em> : null}
+      <span className="plate-stat">Hand <b>{v.ps[side].hand.length}</b></span>
     </div>
   )
 
+  // The log only shows what has already been played back on the table.
+  const shown = m.log.length - (m.events.length - cursor)
   const rounds: { round: number; lines: string[] }[] = []
-  for (const l of m.log) {
+  for (const l of m.log.slice(0, shown)) {
     const last = rounds[rounds.length - 1]
     if (last && last.round === l.round) last.lines.push(l.text)
     else rounds.push({ round: l.round, lines: [l.text] })
   }
 
+  // What is happening right now, in words.
+  const who = v.active === ME ? 'Your' : "CPU's"
+  const step = v.round === 0 ? 'Getting ready'
+    : v.phase === 'summon' ? `${who} Summon Phase`
+    : v.phase === 'battle' ? (v.line >= 0 ? `Battle Phase · Line ${v.line + 1}` : 'Battle Phase')
+    : v.phase === 'end' ? 'End Phase' : 'Match over'
+  const banner = ev && ['round', 'phase', 'line', 'victory', 'trigger', 'first'].includes(ev.t)
+    ? ev.t === 'round' ? { big: `Round ${v.round}`, small: `${nm(v.first)} ${v.first === ME ? 'go' : 'goes'} first` }
+    : ev.t === 'phase' ? { big: step.replace(/ · .*/, ''), small: '' }
+    : ev.t === 'line' ? { big: `Line ${ev.line! + 1}`, small: 'Battle' }
+    : ev.t === 'victory' ? { big: ev.p === ME ? 'You win' : 'You lose', small: 'Finishing Blow' }
+    : ev.t === 'trigger' ? { big: DEFS.get(m.s.cards[ev.uid!])!.trigger, small: m.name(ev.uid!) }
+    : { big: ev.text.replace(/\.$/, ''), small: '' }
+    : null
+
   return (
-    <main className="table">
+    <main className="table" onPointerDown={unlockSound} style={{ '--spd': speed } as React.CSSProperties}>
       <div className="board">
         <div className="cpu-row">
           {plate(CPU)}
-          <div className="cpu-hand" aria-label={`CPU hand: ${m.P(CPU).hand.length} cards`}>
-            {m.P(CPU).hand.map((u) => <i key={u} className="cb" />)}
+          <div className="cpu-hand" aria-label={`CPU hand: ${v.ps[CPU].hand.length} cards`}>
+            {v.ps[CPU].hand.map((u) => <i key={u} className="cb" />)}
           </div>
+          <div className="controls">
+            <div className="seg" role="group" aria-label="Animation speed">
+              {[1, 2, 3].map((n) => <button key={n} className={speed === n ? 'on' : ''} onClick={() => setSpeed(n)}>{n}×</button>)}
+            </div>
+            <button className="ctl" onClick={() => { unlockSound(); setSoundOn(!sound) }} aria-pressed={sound}>Sound {sound ? 'on' : 'off'}</button>
+          </div>
+        </div>
+        <div className="phasebar" aria-live="polite">
+          <span className="phase-round">Round <b>{Math.max(v.round, 1)}</b></span>
+          <ol>
+            {PHASES.map(([key, label]) => <li key={key} className={v.phase === key ? 'on' : ''}>{label} Phase</li>)}
+          </ol>
+          <span className="phase-step">{step}</span>
         </div>
         <div className="mat">
           {half(CPU)}
@@ -346,15 +429,30 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
             {[0, 1, 2, 3, 4].map((line) => <span key={line} className={fightLine === line ? 'on' : ''}>Line {line + 1}</span>)}
           </div>
           {half(ME)}
+          {banner ? (
+            <div key={cursor} className={`banner banner-${ev!.t} ${ev!.t === 'victory' && ev!.p !== ME ? 'lost' : ''}`}>
+              {ev!.t === 'trigger' ? <img src={img(m.s.cards[ev!.uid!], view)} alt="" /> : null}
+              <div>
+                <strong>{banner.big}</strong>
+                {banner.small ? <span>{banner.small}</span> : null}
+              </div>
+            </div>
+          ) : null}
+          {ev && ev.t === 'waza' ? (
+            <div key={cursor} className={`flash-card ${ev.p === ME ? 'mine' : 'theirs'}`}>
+              <img src={img(m.s.cards[ev.uid!], view)} alt="" />
+              <span>{ev.boost ? 'Boost' : 'Waza'}</span>
+            </div>
+          ) : null}
         </div>
         {plate(ME)}
         <div className="hand">
-          {m.P(ME).hand.map((u) => (
+          {v.ps[ME].hand.map((u) => (
             <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''}`} onClick={() => pickCard(u)}>
               <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
             </button>
           ))}
-          {!m.P(ME).hand.length ? <span className="empty">Your hand is empty.</span> : null}
+          {!v.ps[ME].hand.length ? <span className="empty">Your hand is empty.</span> : null}
         </div>
         <div className="prompt" aria-live="polite">
           {over ? (
@@ -364,6 +462,11 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
                 <button className="btn" onClick={onAgain}>Play again</button>
                 <button className="ghost" onClick={onMenu}>Change decks</button>
               </div>
+            </>
+          ) : playing ? (
+            <>
+              <p className="caption" key={cursor}>{ev!.text}</p>
+              <div className="choices"><button className="ghost" onClick={skip}>Skip animation</button></div>
             </>
           ) : !mine ? (
             <p className="wait">The CPU is thinking…</p>
@@ -412,7 +515,7 @@ function Table({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgai
           {rounds.map((r) => (
             <li key={r.round}>
               {r.round ? <b>Round {r.round}</b> : <b>Setup</b>}
-              {r.lines.filter((t) => !t.startsWith('Round ')).map((t, i) => <span key={i}>{t}</span>)}
+              {r.lines.filter((t) => !t.startsWith('Round ')).map((t, i) => <span key={i} className={/Phase\.$|^Line \d battle\.$/.test(t) ? 'log-phase' : ''}>{t}</span>)}
             </li>
           ))}
         </ol>
