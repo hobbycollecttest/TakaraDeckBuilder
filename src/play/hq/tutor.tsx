@@ -18,7 +18,7 @@ export type Lesson = { key: string; title: string; body: string[]; pause: boolea
 
 // The tutorial is the same game every time: a fixed shuffle for each side, the opening
 // hand is always kept, and the computer's choices repeat. These shuffles were picked so
-// the player gets the first serve, meets every lesson and wins 3 sets to 2 by following
+// the player gets the first serve, meets every lesson and wins by following
 // the suggested moves.
 export const HQ_TUTORIAL_SEED: Record<Team, number> = { Karasuno: 6, Nekoma: 6 }
 export const hqTutorialDecks = (team: Team) => ({
