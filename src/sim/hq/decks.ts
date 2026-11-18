@@ -38,6 +38,18 @@ function build(team: string): string[] {
 const TEAMS = ['Karasuno', 'Nekoma', 'Aoba Johsai', 'Inarizaki', 'Shiratorizawa', 'Fukurodani', 'Date Tech']
 export const HQ_PRACTICE: DeckList[] = TEAMS.map((team) => ({ name: `${team} practice deck`, team, ids: build(team) }))
 
+// The two official Starter Decks, used by the tutorial. Takara Tomy lists the 12 cards in
+// each box but not how many copies of each, so these counts are our own split of the 40.
+const starter = (set: string, counts: number[]) => counts.flatMap((n, i) => {
+  const id = `${set}-${String(i + 1).padStart(3, '0')}-d`
+  if (!DEFS.has(id)) throw new Error(`Missing starter card ${id}`)
+  return Array(n).fill(id) as string[]
+})
+export const HQ_STARTERS: DeckList[] = [
+  { name: 'Karasuno Starter Deck', team: 'Karasuno', ids: starter('hv-d01', [4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4]) },
+  { name: 'Nekoma Starter Deck', team: 'Nekoma', ids: starter('hv-d02', [4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4]) },
+]
+
 /** Turn a saved deck (card id and copies) into a list of 40 card ids, or say why not. */
 export function expandHQ(deck: Record<string, number>): { ids: string[]; error: string } {
   const ids: string[] = []

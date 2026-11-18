@@ -10,8 +10,10 @@ import { listDecks, type CloudDeck } from '../../cloud'
 import { store, type View } from '../../game'
 import { checkRoom, createRoom, joinRoom, leaveRoom, sendChoice } from '../online'
 import { HQRemote, type Payload } from './online'
+import { steadyRandom } from '../tutor'
+import { HQ_TUTORIAL_SEED, hqLessonFor, hqTipFor, hqTutorialDecks, type HQTutor, type Team } from './tutor'
 
-type Save = { v: number; setup: Setup; answers: number[]; level: Level }
+type Save = { v: number; setup: Setup; answers: number[]; level: Level; tutorial?: { team: Team; seen: string[] } }
 const SAVE_VERSION = 1
 const SAVE_KEY = 'haikyu.play'
 type Deck = Record<string, number>
@@ -57,8 +59,12 @@ export default function HQPlay() {
   const [room, setRoom] = useState<Payload | null>(null)
   useEffect(() => store.set('haikyu.view', view), [view])
 
-  const start = (ids: string[], cpuIds: string[], level: Level) => {
-    const next: Save = { v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'] }, answers: [], level }
+  const start = (ids: string[], cpuIds: string[], level: Level) => begin({ v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'] }, answers: [], level })
+  const tutorial = (team: Team) => {
+    const { mine, theirs } = hqTutorialDecks(team)
+    begin({ v: SAVE_VERSION, setup: { seed: HQ_TUTORIAL_SEED[team], decks: [mine.ids, theirs.ids], names: ['You', 'CPU'] }, answers: [], level: 'easy', tutorial: { team, seen: [] } })
+  }
+  const begin = (next: Save) => {
     store.set(SAVE_KEY, next)
     setSave(next)
     setMatchId((n) => n + 1)
@@ -85,15 +91,16 @@ export default function HQPlay() {
       {room ? (
         <Room key={room.code} first={room} view={view} onExit={() => { store.set('haikyu.room', ''); setRoom(null) }} />
       ) : playing && save ? (
-        <LocalTable key={matchId} save={save} view={view} onAgain={() => start(save.setup.decks[0], save.setup.decks[1], save.level)} onMenu={drop} />
+        <LocalTable key={matchId} save={save} view={view} onAgain={() => start(save.setup.decks[0], save.setup.decks[1], save.level)}
+          onSwap={save.tutorial ? () => tutorial(save.tutorial!.team === 'Karasuno' ? 'Nekoma' : 'Karasuno') : undefined} onMenu={drop} />
       ) : (
-        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onRoom={(p) => { store.set('haikyu.room', p.code); setRoom(p) }} />
+        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onTutorial={tutorial} onRoom={(p) => { store.set('haikyu.room', p.code); setRoom(p) }} />
       )}
     </div>
   )
 }
 
-function Lobby({ save, view, onResume, onStart, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onRoom: (p: Payload) => void }) {
+function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onTutorial: (team: Team) => void; onRoom: (p: Payload) => void }) {
   const [account, setAccount] = useState<CloudDeck[]>([])
   const [signedIn, setSignedIn] = useState<boolean | null>(null)
   useEffect(() => {
@@ -146,10 +153,25 @@ function Lobby({ save, view, onResume, onStart, onRoom }: { save: Save | null; v
       <p className="lede">A full match with the official rules, right in your browser: serve, block or receive, set, attack, and fight for every set until someone runs out of Score cards.</p>
       {canResume ? (
         <div className="resume">
-          <span>You have a match in progress.</span>
+          <span>{save?.tutorial ? 'You have a tutorial in progress.' : 'You have a match in progress.'}</span>
           <button className="btn" onClick={onResume}>Resume match</button>
         </div>
       ) : null}
+      <section className="learn">
+        <div className="learn-decks" aria-hidden="true">
+          <img src={img('hv-d01-001-d', view)} alt="" />
+          <img src={img('hv-d02-001-d', view)} alt="" />
+        </div>
+        <div className="learn-text">
+          <h2>Learn by playing</h2>
+          <p>New to VOBACA!! BREAK? Play a guided match with the two Starter Decks. Short tips explain each part of a rally the first time it comes up, and the next good move is pointed out for you.</p>
+          <div className="learn-actions">
+            <button className="btn" onClick={() => onTutorial('Karasuno')}>Play as Karasuno</button>
+            <button className="btn" onClick={() => onTutorial('Nekoma')}>Play as Nekoma</button>
+          </div>
+          <p className="fine">Karasuno Starter Deck against Nekoma Starter Deck. The computer plays the other school.</p>
+        </div>
+      </section>
       <div className="lobby-cols">
         <section>
           <h2>Your deck</h2>
@@ -278,20 +300,37 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
 }
 
 /** A match against the computer. It lives entirely in this browser. */
-function LocalTable({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgain: () => void; onMenu: () => void }) {
+function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view: View; onAgain: () => void; onSwap?: () => void; onMenu: () => void }) {
   const ref = useRef<HQ | null>(null)
   if (!ref.current) {
     ref.current = HQ.replay(save.setup, save.answers)
     ref.current.record = true
   }
   const m = ref.current
+  const [seen, setSeen] = useState(() => save.tutorial?.seen || [])
+  const seenRef = useRef(seen)
+  const keep = () => store.set(SAVE_KEY, { ...save, answers: m.answers, tutorial: save.tutorial && { ...save.tutorial, seen: seenRef.current } })
   const send = (i: number) => {
     m.answer(i)
-    store.set(SAVE_KEY, { ...save, answers: m.answers })
+    keep()
+  }
+  const tutor: HQTutor | undefined = save.tutorial && {
+    seen,
+    team: save.tutorial.team,
+    onSeen: (key) => {
+      if (seenRef.current.includes(key)) return
+      seenRef.current = [...seenRef.current, key]
+      setSeen(seenRef.current)
+      keep()
+    },
+    suggest: () => (m.req && m.req.p === 0 ? (m.req.kind === 'mulligan' ? m.req.opts.findIndex((o) => o.t === 'keep') : cpuChoice(m, 'normal')) : null),
+    cpuPick: () => cpuChoice(m, 'easy', steadyRandom(save.setup.seed, m.answers.length)),
   }
   return (
-    <Table m={m} me={0} view={view} onAct={send} cpu={save.level} waitText="The computer is thinking…"
-      after={<><button className="btn" onClick={onAgain}>Play again</button><button className="ghost" onClick={onMenu}>Change decks</button></>} />
+    <Table m={m} me={0} view={view} onAct={send} cpu={save.level} waitText="The computer is thinking…" tutor={tutor}
+      after={onSwap
+        ? <><button className="btn" onClick={onSwap}>Try {save.tutorial!.team === 'Karasuno' ? 'Nekoma' : 'Karasuno'}</button><button className="ghost" onClick={onMenu}>Back to menu</button></>
+        : <><button className="btn" onClick={onAgain}>Play again</button><button className="ghost" onClick={onMenu}>Change decks</button></>} />
   )
 }
 
@@ -361,8 +400,8 @@ type TableMatch = {
   snapshot(): HView
 }
 
-function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }: {
-  m: TableMatch; me: Side; view: View; version?: number; onAct: (i: number) => void | Promise<void>; cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode
+function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, tutor }: {
+  m: TableMatch; me: Side; view: View; version?: number; onAct: (i: number) => void | Promise<void>; cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode; tutor?: HQTutor
 }) {
   const foe = (1 - me) as Side
   const [busy, setBusy] = useState(false)
@@ -393,6 +432,10 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
   const req = m.req
   const mine = !playing && req && req.p === me ? req : null
   const over = !playing && m.s.phase === 'over'
+  // The tutorial's lesson for this moment, and the move it suggests.
+  const hint = useMemo(() => (tutor && mine && !busy ? tutor.suggest() : null), [mine, busy, tick, version, cursor])
+  const hintOpt = hint != null && mine ? mine.opts[hint] : null
+  const lesson = tutor && !intro ? hqLessonFor({ ev, mine, me, seen: tutor.seen, team: tutor.team, hint: hintOpt }) : null
 
   useGlide(tableRef, v, spd)
   useEffect(() => {
@@ -407,6 +450,7 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
 
   const act = async (i: number) => {
     if (busy) return
+    if (lesson && !lesson.pause) tutor!.onSeen(lesson.key)
     unlockSound()
     setProblem('')
     setBusy(true)
@@ -419,7 +463,7 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
 
   // Step through what just happened, with a sound for each event.
   useEffect(() => {
-    if (!ev || intro) return
+    if (!ev || intro || lesson?.pause) return
     let sfx = SOUND[ev.t]
     if (ev.t === 'judge') sfx = ev.win ? 'bump' : 'damage'
     if (ev.t === 'off' && /Offense Point: /.test(ev.text)) sfx = /Serve Offense/.test(ev.text) ? 'serve' : /Attack Offense/.test(ev.text) ? 'spike' : 'block'
@@ -431,11 +475,11 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
     const base = PACE[ev.t] ?? PACE.note
     const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / spd)
     return () => clearTimeout(t)
-  }, [cursor, ev, speed, intro])
+  }, [cursor, ev, speed, intro, lesson?.key])
   // Once the table has caught up, the computer makes its next choice.
   useEffect(() => {
     if (playing || intro || !cpu || !m.req || m.req.p !== foe) return
-    const t = setTimeout(() => act(cpuChoice(m as HQ, cpu)), 480 / spd)
+    const t = setTimeout(() => act(tutor ? tutor.cpuPick() : cpuChoice(m as HQ, cpu)), 480 / spd)
     return () => clearTimeout(t)
   }, [tick, playing, speed, intro])
   useEffect(() => {
@@ -528,8 +572,9 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
     const target = side === me && askArea && area && (askArea === area || (area === 'sides' && askArea === 'sides' && !top))
     const fx = ev && ev.t === 'enter' && ev.uid != null && list.includes(ev.uid) ? 'fx-enter' : ev && (ev.t === 'pump' || ev.t === 'cut') && ev.uid === top ? `fx-${ev.t}` : ''
     const pick = top != null ? opts.find((o) => o.uid === top && o.t === 'card') : undefined
+    const hinted = side === me && hintOpt && ((target && hintOpt.t === 'enter' && hintOpt.area === area && chosen === hintOpt.uid) || (pick && pick.i === hint))
     return (
-      <div key={key} data-label={LABEL[key]} className={`spot z-${key} ${live ? 'live' : ''} ${target ? 'target' : ''} ${pick ? 'pickable' : ''} ${fx} ${extra}`} style={boxStyle(key, side === me)}
+      <div key={key} data-label={LABEL[key]} className={`spot z-${key} ${live ? 'live' : ''} ${target ? 'target' : ''} ${pick ? 'pickable' : ''} ${hinted ? 'hint' : ''} ${fx} ${extra}`} style={boxStyle(key, side === me)}
         data-drop={side === me && area ? (area === 'sides' ? 'center' : area) : undefined}
         onClick={() => (pick ? act(pick.i) : top != null ? peek(top) : undefined)} role={pick || top != null ? 'button' : undefined}>
         {top != null ? (
@@ -567,7 +612,7 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
         {spot(side, 'set', 'set', P.set)}
         {spot(side, 'attack', 'attack', P.attack)}
         {spot(side, 'serve', 'serve', P.serve)}
-        <div key={evFx ? `ev${cursor}` : 'ev'} data-label="Event" className={`spot z-event events ${evFx} ${evTarget ? 'target' : ''}`} style={boxStyle('event', mineSide)} data-drop={mineSide ? 'event' : undefined}
+        <div key={evFx ? `ev${cursor}` : 'ev'} data-label="Event" className={`spot z-event events ${evFx} ${evTarget ? 'target' : ''} ${evTarget && hintOpt && (hintOpt.t === 'event' || hintOpt.t === 'hand') && chosen === hintOpt.uid ? 'hint' : ''}`} style={boxStyle('event', mineSide)} data-drop={mineSide ? 'event' : undefined}
           onClick={() => { const o = evTarget ? chosenOpts.find((x) => x.t === 'event' || x.t === 'hand') : undefined; if (o) void act(o.i); else if (P.event.length) setPile({ title: `${nm(side)}: Event Area`, uids: [...P.event].reverse() }) }}>
           {P.event.map((u, i) => (
             <span key={u} className="ecard" data-uid={u} data-side={side} style={{ left: `${i * evOff}%` }} onMouseEnter={() => show(u)}>
@@ -700,9 +745,10 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
                 <h3>Your turn</h3>
                 <p className="sp-off">{nm(foe)}'s offense <b>{off}</b> <i>{v.offKind[foe]}</i></p>
                 <div className="start-choices">
-                  {blockO ? <button className="btn" onClick={() => act(blockO.i)}><b>Block</b><span>Up to 3 characters, total Block Point {off} or more</span></button> : null}
-                  <button className="btn" onClick={() => act(recvO.i)}><b>Receive</b><span>Draw 1, Receive Point {off} or more, then set and attack</span></button>
+                  {blockO ? <button className={`btn ${blockO.i === hint ? 'hint' : ''}`} onClick={() => act(blockO.i)}><b>Block</b><span>Up to 3 characters, total Block Point {off} or more</span></button> : null}
+                  <button className={`btn ${recvO.i === hint ? 'hint' : ''}`} onClick={() => act(recvO.i)}><b>Receive</b><span>Draw 1, Receive Point {off} or more, then set and attack</span></button>
                 </div>
+                {tutor && hintOpt ? <p className="bp-tip">Suggested: {hqTipFor(hintOpt, nameOf)}</p> : null}
               </div>
             )
           })() : null}
@@ -713,7 +759,7 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
             return (
               <span key={u} className="hslot" data-uid={u} data-side={me}>
                 <button
-                  className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''} ${dragging === u ? 'lifted' : ''}`}
+                  className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''} ${dragging === u ? 'lifted' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`}
                   style={{ '--rot': `${off * 2.2}deg`, '--dy': `${off * off * 1.4}px` } as React.CSSProperties}
                   onClick={() => pickCard(u)}
                   onMouseEnter={() => show(u)}
@@ -749,10 +795,13 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
         ) : (
           <>
             <p>{problem ? <span className="problem">{problem} </span> : null}{mine.text}{mine.kind === 'enter' ? <span className="hint"> Drag a card onto the sheet, or tap it.</span> : mine.kind === 'pick' && !tray.length && opts.some((o) => o.uid != null && onCourt(o.uid)) ? <span className="hint"> Tap a highlighted card on the sheet.</span> : null}</p>
+            {tutor && hintOpt && mine.kind !== 'start' && mine.kind !== 'mulligan' ? (
+              <p className="tip">Suggested: {hqTipFor(hintOpt, nameOf)} <button className="linkish" onClick={() => act(hint!)}>Do this for me</button></p>
+            ) : null}
             {tray.length ? (
               <div className="tray">
                 {tray.map((u) => (
-                  <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : 'dim'} ${chosen === u ? 'sel' : ''}`} onClick={() => pickCard(u)}>
+                  <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : 'dim'} ${chosen === u ? 'sel' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`} onClick={() => pickCard(u)}>
                     <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
                   </button>
                 ))}
@@ -760,13 +809,13 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
             ) : null}
             <div className="choices" hidden={mine.kind === 'mulligan' || mine.kind === 'start'}>
               {chosen != null ? <span className="chosen">{nameOf(chosen)}</span> : null}
-              {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o)}</button>)}
+              {chosenOpts.map((o) => <button key={o.i} className={`btn ${o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{shortLabel(o)}</button>)}
               {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
-              {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' || o.t === 'serve' || o.t === 'order' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
+              {plain.map((o) => <button key={o.i} className={`${o.t === 'yes' || o.t === 'keep' || o.t === 'param' || o.t === 'name' || o.t === 'opt' || o.t === 'serve' || o.t === 'order' ? 'btn' : 'ghost'} ${o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{o.label}</button>)}
             </div>
             {bigOpt || (lostOpt && mine.kind !== 'start') ? (
               <div className="prompt-end">
-                {bigOpt ? <button className="endbtn" onClick={() => act(bigOpt.i)}>{bigOpt.label}</button> : null}
+                {bigOpt ? <button className={`endbtn ${bigOpt.i === hint ? 'hint' : ''}`} onClick={() => act(bigOpt.i)}>{bigOpt.label}</button> : null}
                 {lostOpt && mine.kind !== 'start' ? <button className={`ghost lostbtn ${sure ? 'sure' : ''}`} onClick={lostSure}>{sure ? 'Tap again to declare Lost' : 'Declare Lost'}</button> : null}
               </div>
             ) : null}
@@ -803,6 +852,16 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
         </ol>
       </aside>
 
+      {lesson && lesson.key !== 'welcome' ? (
+        <aside className={`coach ${lesson.pause ? 'paused' : ''}`} role="dialog" aria-live="polite" aria-label={lesson.title}>
+          <span className="coach-kicker">Tutorial</span>
+          <h3>{lesson.title}</h3>
+          {lesson.body.map((t, i) => <p key={i}>{t}</p>)}
+          {lesson.pause
+            ? <button className="btn" onClick={() => tutor!.onSeen(lesson.key)}>Continue</button>
+            : <button className="ghost" onClick={() => tutor!.onSeen(lesson.key)}>Got it</button>}
+        </aside>
+      ) : null}
       <img ref={ghostRef} className="drag-ghost" hidden={dragging == null} src={dragging != null ? img(m.s.cards[dragging], view) : undefined} alt="" />
       {intro ? (
         <div className="versus" onClick={() => setIntro(false)}>
@@ -815,8 +874,10 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
       {!intro && mine && mine.kind === 'mulligan' ? (
         <div className="shade opening-shade">
           <div className="opening">
-            <h2>Your opening hand</h2>
-            <p>{v.serveRight === me ? 'You have the first serve.' : `${nm(foe)} has the first serve.`} Keep these 6 cards, or put back any of them and draw replacements. You can do this once.</p>
+            <h2>{lesson?.key === 'welcome' ? lesson.title : 'Your opening hand'}</h2>
+            {lesson?.key === 'welcome'
+              ? lesson.body.map((t, i) => <p key={i}>{t}</p>)
+              : <p>{v.serveRight === me ? 'You have the first serve.' : `${nm(foe)} has the first serve.`} Keep these 6 cards, or put back any of them and draw replacements. You can do this once.</p>}
             <div className="opening-cards">
               {P0.hand.map((u, i) => (
                 <button key={u} style={{ animationDelay: `${i * 110}ms` }} onClick={() => { show(u); setZoom(true) }}>
@@ -825,7 +886,7 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
               ))}
             </div>
             <div className="opening-actions">
-              {opts.map((o) => <button key={o.i} className={o.t === 'keep' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
+              {opts.filter((o) => !tutor || o.t === 'keep').map((o) => <button key={o.i} className={`${o.t === 'keep' ? 'btn' : 'ghost'} ${tutor && o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{o.label}</button>)}
             </div>
             <small>Tap a card to read it.</small>
           </div>
@@ -837,6 +898,7 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra }:
             <i className="rays" />
             <h2>{m.s.winner === me ? 'Victory' : 'Defeat'}</h2>
             <p>{m.s.reason}</p>
+            {tutor ? <p className="result-note">That is the whole game. Try the other school, build your own deck in the deck builder, or play a friend with a room code.</p> : null}
             <dl>
               <div><dt>Sets</dt><dd>{v.sets[me]} – {v.sets[foe]}</dd></div>
               <div><dt>Turns</dt><dd>{v.turnNo}</dd></div>

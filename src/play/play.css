@@ -442,3 +442,4 @@ button.pile-slot:not(:disabled):hover img { filter: none; }
   .learn { grid-template-columns: 1fr; gap: 14px; }
   .learn-decks { display: none; }
 }
+.spot.hint { outline: 3px solid #fff3c4; outline-offset: 2px; animation: hint-glow 1.3s ease-in-out infinite; }
