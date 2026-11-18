@@ -540,12 +540,12 @@ export const HQ_SCRIPTS: Record<string, HQScript> = {
   'HV-PR-069': twin('Toru Oikawa', 'Yutaro Kindaichi'),
   'HV-PR-078': EVIF(['draw'], (g, c) => g.P(c.p).hand.length === 4, add('guts', Y('1st Year'), 1)),
   'HV-PR-080': E(['attack'], when(setIs('Tobio Kageyama'), function* (g, c) {
-    const avail = g.payable(c.p).length
+    const avail = g.payable(c.p, g.gutsHome(c.p, c.uid)).length
     if (avail < 2) return
     const opts = [2, 3].filter((n) => n <= avail).map((n) => ({ t: 'n', n, label: `Pay ${n} Guts`, w: n }))
     const o = yield* g.ask(c.p, 'choose', `Use the skill of ${g.def(c.uid).name}? Pay 2 or 3 Guts.`, [...opts, { t: 'no', label: "Don't", w: 0 }], [c.uid])
     if (o.t === 'no') return
-    c.paid = yield* g.payGuts(c.p, o.n!)
+    c.paid = yield* g.payGuts(c.p, o.n!, g.gutsHome(c.p, c.uid))
     if (c.paid.length && c.paid.every((u) => g.def(u).name === 'Shoyo Hinata')) g.pump(c.uid, 'at', 3 + c.paid.length)
   })),
   'HV-PR-081': E(['serve', 'attack'], when(allTeam('Youth'), function* (g, c) {

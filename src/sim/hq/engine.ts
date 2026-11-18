@@ -434,6 +434,15 @@ export class HQ {
   payable(p: Side, areas?: Area[], pred?: (uid: number) => boolean) {
     return this.allGuts(p).filter((g) => (!areas || areas.includes(g.area)) && (!pred || pred(g.uid)))
   }
+  /** Where a skill's Guts come from when its text names no Area: the Guts under the card that
+   *  has the skill (rule: "Unless stated otherwise, you choose any cards from the Guts under the
+   *  card that has the skill"). A Side Blocker has none. A card that is not on the court, like an
+   *  Event, says "from your court" whenever it costs Guts, so it may use the whole court. */
+  gutsHome(p: Side, uid: number): Area[] | undefined {
+    const area = this.areaOf(p, uid) ?? (['serve', 'center', 'receive', 'set', 'attack'] as Area[]).find((a) => this.P(p)[a].includes(uid))
+    if (!area) return undefined
+    return area === 'sides' ? [] : [area]
+  }
   /** Pay N Guts. The computer pays from the deepest Guts first. */
   *payGuts(p: Side, n: number, areas?: Area[], pred?: (uid: number) => boolean, prefer?: Area): Gen<number[]> {
     const paid: number[] = []
@@ -655,7 +664,9 @@ export class HQ {
     } else {
       s.phase = 'start'
       s.mode = null
-      const canBlock = !this.hasRule(p, 'noBlock') && this.P(p).hand.some((u) => this.canEnter(p, u, 'center'))
+      // A serve, or a ball sent back by a block, cannot be blocked: it has to be received.
+      const blockable = s.offKind[opp(p)] !== 'Serve' && s.offKind[opp(p)] !== 'Block'
+      const canBlock = blockable && !this.hasRule(p, 'noBlock') && this.P(p).hand.some((u) => this.canEnter(p, u, 'center'))
       const opts: Opt[] = [{ t: 'receive', label: 'Receive' }]
       if (canBlock) opts.unshift({ t: 'block', label: 'Block' })
       const o = yield* this.ask(p, 'start', `${this.nm(opp(p))}'s Offense Point is ${s.off[opp(p)] ?? 0}. Block, or receive?`, opts)

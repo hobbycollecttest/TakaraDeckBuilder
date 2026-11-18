@@ -20,7 +20,7 @@ export type Lesson = { key: string; title: string; body: string[]; pause: boolea
 // hand is always kept, and the computer's choices repeat. These shuffles were picked so
 // the player gets the first serve, meets every lesson and wins by following
 // the suggested moves.
-export const HQ_TUTORIAL_SEED: Record<Team, number> = { Karasuno: 6, Nekoma: 6 }
+export const HQ_TUTORIAL_SEED: Record<Team, number> = { Karasuno: 6, Nekoma: 10 }
 export const hqTutorialDecks = (team: Team) => ({
   mine: HQ_STARTERS.find((s) => s.team === team)!,
   theirs: HQ_STARTERS.find((s) => s.team !== team)!,
@@ -81,6 +81,7 @@ export function hqLessonFor({ ev, mine, me, seen, team }: Look): Lesson | null {
       'The ball is coming at you. Choose how to stop it.',
       'Block: put up to 3 characters into your Block Area. If their Block Points add up to the Offense Point or more, the ball is stopped.',
       'Receive: draw a card, then play a character whose Receive Point is at least the Offense Point. After a good receive you set and attack, so this is how you build your own offense.',
+      'A serve, or a ball sent back by a block, can\u2019t be blocked. Those always have to be received.',
     ],
   })
   if (mine.kind === 'enter' && (area === 'center' || area === 'sides')) return fresh({
