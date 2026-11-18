@@ -312,3 +312,52 @@
 .hq-table .btn.hint, .hq-table .ghost.hint, .hq-table .endbtn.hint { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--hq), 0 0 22px rgba(223, 96, 14, 0.6); }
 .hq-table .spot.hint { outline-color: var(--hq); }
 @media (max-width: 999px) { .hq .coach { border-top-color: var(--hq); } }
+
+/* Phones: the whole court fits on one screen. The table fills the space under the header,
+   and the two sheets are sized from whatever height is left after the info bar, your hand
+   and the prompt, so nothing has to be scrolled during a match. */
+@media (max-width: 999px) {
+  .hq.in-match { height: 100dvh; overflow: hidden; }
+  .hq-table { height: calc(100dvh - 55px); overflow: hidden; }
+  .hq-info { flex: none; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 6px 10px; }
+  .hq-info .who.theirs { flex: 1 1 auto; gap: 6px 8px; }
+  .hq-info .who-name { font-size: 15px; }
+  .hq-info .phases { display: none; }
+  .hq-info .controls { position: static; order: 2; gap: 4px; }
+  .hq-table .controls .seg button, .hq-table .controls .ctl { padding: 3px 7px; font-size: 11.5px; }
+  .hq-center { flex: 1 1 0; min-height: 0; padding: 4px 8px 0; overflow: hidden; container-type: size; }
+  .hq-center .court { --sw: min(calc(100cqw - 8px), calc((100cqh - 116px) * 0.8));
+    --cw: calc(var(--sw) * 0.128); --ch: calc(var(--cw) / 0.716); padding: 2px 0 4px; }
+  .hq-center .net { margin: 3px 0; }
+  .hq-table .hand { flex: none; min-height: 0; height: 84px; padding: 6px 6px 4px; }
+  .hq-table { --hw: 52px; }
+  .hq-table .hand-card { width: 52px; }
+  .hq-table .prompt { position: static; flex: none; max-height: 30dvh; }
+  .hq-table .prompt p { font-size: 13.5px; }
+  .hq-table .prompt .who.mine { display: none; }
+  .hq-table .tray .hand-card { width: 48px; }
+  .hq-table .side { display: none; }
+  .hq-table .start-pop { width: 94%; padding: 10px 12px; }
+}
+.hq-table .tray .hand-card { position: relative; }
+.tray-note { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 0; background: rgba(13, 2, 5, 0.82); color: #fff; font: 600 9.5px/1.2 var(--cond); letter-spacing: 0.04em; text-align: center; text-transform: uppercase; border-radius: 0 0 5px 5px; }
+/* The Score, Deck and Drop boxes share class names with the deck builder; keep its padding out of the sheet. */
+.sheet .spot { padding: 0; min-width: 0; }
+@media (max-width: 999px) {
+  .net-off small { display: none; }
+  .net { overflow: hidden; }
+  .hq-table .tray { padding-top: 4px; margin-top: 4px; }
+  .hq-table .tray .hand-card { width: 42px; }
+  .tray-note { font-size: 8px; padding: 1px 0; }
+  .hq-table .prompt .tip { margin-top: 4px; font-size: 12.5px; }
+}
+/* Short phones: a smaller hand leaves more room for the court. */
+@media (max-width: 999px) and (max-height: 720px) {
+  .hq-table .hand { height: 70px; padding-top: 4px; }
+  .hq-table { --hw: 44px; }
+  .hq-table .hand-card { width: 44px; }
+  .hq-center .court { --sw: min(calc(100cqw - 8px), calc((100cqh - 102px) * 0.8)); }
+}
+@media (max-width: 420px) {
+  .hq .brand-game { font-size: 13px; white-space: nowrap; }
+}

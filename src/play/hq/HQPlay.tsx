@@ -1,6 +1,6 @@
 // Haikyu!! VOBACA!! BREAK simulator: lobby and table. The rules live in src/sim/hq.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AREA_PARAM, DEFS, HQ, PHASE_LABEL, PNAME, type Area, type Ev, type Opt, type Param, type Setup, type Side, type View as HView } from '../../sim/hq/engine'
+import { AREA_NAME, AREA_PARAM, DEFS, HQ, PHASE_LABEL, PNAME, type Area, type Ev, type Opt, type Param, type Setup, type Side, type View as HView } from '../../sim/hq/engine'
 import { cpuChoice, type Level } from '../../sim/hq/ai'
 import { HQ_PRACTICE, expandHQ } from '../../sim/hq/decks'
 import { play, setSound, unlockSound } from '../sound'
@@ -496,8 +496,17 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
   const cardOpts = (uid: number) => opts.filter((o) => o.uid === uid)
   const P0 = v.ps[me]
   const inHand = (u: number) => P0.hand.includes(u)
-  const onCourt = (u: number) => ([0, 1] as Side[]).some((s) => (['serve', 'center', 'sides', 'receive', 'set', 'attack'] as Area[]).some((a) => v.ps[s][a].includes(u)))
-  // Cards to choose from that are not in your hand or on the court are laid out in a tray.
+  // Only the top card of each Area shows on the sheet. Guts underneath are hidden, so they go in the tray.
+  const onCourt = (u: number) => ([0, 1] as Side[]).some((s) => v.ps[s].sides.includes(u) || (['serve', 'center', 'receive', 'set', 'attack'] as Area[]).some((a) => { const l = v.ps[s][a]; return l[l.length - 1] === u }))
+  /** For a Guts card, the Area it sits under, so the tray can say where it came from. */
+  const gutsArea = (u: number) => {
+    for (const s of [0, 1] as Side[]) for (const a of ['serve', 'center', 'receive', 'set', 'attack'] as Area[]) {
+      const l = v.ps[s][a]
+      if (l.includes(u) && l[l.length - 1] !== u) return AREA_NAME[a].replace(' Area', '')
+    }
+    return ''
+  }
+  // Cards to choose from that are not in your hand or showing on the court are laid out in a tray.
   const tray = mine ? [...new Set([...(mine.show || []).filter((u) => !inHand(u) || mine.kind !== 'free'), ...opts.filter((o) => o.uid != null && !inHand(o.uid) && !onCourt(o.uid)).map((o) => o.uid!)])] : []
   const only = mine && mine.kind !== 'free' && mine.kind !== 'enter' ? [...new Set(opts.filter((o) => o.uid != null).map((o) => o.uid!))] : []
   const chosen = sel != null && cardOpts(sel).length ? sel : only.length === 1 ? only[0] : null
@@ -803,6 +812,7 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
                 {tray.map((u) => (
                   <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : 'dim'} ${chosen === u ? 'sel' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`} onClick={() => pickCard(u)}>
                     <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
+                    {gutsArea(u) ? <span className="tray-note">Guts: {gutsArea(u)}</span> : null}
                   </button>
                 ))}
               </div>
