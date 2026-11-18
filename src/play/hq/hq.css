@@ -297,3 +297,18 @@
   .prompt-end { margin-top: 8px; padding-top: 8px; }
   .hq .brand-game { font-size: 15px; }
 }
+
+/* Tutorial, in the Haikyu colors. */
+.hq .learn { border-color: var(--ink); }
+.hq .learn h2 { border: 0; }
+.hq-table .prompt .tip { margin-top: 8px; padding-left: 10px; border-left: 3px solid var(--hq); color: var(--hq-ink); font-weight: 600; }
+.hq-table .prompt .tip .linkish { margin-left: 4px; color: var(--hq); font-weight: 600; }
+.hq-table .bp-tip { color: var(--hq); font-weight: 600; }
+.hq .coach { background: #fff; color: var(--hq-ink); border-left-color: var(--hq); }
+.hq .coach-kicker { color: var(--hq); }
+.hq .coach h3 { font: italic 800 21px/1.15 var(--disp-hq); text-transform: uppercase; color: var(--hq-ink); }
+.hq .coach .btn { background: var(--hq); border-color: var(--hq); color: #fff; }
+.hq .coach .ghost { color: var(--hq-ink); border-color: var(--hq-ink); }
+.hq-table .btn.hint, .hq-table .ghost.hint, .hq-table .endbtn.hint { box-shadow: 0 0 0 3px #fff, 0 0 0 6px var(--hq), 0 0 22px rgba(223, 96, 14, 0.6); }
+.hq-table .spot.hint { outline-color: var(--hq); }
+@media (max-width: 999px) { .hq .coach { border-top-color: var(--hq); } }
