@@ -8,10 +8,11 @@ import { listDecks, type CloudDeck } from '../cloud'
 import { cpuChoice, type Level } from '../sim/ai'
 import { PRACTICE, expandDeck } from '../sim/decks'
 import { store, type Deck, type View } from '../game'
+import { TUTORIAL_SEED, lessonFor, steadyRandom, tipFor, tutorialDecks, type Tutor } from './tutor'
 
 // The match in progress is kept in the browser as its setup plus the list of choices
 // made so far. Nothing is sent to a server.
-type Save = { v: number; setup: Setup; answers: number[]; level: Level }
+type Save = { v: number; setup: Setup; answers: number[]; level: Level; tutorial?: { color: Tutor['color']; seen: string[] } }
 const SAVE_VERSION = 1
 const SAVE_KEY = 'hb.play'
 
@@ -58,8 +59,12 @@ export default function Play() {
   const [room, setRoom] = useState<Payload | null>(null)
   useEffect(() => store.set('hb.view', view), [view])
 
-  const start = (ids: string[], cpuIds: string[], level: Level) => {
-    const next: Save = { v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'] }, answers: [], level }
+  const start = (ids: string[], cpuIds: string[], level: Level) => begin({ v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'] }, answers: [], level })
+  const tutorial = (color: Tutor['color']) => {
+    const { mine, theirs } = tutorialDecks(color)
+    begin({ v: SAVE_VERSION, setup: { seed: TUTORIAL_SEED[color], decks: [mine.ids, theirs.ids], names: ['You', 'CPU'] }, answers: [], level: 'easy', tutorial: { color, seen: [] } })
+  }
+  const begin = (next: Save) => {
     store.set(SAVE_KEY, next)
     setSave(next)
     setMatchId((n) => n + 1)
@@ -88,15 +93,16 @@ export default function Play() {
       {room ? (
         <Room key={room.code} first={room} view={view} onExit={() => { store.set('hb.room', ''); setRoom(null) }} />
       ) : playing && save ? (
-        <LocalTable key={matchId} save={save} view={view} onAgain={() => start(save.setup.decks[0], save.setup.decks[1], save.level)} onMenu={drop} />
+        <LocalTable key={matchId} save={save} view={view} onAgain={() => (save.tutorial ? tutorial(save.tutorial.color) : start(save.setup.decks[0], save.setup.decks[1], save.level))}
+          onSwap={save.tutorial ? () => tutorial(save.tutorial!.color === 'Red' ? 'Green' : 'Red') : undefined} onMenu={drop} />
       ) : (
-        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onRoom={(p) => { store.set('hb.room', p.code); setRoom(p) }} />
+        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onTutorial={tutorial} onRoom={(p) => { store.set('hb.room', p.code); setRoom(p) }} />
       )}
     </div>
   )
 }
 
-function Lobby({ save, view, onResume, onStart, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onRoom: (p: Payload) => void }) {
+function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onTutorial: (color: Tutor['color']) => void; onRoom: (p: Payload) => void }) {
   // Decks saved to the account load after the page opens, for players who are signed in.
   const [account, setAccount] = useState<CloudDeck[]>([])
   const [signedIn, setSignedIn] = useState<boolean | null>(null)
@@ -159,10 +165,25 @@ function Lobby({ save, view, onResume, onStart, onRoom }: { save: Save | null; v
       <p className="lede">A full match with the official rules, right in your browser. Practice against the computer, or play a friend with a room code.</p>
       {canResume ? (
         <div className="resume">
-          <span>You have a match in progress.</span>
+          <span>{save?.tutorial ? 'You have a tutorial in progress.' : 'You have a match in progress.'}</span>
           <button className="btn" onClick={onResume}>Resume match</button>
         </div>
       ) : null}
+      <section className="learn">
+        <div className="learn-decks" aria-hidden="true">
+          <img src={img(tutorialDecks('Red').mine.ids.find((id) => id.startsWith('hd01-017'))!, view)} alt="" />
+          <img src={img(tutorialDecks('Green').mine.ids.find((id) => id.startsWith('hd02-017'))!, view)} alt="" />
+        </div>
+        <div className="learn-text">
+          <h2>Learn by playing</h2>
+          <p>New to HORO-BEAT? Play a guided match with the two Start Decks. Short tips explain each part of the game the first time it comes up, and the next good move is pointed out for you.</p>
+          <div className="learn-actions">
+            <button className="btn" onClick={() => onTutorial('Red')}>Play as Red</button>
+            <button className="btn" onClick={() => onTutorial('Green')}>Play as Green</button>
+          </div>
+          <p className="fine">Red Start Deck: Leojin against Green Start Deck: Shinazui. The computer plays the other deck.</p>
+        </div>
+      </section>
       <div className="lobby-cols">
         <section>
           <h2>Your deck</h2>
@@ -314,20 +335,37 @@ const PHASES: [View2['phase'], string][] = [['summon', 'Summon'], ['battle', 'Ba
 type View2 = ReturnType<Match['snapshot']>
 
 /** A match against the computer. It lives entirely in this browser. */
-function LocalTable({ save, view, onAgain, onMenu }: { save: Save; view: View; onAgain: () => void; onMenu: () => void }) {
+function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view: View; onAgain: () => void; onSwap?: () => void; onMenu: () => void }) {
   const ref = useRef<Match | null>(null)
   if (!ref.current) {
     ref.current = Match.replay(save.setup, save.answers)
     ref.current.record = true
   }
   const m = ref.current
+  const [seen, setSeen] = useState(() => save.tutorial?.seen || [])
+  const seenRef = useRef(seen)
+  const keep = () => store.set(SAVE_KEY, { ...save, answers: m.answers, tutorial: save.tutorial && { ...save.tutorial, seen: seenRef.current } })
   const send = (i: number) => {
     m.answer(i)
-    store.set(SAVE_KEY, { ...save, answers: m.answers })
+    keep()
+  }
+  const tutor: Tutor | undefined = save.tutorial && {
+    seen,
+    color: save.tutorial.color,
+    onSeen: (key) => {
+      if (seenRef.current.includes(key)) return
+      seenRef.current = [...seenRef.current, key]
+      setSeen(seenRef.current)
+      keep()
+    },
+    suggest: () => (m.req && m.req.p === 0 ? cpuChoice(m, 'normal') : null),
+    cpuPick: () => cpuChoice(m, 'easy', steadyRandom(save.setup.seed, m.answers.length)),
   }
   return (
-    <Table m={m} me={0} view={view} version={0} onAct={send} cpu={save.level} waitText="The computer is thinking…"
-      after={<><button className="btn" onClick={onAgain}>Play again</button><button className="ghost" onClick={onMenu}>Change decks</button></>} />
+    <Table m={m} me={0} view={view} version={0} onAct={send} cpu={save.level} waitText="The computer is thinking…" tutor={tutor}
+      after={onSwap
+        ? <><button className="btn" onClick={onSwap}>Try the {save.tutorial!.color === 'Red' ? 'Green' : 'Red'} deck</button><button className="ghost" onClick={onMenu}>Back to menu</button></>
+        : <><button className="btn" onClick={onAgain}>Play again</button><button className="ghost" onClick={onMenu}>Change decks</button></>} />
   )
 }
 
@@ -343,9 +381,9 @@ export type TableMatch = {
   snapshot(): View2
 }
 
-export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra }: {
+export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra, tutor }: {
   m: TableMatch; me: Side; view: View; version: number; onAct: (i: number) => void | Promise<void>
-  cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode
+  cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode; tutor?: Tutor
 }) {
   const foe = (1 - me) as Side
   const [busy, setBusy] = useState(false)
@@ -378,6 +416,10 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
   const req = m.req
   const mine = !playing && req && req.p === me ? req : null
   const over = !playing && m.s.phase === 'over'
+  // The tutorial's lesson for this moment, and the move it suggests.
+  const hint = useMemo(() => (tutor && mine && !busy ? tutor.suggest() : null), [mine, busy, tick, version, cursor])
+  const hintOpt = hint != null && mine ? mine.opts[hint] : null
+  const lesson = tutor && !intro ? lessonFor({ ev, mine, me, seen: tutor.seen, color: tutor.color, hint: hintOpt }) : null
 
   useGlide(tableRef, v, spd)
   useEffect(() => { lastPw.current = v.pw.map((r) => [...r]) }, [v])
@@ -392,6 +434,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
 
   const act = async (i: number) => {
     if (busy) return
+    if (lesson && !lesson.pause) tutor!.onSeen(lesson.key)
     unlockSound()
     setProblem('')
     setBusy(true)
@@ -408,18 +451,18 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
 
   // Step through what just happened, with a sound for each event.
   useEffect(() => {
-    if (!ev || intro) return
+    if (!ev || intro || lesson?.pause) return
     const sfx = ev.t === 'damage' && ev.broken ? 'heartbreak' : ev.t === 'victory' ? (ev.p === me ? 'win' : 'lose') : SOUND[ev.t]
     if (sfx) play(sfx)
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     const base = (PACE[ev.t] ?? PACE.note) + (ev.t === 'damage' && ev.broken ? 300 : 0)
     const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / spd)
     return () => clearTimeout(t)
-  }, [cursor, ev, speed, intro])
+  }, [cursor, ev, speed, intro, lesson?.key])
   // Once the table has caught up, the computer makes its next choice.
   useEffect(() => {
     if (playing || intro || !cpu || !m.req || m.req.p !== foe) return
-    const t = setTimeout(() => act(cpuChoice(m as unknown as Match, cpu)), 520 / spd)
+    const t = setTimeout(() => act(tutor ? tutor.cpuPick() : cpuChoice(m as unknown as Match, cpu)), 520 / spd)
     return () => clearTimeout(t)
   }, [tick, version, playing, speed, intro])
   useEffect(() => {
@@ -532,7 +575,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
         return (
           <div
             key={fx ? `${line}-${cursor}` : line}
-            className={`cell ${fightLine === line ? 'fight' : ''} ${target ? 'target' : ''} ${st?.down ? 'down' : ''} ${fx}`}
+            className={`cell ${fightLine === line ? 'fight' : ''} ${target ? 'target' : ''} ${target && hintOpt && target.i === hint ? 'hint' : ''} ${st?.down ? 'down' : ''} ${fx}`}
             onClick={() => (target ? act(target.i) : top != null ? peek(top) : undefined)}
             role={target || top != null ? 'button' : undefined}
             data-drop={side === me ? `line-${line}` : undefined}
@@ -589,7 +632,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
         {row(side)}
         <div
           key={sideFx(side, ['charge', 'ena']) ? `e${cursor}` : 'e'}
-          className={`zone-ena ${sideFx(side, ['charge', 'ena'])} ${side === me && chosenOpts.some((o) => o.t === 'charge') ? 'target-zone' : ''}`}
+          className={`zone-ena ${sideFx(side, ['charge', 'ena'])} ${side === me && chosenOpts.some((o) => o.t === 'charge') ? 'target-zone' : ''} ${side === me && hintOpt?.t === 'charge' && chosen === hintOpt.uid ? 'hint' : ''}`}
           data-drop={side === me ? 'ena' : undefined}
           onClick={() => { const o = side === me ? chosenOpts.find((x) => x.t === 'charge') : undefined; if (o) void act(o.i) }}
         >
@@ -711,12 +754,13 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
                           <strong>{o.t === 'boost' ? 'Boost' : 'Waza'} <em>+{add}</em></strong>
                           <span>{d.name}</span>
                         </div>
-                        <button className="btn" onClick={() => act(o.i)}>{o.t === 'boost' ? 'Use Boost' : 'Use Waza'} · pay {o.t === 'boost' ? 1 : d.cost}</button>
+                        <button className={`btn ${o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{o.t === 'boost' ? 'Use Boost' : 'Use Waza'} · pay {o.t === 'boost' ? 1 : d.cost}</button>
                       </li>
                     )
                   })}
                 </ul>
-                <button className="ghost bp-pass" onClick={() => act(opts.find((o) => o.t === 'pass')!.i)}>Pass</button>
+                {tutor && hintOpt ? <p className="bp-tip">Suggested: {tipFor(hintOpt, (u) => m.name(u))}</p> : null}
+                <button className={`ghost bp-pass ${hintOpt?.t === 'pass' ? 'hint' : ''}`} onClick={() => act(opts.find((o) => o.t === 'pass')!.i)}>Pass</button>
               </div>
             )
           })() : null}
@@ -728,14 +772,14 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
             </div>
           ) : null}
         </div>
-        {plate(me, bigOpt ? <button className="endbtn" onClick={() => act(bigOpt.i)}>{bigOpt.t === 'end' ? 'End Summon Phase' : 'Skip Ena Charge'}</button> : null)}
+        {plate(me, bigOpt ? <button className={`endbtn ${bigOpt.i === hint ? 'hint' : ''}`} onClick={() => act(bigOpt.i)}>{bigOpt.t === 'end' ? 'End Summon Phase' : 'Skip Ena Charge'}</button> : null)}
         <div className={`hand ${v.ps[me].hand.length > 8 ? 'packed' : v.ps[me].hand.length > 6 ? 'snug' : ''}`}>
           {v.ps[me].hand.map((u, i, all) => {
             const off = i - (all.length - 1) / 2
             return (
               <span key={u} className="hslot" data-uid={u} data-side={me}>
                 <button
-                  className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''} ${dragging === u ? 'lifted' : ''}`}
+                  className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''} ${dragging === u ? 'lifted' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`}
                   style={{ '--rot': `${off * 2.4}deg`, '--dy': `${off * off * 1.6}px` } as React.CSSProperties}
                   onClick={() => pickCard(u)}
                   onMouseEnter={() => show(u)}
@@ -766,6 +810,9 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
           ) : (
             <>
               <p>{problem ? <span className="problem">{problem} </span> : null}{mine.text}</p>
+              {tutor && hintOpt && mine.kind !== 'battle' ? (
+                <p className="tip">Suggested: {tipFor(hintOpt, (u) => m.name(u))} <button className="linkish" onClick={() => act(hint!)}>Do this for me</button></p>
+              ) : null}
               {tray.length ? (
                 <div className="tray">
                   {tray.map((u) => (
@@ -780,7 +827,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
                 {chosenOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{shortLabel(o, chosen != null ? m.name(chosen) : '')}</button>)}
                 {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
                 {stackOpts.map((o) => <button key={o.i} className="btn" onClick={() => act(o.i)}>{o.label}</button>)}
-                {plain.map((o) => <button key={o.i} className={o.t === 'yes' || o.t === 'keep' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.label}</button>)}
+                {plain.map((o) => <button key={o.i} className={`${o.t === 'yes' || o.t === 'keep' ? 'btn' : 'ghost'} ${o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{o.label}</button>)}
               </div>
             </>
           )}
@@ -814,6 +861,16 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
         </ol>
       </aside>
 
+      {lesson && lesson.key !== 'welcome' ? (
+        <aside className={`coach ${lesson.pause ? 'paused' : ''}`} role="dialog" aria-live="polite" aria-label={lesson.title}>
+          <span className="coach-kicker">Tutorial</span>
+          <h3>{lesson.title}</h3>
+          {lesson.body.map((t, i) => <p key={i}>{t}</p>)}
+          {lesson.pause
+            ? <button className="btn" onClick={() => tutor!.onSeen(lesson.key)}>Continue</button>
+            : <button className="ghost" onClick={() => tutor!.onSeen(lesson.key)}>Got it</button>}
+        </aside>
+      ) : null}
       <img ref={ghostRef} className="drag-ghost" hidden={dragging == null} src={dragging != null ? img(m.s.cards[dragging], view) : undefined} alt="" />
       {intro ? (
         <div className="versus" onClick={() => setIntro(false)}>
@@ -826,8 +883,10 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
       {!intro && mine && mine.kind === 'mulligan' ? (
         <div className="shade opening-shade">
           <div className="opening">
-            <h2>Your opening hand</h2>
-            <p>{v.first === me ? 'You go first.' : `${nm(foe)} goes first.`} Keep these 6 cards, or redraw all of them once.</p>
+            <h2>{lesson?.key === 'welcome' ? lesson.title : 'Your opening hand'}</h2>
+            {lesson?.key === 'welcome'
+              ? lesson.body.map((t, i) => <p key={i}>{t}</p>)
+              : <p>{v.first === me ? 'You go first.' : `${nm(foe)} goes first.`} Keep these 6 cards, or redraw all of them once.</p>}
             <div className="opening-cards">
               {v.ps[me].hand.map((u, i) => (
                 <button key={u} style={{ animationDelay: `${i * 110}ms` }} onClick={() => { show(u); setZoom(true) }}>
@@ -836,7 +895,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
               ))}
             </div>
             <div className="opening-actions">
-              {opts.map((o) => <button key={o.i} className={o.t === 'keep' ? 'btn' : 'ghost'} onClick={() => act(o.i)}>{o.t === 'keep' ? 'Keep hand' : 'Redraw'}</button>)}
+              {opts.filter((o) => !tutor || o.t === 'keep').map((o) => <button key={o.i} className={`${o.t === 'keep' ? 'btn' : 'ghost'} ${tutor && o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{o.t === 'keep' ? 'Keep hand' : 'Redraw'}</button>)}
             </div>
             <small>Tap a card to read it.</small>
           </div>
@@ -848,6 +907,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
             <i className="rays" />
             <h2>{m.s.winner === me ? 'Victory' : 'Defeat'}</h2>
             <p>{m.s.reason}</p>
+            {tutor ? <p className="result-note">That is the whole game. Try the other Start Deck, build your own deck in the deck builder, or play a friend with a room code.</p> : null}
             <dl>
               <div><dt>Rounds</dt><dd>{v.round}</dd></div>
               <div><dt>Your Hearts</dt><dd>{v.ps[me].hearts.length}</dd></div>

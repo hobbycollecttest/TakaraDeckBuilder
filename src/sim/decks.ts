@@ -39,6 +39,18 @@ function build(color: Color): string[] {
 
 export const PRACTICE: DeckList[] = (['Red', 'Green', 'Blue'] as Color[]).map((color) => ({ name: `${color} practice deck`, color, ids: build(color) }))
 
+// The two official Start Decks, used by the tutorial. Takara Tomy lists the 17 cards in
+// each box but not how many copies of each, so these counts are our own split of the 50.
+const start = (set: string, counts: number[]) => counts.flatMap((n, i) => {
+  const no = String(i + 1).padStart(3, '0')
+  const id = [...DEFS.keys()].find((k) => k.startsWith(`${set}-${no}-`))!
+  return Array(n).fill(id) as string[]
+})
+export const STARTERS: DeckList[] = [
+  { name: 'Red Start Deck: Leojin', color: 'Red', ids: start('hd01', [4, 4, 4, 4, 4, 3, 3, 4, 3, 3, 2, 2, 2, 2, 2, 1, 3]) },
+  { name: 'Green Start Deck: Shinazui', color: 'Green', ids: start('hd02', [4, 4, 4, 4, 3, 2, 4, 4, 3, 3, 2, 2, 3, 2, 2, 1, 3]) },
+]
+
 /** Turn a saved deck (card id and copies) into a list of 50 card ids, or say why not. */
 export function expandDeck(deck: Record<string, number>): { ids: string[]; error: string } {
   const ids: string[] = []
