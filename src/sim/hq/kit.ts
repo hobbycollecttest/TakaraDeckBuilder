@@ -68,9 +68,9 @@ export const fewerScore: Cond = (g, c) => g.P(c.p).score.length < g.P(opp(c.p)).
 // ---------- costs ----------
 export const guts = (n: number, areas?: Area[], test?: CP): Cost => ({
   text: `Pay ${n} Guts${areas ? ` from your ${areas.map((a) => a[0].toUpperCase() + a.slice(1)).join(' and ')} Area` : ''}.`,
-  can: (g, c) => g.payable(c.p, areas, test && ((u) => test(g, u))).length >= n,
+  can: (g, c) => g.payable(c.p, areas ?? g.gutsHome(c.p, c.uid), test && ((u) => test(g, u))).length >= n,
   *pay(g, c) {
-    c.paid = yield* g.payGuts(c.p, n, areas, test && ((u) => test(g, u)))
+    c.paid = yield* g.payGuts(c.p, n, areas ?? g.gutsHome(c.p, c.uid), test && ((u) => test(g, u)))
     return c.paid.length === n
   },
 })

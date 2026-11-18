@@ -361,3 +361,4 @@
 @media (max-width: 420px) {
   .hq .brand-game { font-size: 13px; white-space: nowrap; }
 }
+.hq-table .sp-note { margin: 8px 0 0; font-size: 12.5px; color: var(--ink-2, #5b5650); }

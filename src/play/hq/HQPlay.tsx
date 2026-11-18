@@ -757,6 +757,9 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
                   {blockO ? <button className={`btn ${blockO.i === hint ? 'hint' : ''}`} onClick={() => act(blockO.i)}><b>Block</b><span>Up to 3 characters, total Block Point {off} or more</span></button> : null}
                   <button className={`btn ${recvO.i === hint ? 'hint' : ''}`} onClick={() => act(recvO.i)}><b>Receive</b><span>Draw 1, Receive Point {off} or more, then set and attack</span></button>
                 </div>
+                {!blockO && (v.offKind[foe] === 'Serve' || v.offKind[foe] === 'Block')
+                  ? <p className="sp-note">{v.offKind[foe] === 'Serve' ? 'A serve' : 'A ball sent back by a block'} can't be blocked. Receive it.</p>
+                  : null}
                 {tutor && hintOpt ? <p className="bp-tip">Suggested: {hqTipFor(hintOpt, nameOf)}</p> : null}
               </div>
             )

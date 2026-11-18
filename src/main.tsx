@@ -1,7 +1,11 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { inject } from '@vercel/analytics'
 import App from './App'
 import './styles.css'
+
+// Vercel Web Analytics: counts page views (no cookies).
+inject()
 
 // Each game's card list is loaded only when that game is opened.
 const haikyu = location.pathname.startsWith('/haikyu')
