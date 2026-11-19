@@ -58,7 +58,12 @@ async function setup() {
     )`
   await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS game text NOT NULL DEFAULT 'horobeat'`
 }
+// The table is brought up to date once per server start, so an older table from before
+// a new column was added can never block a request.
+let ready: Promise<void> | null = null
 async function withTable<T>(run: () => Promise<T>): Promise<T> {
+  ready ??= setup().catch((e) => { ready = null; throw e })
+  await ready
   try {
     return await run()
   } catch (err) {
@@ -229,9 +234,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       await withTable(() => sql!`DELETE FROM takaradecks_matches WHERE updated_at < now() - interval '2 days'`)
       for (let tries = 0; tries < 5; tries++) {
         const code = newCode()
-        const rows = await sql!`
+        const rows = await withTable(() => sql!`
           INSERT INTO takaradecks_matches (code, seat0, name0, deck0, game) VALUES (${code}, ${seat}, ${name}, ${JSON.stringify(deck)}::jsonb, ${game})
-          ON CONFLICT (code) DO NOTHING RETURNING *`
+          ON CONFLICT (code) DO NOTHING RETURNING *`)
         if (rows.length) return res.status(200).json(stateFor(rows[0] as Row, 0, -1))
       }
       return res.status(500).json({ error: 'Could not make a room. Please try again.' })
