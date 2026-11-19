@@ -120,6 +120,8 @@ export class HQ {
   events: Ev[] = []
   rand: () => number
   private gen: Gen
+  /** Skills set off while another skill is resolving. They wait until it is done (rules 6-6, 5-4). */
+  private pending: Waiting[][] = []
 
   constructor(public setup: Setup) {
     this.rand = mulberry32(setup.seed)
@@ -550,29 +552,48 @@ export class HQ {
     }
     waiting.push(...this.triggered({ t: 'enter', p, uid, area, entry }))
     if (defer) defer.push(...waiting)
-    else yield* this.resolve(waiting)
+    else yield* this.wait(waiting)
     return true
   }
   /** Resolve skills that are waiting at the same time. The turn player resolves all of theirs first,
    *  choosing the order when there is more than one, then the other player does the same (rule 5-4-2).
    *  A skill whose card has left its place before its turn comes does not resolve (rule 6-6-3). */
   *resolve(list: Waiting[]): Gen {
-    for (const side of [this.s.turn, opp(this.s.turn)] as Side[]) {
-      let mine = list.filter((x) => x.p === side)
-      while (mine.length) {
-        let pick = mine[0]
-        if (mine.length > 1) {
-          const o = yield* this.ask(side, 'order', 'These skills trigger at the same time. Choose which one resolves first.',
-            mine.map((x, i) => ({ t: 'order', n: i, label: x.label, w: mine.length - i })), mine.map((x) => x.uid))
-          pick = mine[o.n!]
-        }
-        mine = mine.filter((x) => x !== pick)
-        if (pick.still()) yield* pick.run
+    let pool = [...list]
+    // Check process: the turn player resolves one of theirs, then everything is looked at again,
+    // so skills set off along the way join the queue. Then the other player does the same.
+    for (;;) {
+      const side = pool.some((x) => x.p === this.s.turn) ? this.s.turn : opp(this.s.turn)
+      const mine = pool.filter((x) => x.p === side)
+      if (!mine.length) return
+      let pick = mine[0]
+      if (mine.length > 1) {
+        const o = yield* this.ask(side, 'order', 'These skills are waiting. Choose which one resolves first.',
+          mine.map((x, i) => ({ t: 'order', n: i, label: x.label, w: mine.length - i })), mine.map((x) => x.uid))
+        pick = mine[o.n!]
       }
+      pool = pool.filter((x) => x !== pick)
+      if (pick.still()) pool.push(...(yield* this.skill(pick.run)))
     }
   }
+  /** Run one skill to the end. Anything it sets off waits, and is handed back to be resolved after. */
+  private *skill(run: Gen<unknown>): Gen<Waiting[]> {
+    const box: Waiting[] = []
+    this.pending.push(box)
+    try { yield* run } finally { this.pending.pop() }
+    return box
+  }
+  /** Skills that just triggered: they wait if a skill is resolving, otherwise they resolve now. */
+  private *wait(list: Waiting[]): Gen {
+    if (!list.length) return
+    const box = this.pending[this.pending.length - 1]
+    if (box) box.push(...list)
+    else yield* this.resolve(list)
+  }
+  /** Run a skill that is used (an Event, or a skill from the hand), then resolve what it set off. */
+  private *use(run: Gen<unknown>): Gen { yield* this.resolve(yield* this.skill(run)) }
   /** Let every card that reacts to something have its say. */
-  *notify(e: Watch): Gen { yield* this.resolve(this.triggered(e)) }
+  *notify(e: Watch): Gen { yield* this.wait(this.triggered(e)) }
   /** The skills that something just set off, waiting to resolve. */
   triggered(e: Watch): Waiting[] {
     const out: Waiting[] = []
@@ -843,7 +864,7 @@ export class HQ {
     this.say(`${this.nm(p)} plays ${this.def(uid).name}.`, { t: 'event', p, uid })
     if (sc.event) {
       if (this.rule(p, 'eventNoSkill').some((r) => (r.phases as Phase[]).some((ph) => this.timings(uid).includes(ph)))) this.say('Its skill cannot be used right now.')
-      else yield* sc.event.run(this, { p, uid, paid: [], seen: [] })
+      else yield* this.use(sc.event.run(this, { p, uid, paid: [], seen: [] }))
       if (sc.event.turn1) this.s.turn1[p].push(this.def(uid).name)
     }
     yield* this.notify({ t: 'event', p, uid, fromHand })
@@ -853,7 +874,7 @@ export class HQ {
     if (sc.cost === 'discard') { this.toDrop(uid, true); this.say(`${this.nm(p)} discards ${this.def(uid).name} to use its skill.`, { t: 'skill', p, uid }) }
     else if (sc.cost === 'none') this.say(`${this.nm(p)} uses the skill of ${this.def(uid).name}.`, { t: 'skill', p, uid })
     else { this.lift(uid); this.P(p).event.push(uid); this.say(`${this.nm(p)} sends ${this.def(uid).name} to the Event Area to use its skill.`, { t: 'skill', p, uid }) }
-    yield* sc.run(this, { p, uid, paid: [], seen: [] })
+    yield* this.use(sc.run(this, { p, uid, paid: [], seen: [] }))
     if (sc.turn1) this.s.turn1[p].push(this.def(uid).name)
   }
   private *endPhase(p: Side): Gen {
