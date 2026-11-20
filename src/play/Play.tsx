@@ -5,7 +5,7 @@ import { PowerNum, useGlide } from './motion'
 import { RemoteMatch, checkRoom, createRoom, joinRoom, leaveRoom, sendChoice, type Payload } from './online'
 import { authReady, currentAccount } from '../auth'
 import { listDecks, type CloudDeck } from '../cloud'
-import { cpuChoice, type Level } from '../sim/ai'
+import { cpuChoice, LEVELS, type Level } from '../sim/ai'
 import { PRACTICE, expandDeck } from '../sim/decks'
 import { store, type Deck, type View } from '../game'
 import { TUTORIAL_SEED, lessonFor, steadyRandom, tipFor, tutorialDecks, type Tutor } from './tutor'
@@ -216,13 +216,14 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
           </div>
           <div className="field-row">
             <span>Difficulty</span>
-            <div className="seg small">
-              <button className={level === 'easy' ? 'on' : ''} onClick={() => setLevel('easy')}>Easy</button>
-              <button className={level === 'normal' ? 'on' : ''} onClick={() => setLevel('normal')}>Normal</button>
+            <div className="seg small levels">
+              {LEVELS.map((l) => (
+                <button key={l.id} className={level === l.id ? 'on' : ''} onClick={() => setLevel(l.id)}>{l.label}</button>
+              ))}
             </div>
           </div>
           <button className="btn start" onClick={go} disabled={!!picked.error}>Start match</button>
-          <p className="fine">The CPU follows the same rules you do. It decides from its own hand and the cards on the table, and never looks at your hand or either deck.</p>
+          <p className="fine">The CPU follows the same rules you do. It never sees your hand or the order of either deck. On Hard and Expert it thinks ahead by imagining the cards you might be holding and playing each choice out, so it takes a moment longer.</p>
           <p className="fine">New to the game? Read <a href="/how-to-play">How to play</a> first. It takes about five minutes.</p>
 
           <h2 className="friend-title">Play a friend</h2>

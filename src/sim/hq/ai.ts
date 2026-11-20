@@ -1,8 +1,9 @@
 // The computer player for Haikyu. It plays by the same rules as a person and only uses
 // what a person in its seat could see: its own hand and the cards that are face up.
-import type { HQ, Opt, Side } from './engine.js'
+import { HQ, type Opt, type Side } from './engine.js'
+import { EFFORT, LEVELS, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from '../search.js'
 
-export type Level = 'easy' | 'normal'
+export { LEVELS, type Level }
 
 const best = (opts: Opt[], score: (o: Opt) => number) => {
   let at = 0
@@ -27,7 +28,49 @@ function blockPlan(g: HQ, p: Side, need: number) {
   return { sum, picks }
 }
 
-export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random): number {
+export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
+  const count = g.req!.opts.length
+  if (count <= 1) return 0
+  // Beginner plays like Easy, but about a third of the time it just does something legal (never giving the set away).
+  if (level === 'beginner') {
+    const legal = g.req!.opts.map((x, i) => (x.t === 'lost' ? -1 : i)).filter((i) => i >= 0)
+    return rnd() < 0.35 && legal.length ? legal[Math.floor(rnd() * legal.length)] : habit(g, 'easy', rnd)
+  }
+  if (level === 'easy' || level === 'normal') return habit(g, level, rnd)
+  return searchChoice(searchGame(g), count, habit(g, 'normal', rnd), effort ?? EFFORT[level]!, rnd)
+}
+
+/** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Score cards. */
+function searchGame(real: HQ): SearchGame<HQ> {
+  const me = real.req!.p
+  const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
+  return {
+    copy: () => HQ.replay(real.setup, real.answers),
+    hide: (m, rnd) => {
+      m.rand = rnd
+      for (const side of [0, 1] as Side[]) {
+        const P = m.P(side)
+        const slots: { get: () => number; set: (u: number) => void }[] = []
+        const list = (arr: number[]) => arr.forEach((u, i) => { if (!shown.has(u)) slots.push({ get: () => arr[i], set: (v) => { arr[i] = v } }) })
+        list(P.deck)
+        list(P.score)
+        if (side !== me) list(P.hand)
+        shuffleSlots(slots, rnd)
+      }
+    },
+    open: (m) => !!m.req,
+    options: (m) => m.req!.opts.length,
+    answer: (m, i) => m.answer(i),
+    habit: (m, rnd) => habit(m, 'normal', rnd),
+    result: (m) => {
+      if (m.s.winner != null) return m.s.winner === me ? 1 : 0
+      const diff = m.P(me).score.length - m.P((1 - me) as Side).score.length
+      return 0.5 + Math.max(-0.4, Math.min(0.4, diff * 0.2))
+    },
+  }
+}
+
+function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number): number {
   const req = g.req!
   const p = req.p
   const o = (1 - p) as Side

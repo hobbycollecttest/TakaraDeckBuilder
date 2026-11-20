@@ -1,7 +1,7 @@
 // Haikyu!! VOBACA!! BREAK simulator: lobby and table. The rules live in src/sim/hq.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AREA_NAME, AREA_PARAM, DEFS, HQ, PHASE_LABEL, PNAME, type Area, type Ev, type Opt, type Param, type Setup, type Side, type View as HView } from '../../sim/hq/engine'
-import { cpuChoice, type Level } from '../../sim/hq/ai'
+import { cpuChoice, LEVELS, type Level } from '../../sim/hq/ai'
 import { HQ_PRACTICE, expandHQ } from '../../sim/hq/decks'
 import { play, setSound, unlockSound } from '../sound'
 import { useGlide } from '../motion'
@@ -203,13 +203,14 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
           </div>
           <div className="field-row">
             <span>Difficulty</span>
-            <div className="seg small">
-              <button className={level === 'easy' ? 'on' : ''} onClick={() => setLevel('easy')}>Easy</button>
-              <button className={level === 'normal' ? 'on' : ''} onClick={() => setLevel('normal')}>Normal</button>
+            <div className="seg small levels">
+              {LEVELS.map((l) => (
+                <button key={l.id} className={level === l.id ? 'on' : ''} onClick={() => setLevel(l.id)}>{l.label}</button>
+              ))}
             </div>
           </div>
           <button className="btn start" onClick={go} disabled={!!picked.error}>Start match</button>
-          <p className="fine">The CPU follows the same rules you do. It decides from its own hand and the cards on the court, and never looks at your hand or either deck.</p>
+          <p className="fine">The CPU follows the same rules you do. It never sees your hand or the order of either deck. On Hard and Expert it thinks ahead by imagining the cards you might be holding and playing each choice out, so it takes a moment longer.</p>
           <p className="fine">New to the game? The <a href="/haikyu/rules">rules page</a> explains a rally in a few minutes.</p>
           <h2 className="friend-title">Play a friend</h2>
           <div className="field-row">
