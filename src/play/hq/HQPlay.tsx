@@ -143,8 +143,10 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
     if (!save) return false
     try { return HQ.replay(save.setup, save.answers).s.phase !== 'over' } catch { return false }
   }, [save])
+  // The player's own playable decks, which the CPU can also be given.
+  const own = choices.filter((c) => !c.key.startsWith('practice:') && !c.error)
   const go = () => {
-    const cpu = theirs === 'random' ? HQ_PRACTICE[Math.floor(Math.random() * HQ_PRACTICE.length)] : HQ_PRACTICE.find((p) => p.team === theirs)!
+    const cpu = own.find((c) => c.key === theirs) || HQ_PRACTICE.find((p) => p.team === theirs) || HQ_PRACTICE[Math.floor(Math.random() * HQ_PRACTICE.length)]
     onStart(picked.ids, cpu.ids, level)
   }
   return (
@@ -195,10 +197,17 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
         <section>
           <h2>Play the computer</h2>
           <div className="field-row">
-            <span>CPU school</span>
-            <select className="pick" value={theirs} onChange={(e) => setTheirs(e.target.value)}>
-              <option value="random">Random</option>
-              {HQ_PRACTICE.map((p) => <option key={p.team} value={p.team}>{p.team}</option>)}
+            <span>CPU deck</span>
+            <select className="pick" aria-label="CPU deck" value={own.some((c) => c.key === theirs) || !theirs.includes(':') ? theirs : 'random'} onChange={(e) => setTheirs(e.target.value)}>
+              <optgroup label="Practice decks">
+                <option value="random">Random school</option>
+                {HQ_PRACTICE.map((p) => <option key={p.team} value={p.team}>{p.team}</option>)}
+              </optgroup>
+              {own.length ? (
+                <optgroup label="Your decks">
+                  {own.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </optgroup>
+              ) : null}
             </select>
           </div>
           <div className="field-row">

@@ -154,8 +154,10 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
     ids.forEach((id) => count.set(id, (count.get(id) || 0) + 1))
     return [...count.keys()].sort((a, b) => DEFS.get(b)!.cost - DEFS.get(a)!.cost)[0]
   }
+  // The player's own playable decks, which the CPU can also be given.
+  const own = choices.filter((c) => !c.key.startsWith('practice:') && !c.error)
   const go = () => {
-    const cpu = theirs === 'random' ? PRACTICE[Math.floor(Math.random() * PRACTICE.length)] : PRACTICE.find((p) => p.color === theirs)!
+    const cpu = own.find((c) => c.key === theirs) || PRACTICE.find((p) => p.color === theirs) || PRACTICE[Math.floor(Math.random() * PRACTICE.length)]
     onStart(picked.ids, cpu.ids, level)
   }
 
@@ -208,11 +210,17 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
           <h2>Play the computer</h2>
           <div className="field-row">
             <span>CPU deck</span>
-            <div className="seg small">
-              {['random', 'Red', 'Green', 'Blue'].map((k) => (
-                <button key={k} className={theirs === k ? 'on' : ''} onClick={() => setTheirs(k)}>{k === 'random' ? 'Random' : k}</button>
-              ))}
-            </div>
+            <select className="pick" aria-label="CPU deck" value={own.some((c) => c.key === theirs) || !theirs.includes(':') ? theirs : 'random'} onChange={(e) => setTheirs(e.target.value)}>
+              <optgroup label="Practice decks">
+                <option value="random">Random practice deck</option>
+                {PRACTICE.map((p) => <option key={p.color} value={p.color}>{p.name}</option>)}
+              </optgroup>
+              {own.length ? (
+                <optgroup label="Your decks">
+                  {own.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+                </optgroup>
+              ) : null}
+            </select>
           </div>
           <div className="field-row">
             <span>Difficulty</span>
