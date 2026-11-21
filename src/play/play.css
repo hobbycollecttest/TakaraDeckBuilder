@@ -443,3 +443,10 @@ button.pile-slot:not(:disabled):hover img { filter: none; }
   .learn-decks { display: none; }
 }
 .spot.hint { outline: 3px solid #fff3c4; outline-offset: 2px; animation: hint-glow 1.3s ease-in-out infinite; }
+
+/* Five difficulty levels: on a narrow screen the buttons take their own row. */
+@media (max-width: 520px) {
+  .field-row:has(.levels) { flex-direction: column; align-items: stretch; gap: 6px; }
+  .seg.levels { display: flex; }
+  .seg.levels button { flex: 1; padding-left: 4px; padding-right: 4px; }
+}

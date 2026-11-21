@@ -1,8 +1,9 @@
 // The CPU opponent. It plays by the same rules as a person and only looks at what a
 // person in its seat could see: its own hand and the cards that are face up.
-import type { Match, Opt, Side } from './engine'
+import { Match, type Opt, type Side } from './engine'
+import { EFFORT, LEVELS, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from './search'
 
-export type Level = 'easy' | 'normal'
+export { EFFORT, LEVELS, type Level }
 
 const best = (opts: Opt[], score: (o: Opt, i: number) => number) => {
   let at = 0
@@ -22,7 +23,46 @@ function keepValue(m: Match, p: Side, uid: number) {
   return soon + d.power / 20000 - twins * 0.5
 }
 
-export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random): number {
+export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
+  const count = m.req!.opts.length
+  if (count <= 1) return 0
+  // Beginner plays like Easy, but about a third of the time it just does something legal.
+  if (level === 'beginner') return rnd() < 0.35 ? Math.floor(rnd() * count) : habit(m, 'easy', rnd)
+  if (level === 'easy' || level === 'normal') return habit(m, level, rnd)
+  return searchChoice(searchGame(m), count, habit(m, 'normal', rnd), effort ?? EFFORT[level]!, rnd)
+}
+
+/** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Hearts. */
+function searchGame(real: Match): SearchGame<Match> {
+  const me = real.req!.p
+  const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
+  return {
+    copy: () => Match.replay(real.setup, real.answers),
+    hide: (m, rnd) => {
+      ;(m as unknown as { rand: () => number }).rand = rnd
+      for (const side of [0, 1] as Side[]) {
+        const P = m.P(side)
+        const slots: { get: () => number; set: (u: number) => void }[] = []
+        const list = (arr: number[]) => arr.forEach((u, i) => { if (!shown.has(u)) slots.push({ get: () => arr[i], set: (v) => { arr[i] = v } }) })
+        list(P.deck)
+        if (side !== me) list(P.hand)
+        P.hearts.forEach((h) => { if (!shown.has(h.uid)) slots.push({ get: () => h.uid, set: (v) => { h.uid = v } }) })
+        shuffleSlots(slots, rnd)
+      }
+    },
+    open: (m) => !!m.req,
+    options: (m) => m.req!.opts.length,
+    answer: (m, i) => m.answer(i),
+    habit: (m, rnd) => habit(m, 'normal', rnd),
+    result: (m) => {
+      if (m.s.winner != null) return m.s.winner === me ? 1 : 0
+      const diff = m.countH(me) - m.countH((1 - me) as Side)
+      return 0.5 + Math.max(-0.4, Math.min(0.4, diff * 0.1))
+    },
+  }
+}
+
+function habit(m: Match, level: 'easy' | 'normal', rnd: () => number): number {
   const req = m.req!
   const p = req.p
   const o = (1 - p) as Side
