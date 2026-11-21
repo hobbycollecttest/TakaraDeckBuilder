@@ -29,6 +29,9 @@ async function setup() {
   await sql!`CREATE TABLE IF NOT EXISTS takaradecks_users (user_id text PRIMARY KEY, username text NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`
   // Usernames are unique whatever the capitals: "Leo" and "leo" are the same name.
   await sql!`CREATE UNIQUE INDEX IF NOT EXISTS takaradecks_users_name ON takaradecks_users (lower(username))`
+  // One row per player per deck they liked.
+  await sql!`CREATE TABLE IF NOT EXISTS takaradecks_likes (deck_id uuid NOT NULL, user_id text NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (deck_id, user_id))`
+  await sql!`CREATE INDEX IF NOT EXISTS takaradecks_likes_user ON takaradecks_likes (user_id)`
   await sql!`CREATE INDEX IF NOT EXISTS takaradecks_decks_user ON takaradecks_decks (user_id, updated_at DESC)`
   await sql!`CREATE INDEX IF NOT EXISTS takaradecks_decks_public ON takaradecks_decks (game, updated_at DESC) WHERE is_public`
 }

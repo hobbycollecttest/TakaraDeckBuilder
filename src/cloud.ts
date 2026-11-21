@@ -1,7 +1,7 @@
 import { accessToken } from './auth'
 
 export type CloudDeck = { id: string; name: string; cards: Record<string, number>; isPublic: boolean; updatedAt: string }
-export type PublicDeck = { id: string; name: string; author: string; cards: Record<string, number>; updatedAt: string }
+export type PublicDeck = { id: string; name: string; author: string; cards: Record<string, number>; updatedAt: string; likes: number }
 
 export class ApiError extends Error {
   needsUsername = false
@@ -35,5 +35,9 @@ export async function listPublicDecks(game: string): Promise<PublicDeck[]> {
   const res = await fetch(`/api/public-decks?game=${game}`)
   const data = (await res.json().catch(() => ({}))) as { decks?: PublicDeck[]; error?: string }
   if (!res.ok || !data.decks) throw new Error(data.error || 'Public decks could not be loaded. Please try again.')
-  return data.decks
+  return data.decks.map((d) => ({ ...d, likes: d.likes || 0 }))
 }
+
+// The decks you liked, each with its up-to-date number of likes.
+export const listLiked = (game: string) => call<{ liked: Record<string, number> }>('GET', undefined, `?game=${game}&me=1`, '/api/public-decks').then((r) => r.liked || {})
+export const likeDeck = (id: string, like: boolean) => call<{ likes: number; liked: boolean }>('POST', { id, like }, '', '/api/public-decks')

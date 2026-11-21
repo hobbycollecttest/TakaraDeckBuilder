@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { authReady, currentAccount, signInWithGoogle, signOut, type Account } from './auth'
 import { renderDeckImage } from './deckImage'
-import { ApiError, deleteDeck, listDecks, listPublicDecks, saveDeck as saveCloudDeck, saveUsername, type CloudDeck, type PublicDeck } from './cloud'
+import { ApiError, deleteDeck, likeDeck, listDecks, listLiked, listPublicDecks, saveDeck as saveCloudDeck, saveUsername, type CloudDeck, type PublicDeck } from './cloud'
 import { GAMES, store, type Card, type Deck, type Game, type View } from './game'
 
 type Saved = { id: string; name: string; deck: Deck; at: number }
@@ -71,6 +71,7 @@ export default function App({ game }: { game: Game }) {
   const [mode, setMode] = useState<'build' | 'browse'>('build')
   const [publicDecks, setPublicDecks] = useState<PublicDeck[] | null>(null)
   const [publicError, setPublicError] = useState('')
+  const [liked, setLiked] = useState<Record<string, number>>({})
   const [picture, setPicture] = useState<{ url: string; blob: Blob } | null>(null)
   const [drawing, setDrawing] = useState(false)
 
@@ -95,6 +96,11 @@ export default function App({ game }: { game: Game }) {
       .then(setPublicDecks)
       .catch((e: Error) => setPublicError(e.message))
   }, [mode])
+  useEffect(() => {
+    if (!account) return setLiked({})
+    if (mode !== 'browse') return
+    listLiked(game.key).then(setLiked).catch(() => {})
+  }, [mode, account])
   useEffect(() => {
     if (!account) {
       setCloud([])
@@ -317,8 +323,12 @@ export default function App({ game }: { game: Game }) {
 
   const publicShown = useMemo(() => {
     if (!publicDecks) return []
+    // A deck you just took out of the public list stays hidden even if the list is a minute old.
+    const hidden = new Set(cloud.filter((c) => !c.isPublic).map((c) => c.id))
     const needle = pq.trim().toLowerCase()
     const rows = publicDecks
+      .filter((d) => !hidden.has(d.id))
+      .map((d) => ({ ...d, likes: liked[d.id] ?? d.likes }))
       .map((d) => {
         const cards = Object.entries(d.cards)
           .map(([id, n]) => ({ card: BY_ID.get(id), n }))
@@ -332,8 +342,42 @@ export default function App({ game }: { game: Game }) {
       )
     if (pSort === 'name') rows.sort((a, b) => a.d.name.localeCompare(b.d.name))
     if (pSort === 'author') rows.sort((a, b) => a.d.author.localeCompare(b.d.author) || a.d.name.localeCompare(b.d.name))
+    if (pSort === 'likes') rows.sort((a, b) => b.d.likes - a.d.likes)
     return rows
-  }, [publicDecks, pq, pColors, pSort])
+  }, [publicDecks, pq, pColors, pSort, liked, cloud])
+
+  async function toggleLike(d: PublicDeck) {
+    if (!account) return setNote('Sign in to like decks')
+    const on = !(d.id in liked)
+    const before = liked
+    const setCount = (n: number) => {
+      setLiked((all) => {
+        const next = { ...all }
+        if (on) next[d.id] = n
+        else delete next[d.id]
+        return next
+      })
+      if (!on) setPublicDecks((all) => all && all.map((x) => (x.id === d.id ? { ...x, likes: n } : x)))
+    }
+    setCount(Math.max(0, d.likes + (on ? 1 : -1)))
+    try {
+      setCount((await likeDeck(d.id, on)).likes)
+    } catch (e) {
+      setLiked(before)
+      setNote((e as Error).message)
+    }
+  }
+  // Takes your own deck out of the public list. It stays in your account as a private deck.
+  async function unpublish(own: CloudDeck) {
+    if (!window.confirm(`Remove "${own.name}" from public decks? It stays in your account as a private deck.`)) return
+    try {
+      const saved = await saveCloudDeck({ game: game.key, id: own.id, name: own.name, cards: own.cards, isPublic: false })
+      setCloud((all) => all.map((c) => (c.id === saved.id ? saved : c)))
+      setNote(`Removed "${saved.name}" from public decks`)
+    } catch (e) {
+      setNote((e as Error).message)
+    }
+  }
 
   // Opening someone's public deck gives you your own copy; saving it never changes theirs.
   function openPublic(d: PublicDeck) {
@@ -526,19 +570,22 @@ export default function App({ game }: { game: Game }) {
                   Sort
                   <select value={pSort} onChange={(e) => setPSort(e.target.value)}>
                     <option value="newest">Newest</option>
+                    <option value="likes">Most liked</option>
                     <option value="name">Deck name</option>
                     <option value="author">Player</option>
                   </select>
                 </label>
               </div>
               <div className="count">
-                {publicShown.length} of {publicDecks.length} public {publicDecks.length === 1 ? 'deck' : 'decks'}
+                {publicShown.length} of {publicDecks.length - publicDecks.filter((d) => cloud.some((c) => c.id === d.id && !c.isPublic)).length} public decks
                 {pq || pColors.size ? <button className="link" onClick={() => { setPq(''); setPColors(new Set()) }}>Clear filters</button> : null}
               </div>
               {publicShown.length === 0 ? <p className="empty">No public decks match. Try a different search or remove a filter.</p> : null}
               <ul className="pubs">
                 {publicShown.map(({ d, cards, colors: colorsIn }) => {
                   const top = [...cards].sort((a, b) => b.n - a.n || game.deckSort(b.card, a.card)).slice(0, 7)
+                  const own = cloud.find((c) => c.id === d.id)
+                  const on = d.id in liked
                   return (
                     <li key={d.id}>
                       <button className="pub" onClick={() => openPublic(d)}>
@@ -556,6 +603,12 @@ export default function App({ game }: { game: Game }) {
                         </span>
                         <span className="pub-open">Open</span>
                       </button>
+                      <button className={`pub-like ${on ? 'on' : ''}`} aria-pressed={on} title={on ? 'Remove your like' : 'Like this deck'} onClick={() => toggleLike(d)}>
+                        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.1A4.2 4.2 0 0 1 12 7.9a4.2 4.2 0 0 1 7.5 2.5c0 5.5-7.5 10.1-7.5 10.1z" /></svg>
+                        {d.likes}
+                        <span className="sr">{d.likes === 1 ? 'like' : 'likes'}</span>
+                      </button>
+                      {own ? <button className="link pub-remove" onClick={() => unpublish(own)}>Remove</button> : null}
                     </li>
                   )
                 })}

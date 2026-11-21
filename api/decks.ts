@@ -47,7 +47,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === 'DELETE') {
       const id = Array.isArray(req.query.id) ? req.query.id[0] : req.query.id
       if (!isUuid(id)) return res.status(400).json({ error: 'Unknown deck.' })
-      await withTable(() => sql!`DELETE FROM takaradecks_decks WHERE id = ${id} AND user_id = ${user.id}`)
+      const gone = await withTable(() => sql!`DELETE FROM takaradecks_decks WHERE id = ${id} AND user_id = ${user.id} RETURNING id`)
+      if (gone.length) await withTable(() => sql!`DELETE FROM takaradecks_likes WHERE deck_id = ${id}`)
       return res.status(200).json({ ok: true })
     }
 

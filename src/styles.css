@@ -54,7 +54,15 @@ a { color: inherit; }
 .tabs a:hover { color: var(--ink); }
 .layout.browse { grid-template-columns: minmax(0, 1fr) 348px; }
 .layout.browse .filters, .layout.browse .pool:not(.pubview), .layout:not(.browse) .pubview { display: none; }
-.pubs li { border-bottom: 1px solid var(--line-2); }
+.pubs li { display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--line-2); }
+.pubs li .pub { flex: 1; min-width: 0; }
+.pub-like { display: inline-flex; align-items: center; gap: 5px; width: 60px; padding: 8px; border: 0; background: none; color: var(--ink-2); font-size: 13px; font-variant-numeric: tabular-nums; }
+.pub-like svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.pub-like:hover { color: var(--accent); }
+.pub-like.on { color: var(--accent); }
+.pub-like.on svg { fill: currentColor; }
+.pub-remove { width: 62px; font-size: 13px; text-align: right; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .pub { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: 18px; align-items: center; width: 100%; padding: 10px 6px; border: 0; background: none; text-align: left; }
 .pub:hover { background: var(--page); }
 .pub-main { display: flex; flex-direction: column; min-width: 0; }
