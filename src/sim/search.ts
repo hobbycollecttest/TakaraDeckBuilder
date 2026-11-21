@@ -18,6 +18,8 @@ export type SearchGame<M> = {
   habit: (m: M, rnd: () => number) => number
   /** How the finished (or cut off) match went for the deciding player, from 0 to 1. */
   result: (m: M) => number
+  /** Choices that are known mistakes and not worth thinking about. Never all of them. */
+  skip?: (choice: number) => boolean
 }
 export type Effort = { sims: number; ms: number; maxSteps: number }
 
@@ -76,6 +78,11 @@ export function searchChoice<M>(game: SearchGame<M>, count: number, favourite: n
   }
   // Start with every choice, then keep halving the field and spending more on the ones that look best.
   let alive = Array.from({ length: count }, (_, i) => i)
+  if (game.skip) {
+    const kept = alive.filter((c) => !game.skip!(c))
+    if (kept.length === 1) return kept[0]
+    if (kept.length) alive = kept
+  }
   let spent = 0
   let k = 0
   let per = Math.max(2, Math.floor(effort.sims / (count * 3)))

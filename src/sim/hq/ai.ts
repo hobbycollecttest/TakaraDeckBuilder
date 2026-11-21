@@ -28,6 +28,31 @@ function blockPlan(g: HQ, p: Side, need: number) {
   return { sum, picks }
 }
 
+/** A receiver that meets the attack, a setter and an attacker, all different characters. */
+function fullRally(g: HQ, chars: number[], off: number) {
+  for (const r of chars) {
+    if ((g.def(r).rc ?? -1) < off) continue
+    for (const st of chars) {
+      if (st === r || g.def(st).st == null || g.def(st).name === g.def(r).name) continue
+      for (const a of chars) {
+        if (a === r || a === st || g.def(a).at == null) continue
+        if (g.def(a).name === g.def(r).name || g.def(a).name === g.def(st).name) continue
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/** The block is certain and the hand could not finish a rally anyway: receiving would throw the point away. */
+function mustBlock(g: HQ) {
+  const req = g.req!
+  if (req.kind !== 'start' || !req.opts.some((x) => x.t === 'block')) return false
+  const off = g.s.off[(1 - req.p) as Side] ?? 0
+  const chars = g.P(req.p).hand.filter((u) => g.isChar(u))
+  return blockPlan(g, req.p, off).sum >= off && !fullRally(g, chars, off)
+}
+
 export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = g.req!.opts.length
   if (count <= 1) return 0
@@ -62,6 +87,7 @@ function searchGame(real: HQ): SearchGame<HQ> {
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
+    skip: (i) => mustBlock(real) && real.req!.opts[i].t === 'receive',
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.P(me).score.length - m.P((1 - me) as Side).score.length
@@ -70,7 +96,10 @@ function searchGame(real: HQ): SearchGame<HQ> {
   }
 }
 
-function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number): number {
+/** The Normal player as it was when the tutorials were written. The tutorials' suggested moves stay on it so they never change. */
+export const tutorChoice = (g: HQ) => (g.req!.opts.length <= 1 ? 0 : habit(g, 'normal', Math.random, true))
+
+function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number, classic = false): number {
   const req = g.req!
   const p = req.p
   const o = (1 - p) as Side
@@ -88,13 +117,23 @@ function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number): number {
   if (req.kind === 'start') {
     const chars = P.hand.filter((u) => g.isChar(u))
     const bestRc = Math.max(-1, ...chars.map((u) => g.def(u).rc ?? -1))
-    const setters = chars.filter((u) => (g.def(u).st ?? -1) >= 0).length
-    const attackers = chars.filter((u) => g.def(u).at != null).length
-    const canReceive = bestRc + 1 >= off && chars.length >= 3 && setters >= 1 && attackers >= 2
     const plan = blockPlan(g, p, off)
     const canBlock = find('block') >= 0 && plan.sum >= off
-    if (canReceive && (off > 0 || !canBlock || level === 'easy')) return find('receive')
-    if (canBlock) return find('block')
+    if (level === 'easy' || classic) {
+      const setters = chars.filter((u) => (g.def(u).st ?? -1) >= 0).length
+      const attackers = chars.filter((u) => g.def(u).at != null).length
+      const canReceive = bestRc + 1 >= off && chars.length >= 3 && setters >= 1 && attackers >= 2
+      if (canReceive && (off > 0 || !canBlock || level === 'easy')) return find('receive')
+      if (canBlock) return find('block')
+      if (find('block') >= 0 && plan.sum > bestRc) return find('block')
+      return find('receive')
+    }
+    // Can the hand as it stands make a whole receive, set and attack out of three different characters?
+    const rally = fullRally(g, chars, off)
+    // Block when the hand cannot carry a rally, and whenever one blocker is enough: it costs one card
+    // where a receive, set and attack cost three.
+    if (canBlock && (!rally || plan.picks.length <= 1)) return find('block')
+    if (rally || bestRc >= off) return find('receive')
     if (find('block') >= 0 && plan.sum > bestRc) return find('block')
     return find('receive')
   }

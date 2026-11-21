@@ -23,6 +23,31 @@ function keepValue(m: Match, p: Side, uid: number) {
   return soon + d.power / 20000 - twins * 0.5
 }
 
+/**
+ * Is there a reason to stack this card on one that only just came down? Playing a small Horobeat and
+ * covering it in the same turn costs the same Ena as playing the big one alone, and spends an extra card.
+ * It is worth it only when a card cares about the stack, or it is the only way to pay the color.
+ */
+function stackingPays(m: Match, p: Side, uid: number, line: number) {
+  const P = m.P(p)
+  const base = m.top(p, line)!
+  const d = m.def(uid)
+  const text = (u: number) => m.def(u).effect || ''
+  if (/Overbeat onto this/i.test(text(base)) && !/is downed/i.test(text(base))) return true
+  if (/cards? under(neath)? (this|it)/i.test(text(uid))) return true
+  if (P.hand.some((u) => u !== uid && m.def(u).type === 'Waza' && /(1|2) or more cards underneath/i.test(text(u)))) return true
+  // Covering a card of the same color waives the color requirement.
+  return !P.ena.some((e) => m.def(e.uid).color === d.color)
+}
+
+/** Covering a Horobeat that came down this very turn, with nothing to gain from the stack. */
+function wasteful(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'main' || x.t !== 'play' || x.via !== 'over') return false
+  const st = m.P(req.p).lines[x.line!]
+  return !!st && st.at === m.turnStamp() && !st.down && !stackingPays(m, req.p, x.uid!, x.line!)
+}
+
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = m.req!.opts.length
   if (count <= 1) return 0
@@ -54,6 +79,7 @@ function searchGame(real: Match): SearchGame<Match> {
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
+    skip: (i) => wasteful(real, real.req!.opts[i]),
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.countH(me) - m.countH((1 - me) as Side)
@@ -62,7 +88,10 @@ function searchGame(real: Match): SearchGame<Match> {
   }
 }
 
-function habit(m: Match, level: 'easy' | 'normal', rnd: () => number): number {
+/** The Normal player as it was when the tutorial was written. The tutorial's suggested moves stay on it so they never change. */
+export const tutorChoice = (m: Match) => (m.req!.opts.length <= 1 ? 0 : habit(m, 'normal', Math.random, true))
+
+function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = false): number {
   const req = m.req!
   const p = req.p
   const o = (1 - p) as Side
@@ -95,6 +124,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number): number {
     const hasTrick = P.hand.some((u) => m.def(u).type === 'Waza' || m.def(u).boost > 0)
     const behind = m.countH(p) < m.countH(o)
     const reserve = level === 'normal' && hasTrick && m.s.round >= 2 && !behind && m.countH(p) >= 2 ? 1 : 0
+    const careful = level === 'normal' && !classic
     let pick = find('end')
     let top = 0.55
     opts.forEach((x, i) => {
@@ -109,11 +139,31 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number): number {
         const base = m.top(p, x.line!)!
         paid = Math.max(0, d.cost - m.costInLine(base))
         value = (d.power - m.def(base).power) / 1500 + (m.isDown(p, x.line!) ? 3.5 : 0) + 0.2
+        // Do not cover a Horobeat that came down this very turn unless something gains from the stack.
+        if (careful && wasteful(m, x)) return
       }
       if (free - paid < reserve) return
       const v = value / (paid + 1) + (level === 'easy' ? rnd() * 0.8 : 0)
       if (v > top) { top = v; pick = i }
     })
+    if (careful && pick >= 0 && opts[pick].t === 'play' && opts[pick].via === 'new') {
+      // About to play a small Horobeat when the only thing left to do afterwards would be to cover it
+      // with a bigger one? Play the bigger one on its own instead: same Ena, same line, one more card kept.
+      const a = m.def(opts[pick].uid!)
+      const budget = free - reserve
+      const news = opts.filter((x) => x.t === 'play' && x.via === 'new' && x.uid !== opts[pick].uid)
+      const otherAfter = news.some((x) => m.def(x.uid!).cost <= budget - a.cost)
+      if (!otherAfter && !m.sc(opts[pick].uid!).noOverbeatOnto) {
+        const bigger = news
+          .filter((x) => {
+            const b = m.def(x.uid!)
+            if (b.cost <= a.cost || b.cost > budget || m.rawScript(x.uid!).noOverbeatFromHand) return false
+            return ((b.power - a.power) / 1500 + 0.2) / (b.cost - a.cost + 1) > 0.55
+          })
+          .sort((x, y) => m.def(y.uid!).power - m.def(x.uid!).power)[0]
+        if (bigger) pick = opts.indexOf(bigger)
+      }
+    }
     return pick
   }
 
