@@ -5,7 +5,7 @@ import { PowerNum, useGlide } from './motion'
 import { RemoteMatch, checkRoom, createRoom, joinRoom, leaveRoom, sendChoice, type Payload } from './online'
 import { authReady, currentAccount } from '../auth'
 import { listDecks, type CloudDeck } from '../cloud'
-import { cpuChoice, LEVELS, type Level } from '../sim/ai'
+import { cpuChoice, LEVELS, tutorChoice, type Level } from '../sim/ai'
 import { PRACTICE, expandDeck } from '../sim/decks'
 import { store, type Deck, type View } from '../game'
 import { TUTORIAL_SEED, lessonFor, steadyRandom, tipFor, tutorialDecks, type Tutor } from './tutor'
@@ -367,7 +367,7 @@ function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view:
       setSeen(seenRef.current)
       keep()
     },
-    suggest: () => (m.req && m.req.p === 0 ? cpuChoice(m, 'normal') : null),
+    suggest: () => (m.req && m.req.p === 0 ? tutorChoice(m) : null),
     cpuPick: () => cpuChoice(m, 'easy', steadyRandom(save.setup.seed, m.answers.length)),
   }
   return (

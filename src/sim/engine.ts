@@ -20,7 +20,8 @@ export const DEFS = new Map<string, Def>(
 
 export type Opt = { t: string; label: string; uid?: number; line?: number; side?: Side; via?: 'new' | 'over'; w?: number }
 export type Req = { p: Side; kind: string; text: string; opts: Opt[]; show?: number[] }
-export type Stack = { cards: number[]; down: boolean } // the last card is the top card
+/** One line's pile. The last card is the top card. `at` marks the turn its top card entered. */
+export type Stack = { cards: number[]; down: boolean; at?: number }
 export type WazaCard = { uid: number; boost: boolean }
 export type PlayerState = {
   deck: number[] // the last card is the top of the deck
@@ -197,6 +198,8 @@ export class Match {
   wazaCount(p: Side, line: number) { return this.P(p).waza[line].filter((w) => !w.boost).length }
   boosted(p: Side, line: number) { return this.P(p).waza[line].some((w) => w.boost) }
   costInLine(uid: number) { return Math.max(0, this.def(uid).cost + (this.sc(uid).costMod || 0)) }
+  /** A number that is different for every player's turn. */
+  turnStamp() { return this.s.round * 2 + this.s.active }
   firstEmpty(p: Side) { return this.P(p).lines.findIndex((st) => !st) }
 
   private pumpLocked(p: Side, line: number) {
@@ -377,7 +380,7 @@ export class Match {
   *enter(p: Side, uid: number, via: 'new' | 'over', line: number): Gen {
     const P = this.P(p)
     if (via === 'new') {
-      P.lines[line] = { cards: [uid], down: false }
+      P.lines[line] = { cards: [uid], down: false, at: this.turnStamp() }
       this.say(`${this.nm(p)} plays ${this.name(uid)} to Line ${line + 1}.`, { t: 'summon', p, line, uid })
       const f = this.sc(uid).onPlay
       if (f) yield* f(this, p, uid)
@@ -388,6 +391,7 @@ export class Match {
     const wasDown = st.down
     st.cards.push(uid)
     st.down = false
+    st.at = this.turnStamp()
     this.say(`${this.nm(p)} Overbeats ${this.name(base)} with ${this.name(uid)} on Line ${line + 1}.`, { t: 'summon', p, line, uid })
     const f = this.sc(uid).onPlay
     if (f) yield* f(this, p, uid)

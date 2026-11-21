@@ -1,7 +1,7 @@
 // Haikyu!! VOBACA!! BREAK simulator: lobby and table. The rules live in src/sim/hq.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AREA_NAME, AREA_PARAM, DEFS, HQ, PHASE_LABEL, PNAME, type Area, type Ev, type Opt, type Param, type Setup, type Side, type View as HView } from '../../sim/hq/engine'
-import { cpuChoice, LEVELS, type Level } from '../../sim/hq/ai'
+import { cpuChoice, LEVELS, tutorChoice, type Level } from '../../sim/hq/ai'
 import { HQ_PRACTICE, expandHQ } from '../../sim/hq/decks'
 import { play, setSound, unlockSound } from '../sound'
 import { useGlide } from '../motion'
@@ -333,7 +333,7 @@ function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view:
       setSeen(seenRef.current)
       keep()
     },
-    suggest: () => (m.req && m.req.p === 0 ? (m.req.kind === 'mulligan' ? m.req.opts.findIndex((o) => o.t === 'keep') : cpuChoice(m, 'normal')) : null),
+    suggest: () => (m.req && m.req.p === 0 ? (m.req.kind === 'mulligan' ? m.req.opts.findIndex((o) => o.t === 'keep') : tutorChoice(m)) : null),
     cpuPick: () => cpuChoice(m, 'easy', steadyRandom(save.setup.seed, m.answers.length)),
   }
   return (
