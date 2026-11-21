@@ -20,6 +20,7 @@
 .deck-pick-note { color: var(--ink-3); font-size: 12.5px; }
 .field-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line-2); }
 .field-row .seg.small { margin-top: 0; }
+select.pick { min-width: 0; max-width: 62%; padding: 6px 8px; border: 1px solid var(--line); background: #fff; color: inherit; font: inherit; }
 .lobby .start { margin: 22px 0 6px; padding: 12px 28px; font-size: 15px; font-weight: 600; }
 .fine { margin-top: 12px; color: var(--ink-2); font-size: 13px; }
 
