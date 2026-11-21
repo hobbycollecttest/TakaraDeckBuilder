@@ -424,6 +424,8 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
   const [look, setLook] = useState<string | null>(null)
   const [zoom, setZoom] = useState(false)
   const [pile, setPile] = useState<{ title: string; uids: number[] } | null>(null)
+  // Cards ticked so far when several are chosen in one go (opening hand, Guts to pay).
+  const [marked, setMarked] = useState<number[]>([])
   const [sure, setSure] = useState(false)
   const logRef = useRef<HTMLOListElement>(null)
   const tableRef = useRef<HTMLElement>(null)
@@ -469,6 +471,25 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
     setSel(null)
     setTick((n) => n + 1)
   }
+  /** Several answers in a row, for choosing a few cards in one go. Each step reads the question as it stands. */
+  const actMany = async (steps: (() => number)[]) => {
+    if (busy) return
+    unlockSound()
+    setProblem('')
+    setBusy(true)
+    try {
+      for (const step of steps) {
+        const i = step()
+        if (i < 0) break
+        await onAct(i)
+      }
+    } catch (e) { setProblem(e instanceof Error ? e.message : 'That did not go through. Please try again.') }
+    setBusy(false)
+    setSel(null)
+    setMarked([])
+    setTick((n) => n + 1)
+  }
+  const optAt = (test: (o: NonNullable<HQ['req']>['opts'][number]) => boolean) => () => (m.req && m.req.p === me ? m.req.opts.findIndex(test) : -1)
   const skip = () => setCursor(m.events.length)
 
   // Step through what just happened, with a sound for each event.
@@ -569,11 +590,19 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
       window.removeEventListener('pointercancel', up)
     }
   }, [])
+  // Paying two or more Guts: tick them all, then pay once.
+  const gutsAsk = mine && mine.kind === 'pick' ? mine.text.match(/^Choose Guts to pay \((\d+) of (\d+)\)/) : null
+  const gutsNeed = gutsAsk ? Math.min(+gutsAsk[2] - +gutsAsk[1] + 1, opts.filter((o) => o.t === 'card').length) : 0
+  const gutsMany = gutsNeed >= 2 && !tutor
+  const toggle = (uid: number, max: number) => setMarked((list) => (list.includes(uid) ? list.filter((u) => u !== uid) : list.length < max ? [...list, uid] : list))
+  const payMarked = () => actMany(marked.map((u) => optAt((o) => o.t === 'card' && o.uid === u)))
+  const putBack = () => actMany([optAt((o) => o.t === 'pick'), ...marked.map((u) => optAt((o) => o.t === 'card' && o.uid === u)), optAt((o) => o.t === 'no')])
   const pickCard = (uid: number) => {
     if (justDragged.current) return
     unlockSound()
     play('click')
     show(uid)
+    if (gutsMany && cardOpts(uid).length) return toggle(uid, gutsNeed)
     setSel(cardOpts(uid).length ? uid : null)
   }
   const nm = (side: Side) => m.nm(side)
@@ -601,7 +630,12 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
             <img src={img(m.s.cards[top], view)} alt={nameOf(top)} draggable={false} />
             {v.alias[top] ? <span className="alias">{v.alias[top]}</span> : null}
             {n != null && k ? <span className="param"><i>{P_SHORT[k]}</i><Num value={n} spd={spd} /></span> : null}
-            {list.length > 1 ? <span className="guts" title="Guts: cards under the character, paid as costs">{list.length - 1} Guts</span> : null}
+            {list.length > 1 ? (
+              <button className="guts" title="See the Guts: cards under the character, paid as costs"
+                onClick={(e) => { e.stopPropagation(); setPile({ title: `Guts under ${nameOf(top)} (${nm(side)}${area ? `, ${AREA_NAME[area].replace(' Area', '')}` : ''})`, uids: list.slice(0, -1).reverse() }) }}>
+                {list.length - 1} Guts
+              </button>
+            ) : null}
           </span>
         ) : null}
         {fx === 'fx-enter' ? <i className="ring" /> : null}
@@ -816,21 +850,27 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
           <p className="wait">{waitText}</p>
         ) : (
           <>
-            <p>{problem ? <span className="problem">{problem} </span> : null}{mine.text}{mine.kind === 'enter' ? <span className="hint"> Drag a card onto the sheet, or tap it.</span> : mine.kind === 'pick' && !tray.length && opts.some((o) => o.uid != null && onCourt(o.uid)) ? <span className="hint"> Tap a highlighted card on the sheet.</span> : null}</p>
+            <p>{problem ? <span className="problem">{problem} </span> : null}{gutsMany ? `Choose ${gutsNeed} Guts to pay (${marked.length} chosen).` : mine.text}{mine.kind === 'enter' ? <span className="hint"> Drag a card onto the sheet, or tap it.</span> : mine.kind === 'pick' && !tray.length && opts.some((o) => o.uid != null && onCourt(o.uid)) ? <span className="hint"> Tap a highlighted card on the sheet.</span> : null}</p>
             {tutor && hintOpt && mine.kind !== 'start' && mine.kind !== 'mulligan' ? (
               <p className="tip">Suggested: {hqTipFor(hintOpt, nameOf)} <button className="linkish" onClick={() => act(hint!)}>Do this for me</button></p>
             ) : null}
             {tray.length ? (
               <div className="tray">
                 {tray.map((u) => (
-                  <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : 'dim'} ${chosen === u ? 'sel' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`} onClick={() => pickCard(u)}>
+                  <button key={u} className={`hand-card ${cardOpts(u).length ? 'can' : 'dim'} ${!gutsMany && chosen === u ? 'sel' : ''} ${gutsMany && marked.includes(u) ? 'marked' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`} onClick={() => pickCard(u)}>
                     <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
                     {gutsArea(u) ? <span className="tray-note">Guts: {gutsArea(u)}</span> : null}
                   </button>
                 ))}
               </div>
             ) : null}
-            <div className="choices" hidden={mine.kind === 'mulligan' || mine.kind === 'start'}>
+            {gutsMany ? (
+              <div className="choices">
+                <button className="btn" disabled={marked.length !== gutsNeed} onClick={payMarked}>{marked.length === gutsNeed ? `Pay these ${gutsNeed} Guts` : `Choose ${gutsNeed - marked.length} more`}</button>
+                {marked.length ? <button className="ghost" onClick={() => setMarked([])}>Clear</button> : null}
+              </div>
+            ) : null}
+            <div className="choices" hidden={mine.kind === 'mulligan' || mine.kind === 'start' || gutsMany}>
               {chosen != null ? <span className="chosen">{nameOf(chosen)}</span> : null}
               {chosenOpts.map((o) => <button key={o.i} className={`btn ${o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{shortLabel(o)}</button>)}
               {chosen != null ? <button className="ghost view" onClick={() => setZoom(true)}>View card</button> : null}
@@ -900,18 +940,27 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
             <h2>{lesson?.key === 'welcome' ? lesson.title : 'Your opening hand'}</h2>
             {lesson?.key === 'welcome'
               ? lesson.body.map((t, i) => <p key={i}>{t}</p>)
-              : <p>{v.serveRight === me ? 'You have the first serve.' : `${nm(foe)} has the first serve.`} Keep these 6 cards, or put back any of them and draw replacements. You can do this once.</p>}
+              : <p>{v.serveRight === me ? 'You have the first serve.' : `${nm(foe)} has the first serve.`} Keep these 6 cards, or tap the ones you want to put back and draw replacements. You can do this once.</p>}
             <div className="opening-cards">
               {P0.hand.map((u, i) => (
-                <button key={u} style={{ animationDelay: `${i * 110}ms` }} onClick={() => { show(u); setZoom(true) }}>
-                  <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
-                </button>
+                <div className="slot" key={u}>
+                  <button className={`mark ${marked.includes(u) ? 'back' : ''}`} aria-pressed={marked.includes(u)} style={{ animationDelay: `${i * 110}ms` }}
+                    onClick={() => { if (tutor) { show(u); setZoom(true) } else { play('click'); toggle(u, 6) } }}>
+                    <img src={img(m.s.cards[u], view)} alt={m.name(u)} draggable={false} />
+                  </button>
+                  {tutor ? null : <button className="read" onClick={() => { show(u); setZoom(true) }}>Read</button>}
+                </div>
               ))}
             </div>
             <div className="opening-actions">
-              {opts.filter((o) => !tutor || o.t === 'keep').map((o) => <button key={o.i} className={`${o.t === 'keep' ? 'btn' : 'ghost'} ${tutor && o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{o.label}</button>)}
+              {marked.length && !tutor ? (
+                <>
+                  <button className="btn" onClick={putBack}>Put back {marked.length} and draw {marked.length}</button>
+                  <button className="ghost" onClick={() => setMarked([])}>Clear</button>
+                </>
+              ) : opts.filter((o) => (tutor ? o.t === 'keep' : o.t !== 'pick')).map((o) => <button key={o.i} className={`${o.t === 'keep' ? 'btn' : 'ghost'} ${tutor && o.i === hint ? 'hint' : ''}`} onClick={() => act(o.i)}>{o.label}</button>)}
             </div>
-            <small>Tap a card to read it.</small>
+            <small>{tutor ? 'Tap a card to read it.' : 'Tap a card to mark it for putting back.'}</small>
           </div>
         </div>
       ) : null}

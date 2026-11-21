@@ -596,7 +596,11 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
                   <img className="card" src={img(m.s.cards[top], view)} alt={m.name(top)} draggable={false} />
                 </span>
                 <PowerNum value={pw} from={lastPw.current[side][line] || pw} lead={fightLine === line && pw > other} spd={spd} />
-                {st!.cards.length > 1 ? <span className="under">+{st!.cards.length - 1} under</span> : null}
+                {st!.cards.length > 1 ? (
+                  <button className="under" title="See the cards underneath" onClick={(e) => { e.stopPropagation(); setPile({ title: `Under ${m.name(top)} (${nm(side)}, Line ${line + 1})`, uids: st!.cards.slice(0, -1).reverse() }) }}>
+                    +{st!.cards.length - 1} under
+                  </button>
+                ) : null}
                 {st!.down ? <span className="state">Downed</span> : null}
                 {v.dd[side][line] ? <span className="dd">×2</span> : null}
               </>
