@@ -28,7 +28,7 @@ function keepValue(m: Match, p: Side, uid: number) {
  * covering it in the same turn costs the same Ena as playing the big one alone, and spends an extra card.
  * It is worth it only when a card cares about the stack, or it is the only way to pay the color.
  */
-function stackingPays(m: Match, p: Side, uid: number, line: number) {
+function stackingPays(m: Match, p: Side, uid: number, line: number, paying = true) {
   const P = m.P(p)
   const base = m.top(p, line)!
   const d = m.def(uid)
@@ -37,15 +37,29 @@ function stackingPays(m: Match, p: Side, uid: number, line: number) {
   if (/cards? under(neath)? (this|it)/i.test(text(uid))) return true
   if (P.hand.some((u) => u !== uid && m.def(u).type === 'Waza' && /(1|2) or more cards underneath/i.test(text(u)))) return true
   // Covering a card of the same color waives the color requirement.
-  return !P.ena.some((e) => m.def(e.uid).color === d.color)
+  return paying && !P.ena.some((e) => m.def(e.uid).color === d.color)
 }
 
-/** Covering a Horobeat that came down this very turn, with nothing to gain from the stack. */
+/**
+ * Two ways of covering a Horobeat that throw value away:
+ * - paying to cover one that came down this very turn, with nothing to gain from the stack;
+ * - on a free play (a trigger or an effect), covering a standing Horobeat when the same card could
+ *   take an empty line, unless the bigger card turns a losing line into a winning one.
+ */
 function wasteful(m: Match, x: Opt) {
   const req = m.req!
-  if (req.kind !== 'main' || x.t !== 'play' || x.via !== 'over') return false
-  const st = m.P(req.p).lines[x.line!]
-  return !!st && st.at === m.turnStamp() && !st.down && !stackingPays(m, req.p, x.uid!, x.line!)
+  if (x.via !== 'over' || x.uid == null || x.line == null) return false
+  const p = req.p
+  const st = m.P(p).lines[x.line]
+  if (!st || st.down) return false
+  if (req.kind === 'main' && x.t === 'play') return st.at === m.turnStamp() && !stackingPays(m, p, x.uid, x.line)
+  if (x.t !== 'trig-play' && !(req.kind === 'pick' && x.t === 'play')) return false
+  if (!req.opts.some((y) => y.uid === x.uid && y.via === 'new')) return false
+  if (stackingPays(m, p, x.uid, x.line, false)) return false
+  const o = (1 - p) as Side
+  if (m.top(o, x.line) == null) return true
+  const theirs = m.power(o, x.line)
+  return !(m.power(p, x.line) <= theirs && m.def(x.uid).power > theirs)
 }
 
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
