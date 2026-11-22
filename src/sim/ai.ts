@@ -1,6 +1,6 @@
 // The CPU opponent. It plays by the same rules as a person and only looks at what a
 // person in its seat could see: its own hand and the cards that are face up.
-import { DEFS, Match, type Color, type Opt, type Side } from './engine'
+import { DEFS, Match, type Opt, type Side } from './engine'
 import { EFFORT, LEVELS, dealLeaning, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from './search'
 
 export { EFFORT, LEVELS, type Level }
@@ -23,34 +23,60 @@ export const WEIGHTS = {
   body: 2, power: 2, downed: 3.5, cover: 0.1, worthIt: 0.55, reserve: 2, reserveBodies: 4,
   // Reading the other side of the board, and what the card itself does (see `read` below).
   openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0,
+  // How the deck's own make-up bends the numbers above (see `planFor` below).
+  big_body: 0, big_power: 0, big_worthIt: 0, big_reserve: 0, big_chargeTo: 0, big_soonLate: 0, big_keepWaza: 0, big_cover: 0,
+  waza_body: 0, waza_power: 0, waza_worthIt: 0, waza_reserve: 0, waza_chargeTo: 0, waza_soonLate: 0, waza_keepWaza: 0, waza_cover: 0,
+  draw_body: 0, draw_power: 0, draw_worthIt: 0, draw_reserve: 0, draw_chargeTo: 0, draw_soonLate: 0, draw_keepWaza: 0, draw_cover: 0,
 }
 export type Weights = typeof WEIGHTS
 /** The first values, kept for the tutorial's suggested moves so the lesson never changes. */
-const CLASSIC: Weights = { mullEarly: 2, mullCost: 3, chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3, keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5, body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2, openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0 }
+const CLASSIC: Weights = { ...(Object.fromEntries(Object.keys(WEIGHTS).map((k) => [k, 0])) as Weights), mullEarly: 2, mullCost: 3, chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3, keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5, body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2, openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0 }
 /** Lets the bot lab give each seat its own numbers when it tests one set against another. */
 export const seatWeights: [Weights | null, Weights | null] = [null, null]
 
 /**
- * Game plans. Each color wants something different (Green goes big, Red goes wide, Blue leans on Waza),
- * so a deck that is mostly one color plays with numbers tuned for that color's decks. A deck with no
- * clear main color, or a color with no plan yet, uses WEIGHTS. Tuned in the bot lab (tune.ts --mine=Green).
+ * Game plans. Every deck wants something different: one goes big, one goes wide, one leans on Waza.
+ * The bot reads its own deck list for three things and bends the numbers above to suit:
+ *   big   how expensive its Horobeat are on average
+ *   waza  how many Waza it runs
+ *   draw  how many of its cards draw cards
+ * Each is measured against a typical deck (0 means typical, about +1 or -1 at the extremes). A number
+ * named like `big_power` says how much `power` grows (or shrinks) per point of `big`. They start at 0,
+ * which means "one playbook for everyone", and are tuned by self-play in the bot lab.
  */
-export const PLANS: Partial<Record<Color, Weights>> = {}
-/** The color most of a deck is made of, if more than half of it is one color. */
-export function deckPlan(ids: string[]): Color | null {
-  const n: Record<string, number> = {}
-  for (const id of ids) { const c = DEFS.get(id)?.color; if (c) n[c] = (n[c] || 0) + 1 }
-  const [top] = Object.entries(n).sort((a, b) => b[1] - a[1])
-  return top && top[1] > ids.length / 2 ? (top[0] as Color) : null
-}
-const planOf = new WeakMap<object, [Weights, Weights]>()
-function planFor(m: Match, p: Side) {
-  let both = planOf.get(m.setup)
-  if (!both) {
-    both = m.setup.decks.map((ids) => { const c = deckPlan(ids); return (c && PLANS[c]) || WEIGHTS }) as [Weights, Weights]
-    planOf.set(m.setup, both)
+const TRAITS = ['big', 'waza', 'draw'] as const
+const BENDS = ['body', 'power', 'worthIt', 'reserve', 'chargeTo', 'soonLate', 'keepWaza', 'cover'] as const
+export function deckTraits(ids: string[]): Record<(typeof TRAITS)[number], number> {
+  const cards = ids.map((id) => DEFS.get(id)).filter((d): d is NonNullable<typeof d> => !!d)
+  const bodies = cards.filter((d) => d.type === 'Horobeat')
+  const avg = bodies.length ? bodies.reduce((a, d) => a + d.cost, 0) / bodies.length : 4.2
+  const clamp = (v: number) => Math.max(-2, Math.min(2, v))
+  return {
+    big: clamp((avg - 4.2) / 0.8),
+    waza: clamp((cards.length - bodies.length - 9) / 4),
+    draw: clamp((cards.filter((d) => /draw \d/i.test(d.effect || '')).length - 6.5) / 5),
   }
-  return both[p]
+}
+const bent = new WeakMap<object, Map<string, Weights>>()
+/** The numbers this seat plays by: the given set, bent to suit the deck in that seat. */
+function planFor(m: Match, p: Side, W: Weights) {
+  let byDeck = bent.get(W)
+  if (!byDeck) bent.set(W, (byDeck = new Map()))
+  const ids = m.setup.decks[p]
+  const key = ids.join(',')
+  let out = byDeck.get(key)
+  if (!out) {
+    const t = deckTraits(ids)
+    const w = { ...W } as Record<string, number>
+    for (const k of BENDS) {
+      let f = 1
+      for (const tr of TRAITS) f += (w[`${tr}_${k}`] || 0) * t[tr]
+      w[k] = Number.isInteger(W[k]) ? Math.max(0, Math.round(W[k] * f)) : +(W[k] * Math.max(0, f)).toFixed(4)
+    }
+    out = w as Weights
+    byDeck.set(key, out)
+  }
+  return out
 }
 
 /** What a card's text says it does, as far as the habits care. Read once per card. */
@@ -392,7 +418,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
   const opts = req.opts
   const find = (t: string) => opts.findIndex((x) => x.t === t)
   // Easy (and Beginner, which plays like Easy) keeps the first numbers: it is meant to be beatable, and the tutorials' opponent must never change.
-  const W = classic || level === 'easy' ? CLASSIC : seatWeights[p] ?? planFor(m, p)
+  const W = classic || level === 'easy' ? CLASSIC : planFor(m, p, seatWeights[p] ?? WEIGHTS)
 
   if (req.kind === 'mulligan') {
     if (level === 'easy') return find('keep')
