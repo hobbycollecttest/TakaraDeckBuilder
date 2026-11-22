@@ -135,7 +135,8 @@ Expert is the level that needs work next.
   not left to habit: every reply is tried and the worst one for the bot is taken. It costs about five times
   the thinking per sample, so it was tested at equal time: 60 samples with sharp replies against 300 plain
   scored 32.5% over 80 HORO-BEAT games, and 40 samples with two-sample replies scored 31.3% over 80.
-  A clear loss. More samples beat a smarter imagined opponent at this budget. Worth another look only once
+  In Haikyu the same test scored 40.0% over 40 games (margin about 8). A clear loss in HORO-BEAT, a likely
+  one in Haikyu. More samples beat a smarter imagined opponent at this budget. Worth another look only once
   samples are much cheaper.
 - Hard now uses 300 sample games per choice (was 150) and may take 0.4 s (was 0.3).
 
