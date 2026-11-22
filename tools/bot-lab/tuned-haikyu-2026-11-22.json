@@ -1,0 +1,26 @@
+{
+ "game": "haikyu",
+ "tried": 482,
+ "kept": [
+  "freeKeep 3 -> 2, atEnter 1 -> 0: 52.4% then 52.0%",
+  "blW 3 -> 2, rcOver 1 -> 0: 52.0% then 53.1%"
+ ],
+ "weights": {
+  "mullChars": 3,
+  "blockCards": 1,
+  "blW": 2,
+  "blWorth": 0.3,
+  "svW": 2,
+  "svKeep": 0.6,
+  "rcKeeps": 2,
+  "rcOver": 0,
+  "rcAt": 0.3,
+  "stW": 4,
+  "stHasAtk": 3,
+  "stNoAtk": 10,
+  "stAt": 0.5,
+  "atW": 3,
+  "atEnter": 0,
+  "freeKeep": 2
+ }
+}
