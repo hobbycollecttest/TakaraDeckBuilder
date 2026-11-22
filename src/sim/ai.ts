@@ -40,20 +40,25 @@ function stackingPays(m: Match, p: Side, uid: number, line: number, paying = tru
   return paying && !P.ena.some((e) => m.def(e.uid).color === d.color)
 }
 
+/** Paying to cover a Horobeat that came down this very turn, with nothing to gain from the stack. */
+function coversFresh(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'main' || x.t !== 'play' || x.via !== 'over' || x.uid == null || x.line == null) return false
+  const st = m.P(req.p).lines[x.line]
+  return !!st && !st.down && st.at === m.turnStamp() && !stackingPays(m, req.p, x.uid, x.line)
+}
+
 /**
- * Two ways of covering a Horobeat that throw value away:
- * - paying to cover one that came down this very turn, with nothing to gain from the stack;
- * - on a free play (a trigger or an effect), covering a standing Horobeat when the same card could
- *   take an empty line, unless the bigger card turns a losing line into a winning one.
+ * On a free play (a trigger or an effect), covering a standing Horobeat when the same card could take
+ * an empty line, unless the bigger card turns a losing line into a winning one.
  */
-function wasteful(m: Match, x: Opt) {
+function coversOnFreePlay(m: Match, x: Opt) {
   const req = m.req!
   if (x.via !== 'over' || x.uid == null || x.line == null) return false
+  if (x.t !== 'trig-play' && !(req.kind === 'pick' && x.t === 'play')) return false
   const p = req.p
   const st = m.P(p).lines[x.line]
   if (!st || st.down) return false
-  if (req.kind === 'main' && x.t === 'play') return st.at === m.turnStamp() && !stackingPays(m, p, x.uid, x.line)
-  if (x.t !== 'trig-play' && !(req.kind === 'pick' && x.t === 'play')) return false
   if (!req.opts.some((y) => y.uid === x.uid && y.via === 'new')) return false
   if (stackingPays(m, p, x.uid, x.line, false)) return false
   const o = (1 - p) as Side
@@ -61,6 +66,7 @@ function wasteful(m: Match, x: Opt) {
   const theirs = m.power(o, x.line)
   return !(m.power(p, x.line) <= theirs && m.def(x.uid).power > theirs)
 }
+const wasteful = (m: Match, x: Opt) => coversFresh(m, x) || coversOnFreePlay(m, x)
 
 /**
  * Adding power to a line that is already being won, or that has no one across from it. Passing loses
@@ -79,6 +85,17 @@ function needless(m: Match, x: Opt) {
   const sc = m.rawScript(x.uid)
   return !sc.wazaOnUse && !sc.wazaOnWin && !(top != null && m.sc(top).onWazaUsed)
 }
+
+/**
+ * What the computer has been taught not to do. Each entry is a mistake a player spotted, written as a
+ * test on one choice. Normal avoids them by habit; Hard and Expert never consider them. The bot lab
+ * (tools/bot-lab) counts how often each one happens and keeps saved positions to check against.
+ */
+export const MISTAKES: { id: string; taught: string; what: string; is: (m: Match, x: Opt) => boolean }[] = [
+  { id: 'cover-fresh', taught: '2026-11-22', what: 'Plays a Horobeat and covers it in the same turn with nothing gained from the stack', is: coversFresh },
+  { id: 'cover-on-free-play', taught: '2026-11-22', what: 'On a trigger or free play, covers a standing Horobeat when an empty line was open and the line was not being lost', is: coversOnFreePlay },
+  { id: 'needless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line it is already winning, or with no one across', is: needless },
+]
 
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = m.req!.opts.length
@@ -111,7 +128,7 @@ function searchGame(real: Match): SearchGame<Match> {
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
-    skip: (i) => wasteful(real, real.req!.opts[i]) || needless(real, real.req!.opts[i]),
+    skip: (i) => MISTAKES.some((k) => k.is(real, real.req!.opts[i])),
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.countH(me) - m.countH((1 - me) as Side)

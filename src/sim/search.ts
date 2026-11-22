@@ -21,7 +21,8 @@ export type SearchGame<M> = {
   /** Choices that are known mistakes and not worth thinking about. Never all of them. */
   skip?: (choice: number) => boolean
 }
-export type Effort = { sims: number; ms: number; maxSteps: number }
+/** `sims` is how many sample games one choice may use in all, `ms` the longest it may take. `plain` keeps the first, simpler way of sharing them out (for comparisons). */
+export type Effort = { sims: number; ms: number; maxSteps: number; plain?: boolean }
 
 export type Level = 'beginner' | 'easy' | 'normal' | 'hard' | 'expert'
 export const LEVELS: { id: Level; label: string }[] = [
@@ -76,7 +77,6 @@ export function searchChoice<M>(game: SearchGame<M>, count: number, favourite: n
       // A guess that could not be played out (a card the engine expected elsewhere) is skipped.
     }
   }
-  // Start with every choice, then keep halving the field and spending more on the ones that look best.
   let alive = Array.from({ length: count }, (_, i) => i)
   if (game.skip) {
     const kept = alive.filter((c) => !game.skip!(c))
@@ -85,12 +85,50 @@ export function searchChoice<M>(game: SearchGame<M>, count: number, favourite: n
   }
   let spent = 0
   let k = 0
-  let per = Math.max(2, Math.floor(effort.sims / (count * 3)))
-  while (alive.length > 1 && spent < effort.sims && now() < deadline) {
-    for (let r = 0; r < per && now() < deadline; r++, k++) for (const c of alive) { playOut(c, k); spent++ }
-    const score = (c: number) => (runs[c] ? total[c] / runs[c] : 0) + (c === favourite ? 0.02 : 0)
-    alive = [...alive].sort((a, b) => score(b) - score(a)).slice(0, Math.max(1, Math.ceil(alive.length / 2)))
-    per *= 2
+  if (effort.plain) {
+    // Keep halving the field and spending more on the choices that look best.
+    let per = Math.max(2, Math.floor(effort.sims / (count * 3)))
+    while (alive.length > 1 && spent < effort.sims && now() < deadline) {
+      for (let r = 0; r < per && now() < deadline; r++, k++) for (const c of alive) { playOut(c, k); spent++ }
+      const score = (c: number) => (runs[c] ? total[c] / runs[c] : 0) + (c === favourite ? 0.02 : 0)
+      alive = [...alive].sort((a, b) => score(b) - score(a)).slice(0, Math.max(1, Math.ceil(alive.length / 2)))
+      per *= 2
+    }
+  } else {
+    // Every round, each choice still in the running plays the same imagined game. A choice is dropped
+    // as soon as it is clearly behind the leader on the games they both played; if nothing is clearly
+    // behind, the weakest are dropped at set points so the samples go to the close calls. Thinking
+    // stops early once one choice is clearly ahead of all the others.
+    const seen: number[][] = Array.from({ length: count }, () => [])
+    const mean = (c: number) => (runs[c] ? total[c] / runs[c] : 0) + (c === favourite ? 0.02 : 0)
+    const behind = (lead: number, c: number) => {
+      const n = Math.min(seen[lead].length, seen[c].length)
+      if (n < 6) return false
+      let sum = 0
+      let sq = 0
+      for (let t = 0; t < n; t++) { const d = seen[lead][t] - seen[c][t]; sum += d; sq += d * d }
+      const avg = sum / n
+      const se = Math.sqrt(Math.max(1e-9, sq / n - avg * avg) / n)
+      return avg - 2.2 * se > 0
+    }
+    const cuts = [0.3, 0.55, 0.75]
+    let cut = 0
+    while (alive.length > 1 && spent < effort.sims && now() < deadline) {
+      for (const c of alive) {
+        const before = total[c]
+        const ran = runs[c]
+        playOut(c, k)
+        seen[c].push(runs[c] > ran ? total[c] - before : 0.5)
+        spent++
+      }
+      k++
+      const lead = alive.reduce((a, b) => (mean(b) > mean(a) ? b : a))
+      alive = alive.filter((c) => c === lead || !behind(lead, c))
+      if (cut < cuts.length && spent >= effort.sims * cuts[cut]) {
+        cut++
+        alive = [...alive].sort((a, b) => mean(b) - mean(a)).slice(0, Math.max(2, Math.ceil(alive.length / 2)))
+      }
+    }
   }
   if (!runs.some((n) => n > 0)) return favourite
   const score = (c: number) => (runs[c] ? total[c] / runs[c] : -1) + (c === favourite ? 0.02 : 0)
