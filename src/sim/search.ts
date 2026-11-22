@@ -27,8 +27,8 @@ export type SearchGame<M> = {
    */
   doubt?: (choice: number) => boolean
 }
-/** `sims` is how many sample games one choice may use in all, `ms` the longest it may take. `plain` keeps the first, simpler way of sharing them out (for comparisons). */
-export type Effort = { sims: number; ms: number; maxSteps: number; plain?: boolean }
+/** `sims` is how many sample games one choice may use in all, `ms` the longest it may take. `plain` keeps the first, simpler way of sharing them out (for comparisons). `lean` and `plan` switch on two experiments that have not yet beaten the standard player in testing: leaning the guess about the other player's hand, and weighing whole turns instead of one choice at a time. */
+export type Effort = { sims: number; ms: number; maxSteps: number; plain?: boolean; lean?: boolean; plan?: boolean }
 
 export type Level = 'beginner' | 'easy' | 'normal' | 'hard' | 'expert'
 export const LEVELS: { id: Level; label: string }[] = [
@@ -61,6 +61,25 @@ export function shuffleSlots(slots: { get: () => number; set: (u: number) => voi
     ;[cards[i], cards[j]] = [cards[j], cards[i]]
   }
   slots.forEach((s, i) => s.set(cards[i]))
+}
+
+type Slot = { get: () => number; set: (u: number) => void }
+/**
+ * Deal the hidden cards of the other player with a lean: cards that players in this spot tend to be
+ * holding are more likely to land in the hand. `lean` is 1 for no opinion, above 1 for likelier in hand.
+ * The rest are shuffled evenly into the other hidden places.
+ */
+export function dealLeaning(hand: Slot[], rest: Slot[], lean: (uid: number) => number, rnd: () => number) {
+  const cards = [...hand, ...rest].map((s) => s.get())
+  // Each card draws a ticket; a bigger lean makes a high ticket likelier. The highest tickets are the hand.
+  const ticket = cards.map((u) => ({ u, t: Math.pow(rnd(), 1 / Math.max(0.05, lean(u))) })).sort((a, b) => b.t - a.t)
+  hand.forEach((s, i) => s.set(ticket[i].u))
+  const others = ticket.slice(hand.length).map((x) => x.u)
+  for (let i = others.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1))
+    ;[others[i], others[j]] = [others[j], others[i]]
+  }
+  rest.forEach((s, i) => s.set(others[i]))
 }
 
 export function searchChoice<M>(game: SearchGame<M>, count: number, favourite: number, effort: Effort, rnd: () => number): number {

@@ -20,9 +20,12 @@ Run everything from the repo root.
 | `npm run bot:swaps -- horobeat hard:sims=12 400 base.json idea.json` | Is this deck change better than the original? |
 | `npx tsx tools/bot-lab/card-stats.ts ...` | HORO-BEAT only: win rate per card when it is in the opening hand. |
 | `npx tsx tools/bot-lab/timing.ts horobeat hard 6` | How long one decision takes. |
+| `npx tsx tools/bot-lab/tune.ts haikyu --minutes=35 --games=6000` | Tunes the numbers behind the Normal habits by self-play. |
+| `npx tsx tools/bot-lab/read-stats.ts horobeat normal 1500` | What kinds of card players tend to hold, compared with chance. |
 
 A player is written as a level with optional settings: `normal`, `hard`, `expert`, `hard:sims=150`,
-`hard:plain` (the first, simpler thinking method, kept for comparisons). In the lab, thinking is never
+`hard:plain` (the first, simpler thinking method, kept for comparisons), `hard:plan` and `hard:lean`
+(two experiments that are switched off, see below). In the lab, thinking is never
 cut off by the clock, so a run gives the same result every time.
 
 Game names: `horobeat` (or `hb`), `haikyu` (or `hq`).
@@ -30,6 +33,9 @@ Game names: `horobeat` (or `hb`), `haikyu` (or `hq`).
 ## How the bots are built
 
 - `src/sim/ai.ts` and `src/sim/hq/ai.ts`: the habits (rules of thumb) for Beginner, Easy and Normal.
+- `WEIGHTS` in each `ai.ts`: the numbers behind the Normal habits, tuned by self-play. `CLASSIC` holds the
+  first, hand-picked values. Easy, Beginner and the tutorials stay on `CLASSIC` on purpose: Easy should be
+  beatable and the tutorials (whose opponent is the Easy bot) must never change.
 - `src/sim/search.ts`: thinking ahead for Hard and Expert. It imagines the hidden cards, plays sample
   games with the Normal habits for each choice, and picks the choice that wins most.
 - `MISTAKES` in each `ai.ts`: what the bot has been taught. Normal avoids these by habit. There are two kinds:
@@ -78,6 +84,36 @@ When someone reports "the bot does X and it is a waste":
 - One decision on the build machine: Hard about 45 to 80 ms, Expert about 200 to 300 ms. Phones are several
   times slower; the time caps (0.3 s Hard, 0.9 s Expert) are what protect them. `timing.ts` measures this.
 
+## Tuning the habits by self-play (2026-11-22)
+
+`tune.ts` nudges one or two numbers, plays 6,000 Normal games new against old, and keeps the change only if
+it wins clearly on that batch and again on 12,000 fresh games. A Normal game takes under 3 ms, so 35 minutes
+tries several hundred candidates. Results are saved as `tuned-<game>-<date>.json`.
+
+- HORO-BEAT: 9 changes kept of 726. Tuned Normal beats the hand-picked Normal 66.4% over 20,000 games, and
+  Hard with tuned habits beats Hard with the old ones 57.5% over 200.
+- Haikyu: 2 changes kept of 482. Tuned Normal wins 55.2% over 20,000; Hard with tuned habits 59.1% over 110.
+- After tuning, always re-run the tutorial check. Changing `WEIGHTS` once changed the tutorials through the
+  Easy bot; that is why Easy is pinned to `CLASSIC`.
+- The tuner was still finding HORO-BEAT gains when it stopped. Run it again from the current values.
+- To confirm a tuned set at Hard level: `npm run bot:ladder -- <game> hard hard 200 --weights=<file>`.
+
+Level ladder after tuning: Normal beats Easy 72% (HORO-BEAT) and 70% (Haikyu) over 2,000 games; Hard beats
+Normal 88% over 120 and 84% over 80; Expert beats Hard 54% over 70 and 52.5% over 40 (not proven either way).
+Expert is the level that needs work next.
+
+## Experiments that did not win (code kept, switched off)
+
+- **Whole-turn planning** (`:plan`). Hard compares complete turns instead of one choice at a time. First try
+  (up to 12 to 14 plans): 45.4% in HORO-BEAT over 240 games, 48.3% in Haikyu over 120. Second try (5 to 6
+  plans, tuned habits): 50.0% and 49.2%. No gain. Likely cause: the same sample budget spread over more
+  choices that mostly overlap. Worth retrying only with a much better way to pick a few distinct plans, or
+  once sample games are cheaper (a position judge).
+- **Leaning the guess about the other player's hand** (`:lean`). With tuned habits, players hold Waza 35 to
+  50% more often than chance and playable Horobeat about 40% less (`read-stats.ts`). Leaning the guesses that
+  way scored 44.1% in HORO-BEAT over 220 games and 50.9% in Haikyu over 110. No gain, possibly harmful.
+  The pattern is real but describes the bots, and the sample games already play out both hands.
+
 ## Lessons about testing (learned the hard way)
 
 - A first batch flatters changes. Confirm on a second batch with a different seed before believing it.
@@ -85,7 +121,10 @@ When someone reports "the bot does X and it is a waste":
 - Opening-hand card statistics are ideas, not verdicts. They said to cut Telepathy from Raiga Swarm;
   cutting it cost 11 to 13 points.
 - Deck scores are only as good as the pilot. Combo decks (blue Waza chains) are probably underrated.
-- Greedy "biggest card first" planning made the HORO-BEAT bot worse. More bodies beat one big body.
+- Greedy "biggest card first" planning made the HORO-BEAT bot worse. (The tuner later found the opposite
+  lesson holds inside the habits: power was undervalued and bodies overvalued. Measure, do not assume.)
+- A cleverer method is not automatically stronger. Planning and hand reading both sounded right and both
+  failed to beat the simple version. Ship only what wins a head-to-head.
 - Decks tuned with the Normal bot did not hold up under the Hard bot. Tune with at least `hard:sims=12`.
 
 ## Adding a game

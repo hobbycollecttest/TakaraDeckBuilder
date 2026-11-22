@@ -1,7 +1,7 @@
 // The computer player for Haikyu. It plays by the same rules as a person and only uses
 // what a person in its seat could see: its own hand and the cards that are face up.
 import { HQ, type Opt, type Side } from './engine.js'
-import { EFFORT, LEVELS, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from '../search.js'
+import { EFFORT, LEVELS, dealLeaning, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from '../search.js'
 
 export { LEVELS, type Level }
 
@@ -72,6 +72,104 @@ export const MISTAKES: { id: string; taught: string; what: string; forbid: boole
   { id: 'receive-when-one-blocker-enough', taught: '2026-11-22', what: 'Receives when a single blocker would have stopped the ball', forbid: false, is: (g, x) => x.t === 'receive' && oneBlockerEnough(g) },
 ]
 
+/** One of the computer's own choices in a planned turn: receive or block, then who goes into which area. */
+type Step = { kind: 'start' | 'enter'; t: Opt['t']; area?: Opt['area']; uid?: number }
+const MAX_PLANS = 6
+const MAX_NODES = 40
+const WIDTH = 2
+
+/**
+ * Whole turns to weigh against each other: receive or block, and for each area the habit's own pick
+ * plus the next strongest cards for that job. The first plan is what the Normal habits would do.
+ * Only cards in hand right now are planned with; a card drawn mid-turn is weighed when it arrives.
+ */
+function turnPlans(real: HQ, rnd: () => number): Step[][] {
+  const me = real.req!.p
+  const turn = real.s.turnNo
+  const inHand = new Set(real.P(me).hand)
+  const at = (path: number[]) => HQ.replay(real.setup, [...real.answers, ...path])
+  const mine = (g: HQ) => !!g.req && g.req.p === me && g.s.turnNo === turn && g.s.winner == null
+  const planned = (g: HQ) => mine(g) && (g.req!.kind === 'start' || g.req!.kind === 'enter')
+  const settle = (g: HQ, path: number[]) => {
+    for (let n = 0; n < 16 && mine(g) && !planned(g); n++) {
+      const c = g.req!.opts.length <= 1 ? 0 : habit(g, 'normal', rnd)
+      path.push(c)
+      g.answer(c)
+    }
+    return planned(g)
+  }
+  const stat = (g: HQ, o: Opt) => {
+    const d = g.def(o.uid!)
+    return o.area === 'receive' ? d.rc ?? 0 : o.area === 'set' ? d.st ?? 0 : o.area === 'attack' ? d.at ?? 0 : o.area === 'serve' ? d.sv ?? 0 : d.bl ?? 0
+  }
+  const plans: Step[][] = []
+  let nodes = 0
+  const walk = (path: number[], steps: Step[]) => {
+    if (plans.length >= MAX_PLANS || nodes++ > MAX_NODES) return
+    const g = at(path)
+    if (!planned(g)) { if (steps.length) plans.push(steps); return }
+    const req = g.req!
+    const fav = habit(g, 'normal', rnd)
+    // The habit's pick first, so the first finished plan is the habits' whole turn.
+    const order = [fav]
+    if (req.kind === 'start') req.opts.forEach((o, i) => { if (i !== fav && !MISTAKES.some((k) => k.forbid && k.is(g, o))) order.push(i) })
+    else {
+      const names = new Set<string>([req.opts[fav].uid != null ? g.def(req.opts[fav].uid!).name : ''])
+      const others = req.opts.map((o, i) => ({ o, i })).filter((e) => e.i !== fav && e.o.t === 'enter' && e.o.uid != null && inHand.has(e.o.uid)).sort((x, y) => stat(g, y.o) - stat(g, x.o))
+      for (const e of others) {
+        if (order.length >= WIDTH) break
+        const name = g.def(e.o.uid!).name
+        if (names.has(name)) continue
+        names.add(name)
+        order.push(e.i)
+      }
+    }
+    for (const i of order) {
+      const o = req.opts[i]
+      const next = [...path, i]
+      const child = at(next)
+      const more = settle(child, next)
+      const step: Step = { kind: req.kind as 'start' | 'enter', t: o.t, area: o.area, uid: o.uid }
+      if (!more) { if (plans.length < MAX_PLANS) plans.push([...steps, step]) } else walk(next, [...steps, step])
+    }
+  }
+  walk([], [])
+  return plans
+}
+
+/** Carry a plan out on a copy of the match (whose hidden cards may have been reshuffled). Anything unplanned is left to the habits. */
+function followPlan(g: HQ, me: Side, turn: number, steps: Step[], rnd: () => number) {
+  const mine = () => !!g.req && g.req.p === me && g.s.turnNo === turn && g.s.winner == null
+  const planned = () => mine() && (g.req!.kind === 'start' || g.req!.kind === 'enter')
+  for (const st of steps) {
+    for (let n = 0; n < 16 && mine() && !planned(); n++) g.answer(g.req!.opts.length <= 1 ? 0 : habit(g, 'normal', rnd))
+    if (!planned() || g.req!.kind !== st.kind) return
+    const i = g.req!.opts.findIndex((o) => o.t === st.t && o.uid === st.uid && o.area === st.area)
+    if (i < 0) return
+    g.answer(i)
+  }
+}
+
+/** Hard and Expert at the start of a turn and when filling an area: weigh whole turns, then make the first move of the best one. */
+function planTurn(real: HQ, e: Effort, rnd: () => number): number | null {
+  const me = real.req!.p
+  const turn = real.s.turnNo
+  const plans = turnPlans(real, rnd)
+  if (plans.length < 2) return null
+  const base = searchGame(real, !e.lean)
+  const first = (i: number) => real.req!.opts.findIndex((o) => o.t === plans[i][0].t && o.uid === plans[i][0].uid && o.area === plans[i][0].area)
+  const fresh = new WeakSet<HQ>()
+  const game: SearchGame<HQ> = {
+    ...base,
+    copy: () => { const g = base.copy(); fresh.add(g); return g },
+    answer: (g, i) => { if (fresh.has(g)) { fresh.delete(g); followPlan(g, me, turn, plans[i], rnd) } else g.answer(i) },
+    skip: undefined,
+    doubt: (i) => { const o = real.req!.opts[first(i)]; return !!o && MISTAKES.some((k) => !k.forbid && k.is(real, o)) },
+  }
+  const choice = first(searchChoice(game, plans.length, 0, e, rnd))
+  return choice >= 0 ? choice : null
+}
+
 export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = g.req!.opts.length
   if (count <= 1) return 0
@@ -81,11 +179,29 @@ export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, 
     return rnd() < 0.35 && legal.length ? legal[Math.floor(rnd() * legal.length)] : habit(g, 'easy', rnd)
   }
   if (level === 'easy' || level === 'normal') return habit(g, level, rnd)
-  return searchChoice(searchGame(g), count, habit(g, 'normal', rnd), effort ?? EFFORT[level]!, rnd)
+  const e = effort ?? EFFORT[level]!
+  if ((g.req!.kind === 'start' || g.req!.kind === 'enter') && e.plan) {
+    const planned = planTurn(g, e, rnd)
+    if (planned != null) return planned
+  }
+  return searchChoice(searchGame(g, !e.lean), count, habit(g, 'normal', rnd), e, rnd)
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Score cards. */
-export function searchGame(real: HQ): SearchGame<HQ> {
+/** How a card is sorted when guessing what the other player holds. */
+export function handClass(g: HQ, uid: number) {
+  if (!g.isChar(uid)) return 'event'
+  const d = g.def(uid)
+  const top = Math.max(d.rc ?? 0, d.at ?? 0, d.bl ?? 0, d.st ?? 0)
+  return top === (d.bl ?? 0) && top > 0 ? 'blocker' : top === (d.at ?? 0) && top > 0 ? 'attacker' : top === (d.rc ?? 0) && top > 0 ? 'receiver' : 'setter'
+}
+/**
+ * How much likelier than chance each kind of card is to be in a player's hand.
+ * Measured from the lab's own games (tools/bot-lab/read-stats.ts), not guessed. 1 means no lean.
+ */
+export const HAND_LEAN: Record<string, number> = { event: 1.19, attacker: 1, receiver: 1, blocker: 0.91, setter: 0.64 }
+
+export function searchGame(real: HQ, flat = true): SearchGame<HQ> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {
@@ -98,8 +214,11 @@ export function searchGame(real: HQ): SearchGame<HQ> {
         const list = (arr: number[]) => arr.forEach((u, i) => { if (!shown.has(u)) slots.push({ get: () => arr[i], set: (v) => { arr[i] = v } }) })
         list(P.deck)
         list(P.score)
-        if (side !== me) list(P.hand)
-        shuffleSlots(slots, rnd)
+        if (side === me) { shuffleSlots(slots, rnd); continue }
+        const rest = slots.splice(0)
+        list(P.hand)
+        if (flat) { shuffleSlots([...slots, ...rest], rnd); continue }
+        dealLeaning(slots, rest, (u) => HAND_LEAN[handClass(m, u)] ?? 1, rnd)
       }
     },
     open: (m) => !!m.req,
@@ -116,6 +235,25 @@ export function searchGame(real: HQ): SearchGame<HQ> {
   }
 }
 
+/**
+ * The numbers behind the Normal player's rules of thumb. They were first set by feel and are now tuned
+ * by self-play in the bot lab (tools/bot-lab/tune.ts). Whole numbers are counts; the rest are weights.
+ */
+export const WEIGHTS = {
+  mullChars: 3, blockCards: 1,
+  blW: 2, blWorth: 0.3,
+  svW: 2, svKeep: 0.6,
+  rcKeeps: 2, rcOver: 0, rcAt: 0.3,
+  stW: 4, stHasAtk: 3, stNoAtk: 10, stAt: 0.5,
+  atW: 3, atEnter: 0,
+  freeKeep: 2,
+}
+export type Weights = typeof WEIGHTS
+/** The first values, kept for the tutorials' suggested moves so the lessons never change. */
+const CLASSIC: Weights = { mullChars: 3, blockCards: 1, blW: 3, blWorth: 0.3, svW: 2, svKeep: 0.6, rcKeeps: 2, rcOver: 1, rcAt: 0.3, stW: 4, stHasAtk: 3, stNoAtk: 10, stAt: 0.5, atW: 3, atEnter: 1, freeKeep: 3 }
+/** Lets the bot lab give each seat its own numbers when it tests one set against another. */
+export const seatWeights: [Weights | null, Weights | null] = [null, null]
+
 /** The Normal player as it was when the tutorials were written. The tutorials' suggested moves stay on it so they never change. */
 export const tutorChoice = (g: HQ) => (g.req!.opts.length <= 1 ? 0 : habit(g, 'normal', Math.random, true))
 
@@ -128,10 +266,12 @@ function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number, classic = fal
   const find = (t: string) => opts.findIndex((x) => x.t === t)
   const off = g.s.off[o] ?? 0
   const sloppy = level === 'easy' ? () => rnd() * 2 : () => 0
+  // Easy (and Beginner, which plays like Easy) keeps the first numbers: it is meant to be beatable, and the tutorials' opponent must never change.
+  const W = classic || level === 'easy' ? CLASSIC : seatWeights[p] ?? WEIGHTS
 
   if (req.kind === 'mulligan') {
     const chars = P.hand.filter((u) => g.isChar(u)).length
-    return find(chars >= 3 || level === 'easy' ? 'keep' : 'pick')
+    return find(chars >= W.mullChars || level === 'easy' ? 'keep' : 'pick')
   }
 
   if (req.kind === 'start') {
@@ -152,7 +292,7 @@ function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number, classic = fal
     const rally = fullRally(g, chars, off)
     // Block when the hand cannot carry a rally, and whenever one blocker is enough: it costs one card
     // where a receive, set and attack cost three.
-    if (canBlock && (!rally || plan.picks.length <= 1)) return find('block')
+    if (canBlock && (!rally || plan.picks.length <= W.blockCards)) return find('block')
     if (rally || bestRc >= off) return find('receive')
     if (find('block') >= 0 && plan.sum > bestRc) return find('block')
     return find('receive')
@@ -168,27 +308,27 @@ function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number, classic = fal
     if (area === 'center' || area === 'sides') {
       const blocked = g.blockers(p).reduce((a, x) => a + (g.param(x.uid, 'bl') ?? 0), 0)
       if (area === 'sides' && blocked >= off && done >= 0) return done
-      return best(opts, (x) => (x.t === 'enter' ? (g.def(x.uid!).bl ?? 0) * 3 - value(x.uid!) * 0.3 + sloppy() : -99))
+      return best(opts, (x) => (x.t === 'enter' ? (g.def(x.uid!).bl ?? 0) * W.blW - value(x.uid!) * W.blWorth + sloppy() : -99))
     }
-    if (area === 'serve') return best(opts, (x) => (x.t === 'enter' ? (g.def(x.uid!).sv ?? 0) * 2 - Math.max(g.def(x.uid!).rc ?? 0, g.def(x.uid!).at ?? 0) * 0.6 + sloppy() : -99))
+    if (area === 'serve') return best(opts, (x) => (x.t === 'enter' ? (g.def(x.uid!).sv ?? 0) * W.svW - Math.max(g.def(x.uid!).rc ?? 0, g.def(x.uid!).at ?? 0) * W.svKeep + sloppy() : -99))
     if (area === 'receive') {
       // The cheapest card that still makes the receive, keeping a setter and an attacker in hand.
       return best(opts, (x) => {
         if (x.t !== 'enter') return -99
         const d = g.def(x.uid!)
         const rest = P.hand.filter((u) => u !== x.uid && g.isChar(u))
-        const keeps = rest.some((u) => g.def(u).st != null) && rest.some((u) => g.def(u).at != null) ? 2 : 0
+        const keeps = rest.some((u) => g.def(u).st != null) && rest.some((u) => g.def(u).at != null) ? W.rcKeeps : 0
         const rc = d.rc ?? 0
-        const makes = rc >= off ? 20 - (rc - off) : rc - off
-        return makes + keeps - (d.at ?? 0) * 0.3 + sloppy()
+        const makes = rc >= off ? 20 - (rc - off) * W.rcOver : rc - off
+        return makes + keeps - (d.at ?? 0) * W.rcAt + sloppy()
       })
     }
     if (area === 'set') return best(opts, (x) => {
       if (x.t !== 'enter') return -99
       const rest = P.hand.filter((u) => u !== x.uid && g.isChar(u) && g.def(u).at != null && g.def(u).name !== g.def(x.uid!).name)
-      return (g.def(x.uid!).st ?? 0) * 4 + (rest.length ? 3 : -10) - (g.def(x.uid!).at ?? 0) * 0.5 + sloppy()
+      return (g.def(x.uid!).st ?? 0) * W.stW + (rest.length ? W.stHasAtk : -W.stNoAtk) - (g.def(x.uid!).at ?? 0) * W.stAt + sloppy()
     })
-    return best(opts, (x) => (x.t === 'enter' ? (g.def(x.uid!).at ?? 0) * 3 + (g.sc(x.uid!).enter ? 1 : 0) + sloppy() : -99))
+    return best(opts, (x) => (x.t === 'enter' ? (g.def(x.uid!).at ?? 0) * W.atW + (g.sc(x.uid!).enter ? W.atEnter : 0) + sloppy() : -99))
   }
 
   if (req.kind === 'free') {
@@ -202,7 +342,7 @@ function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number, classic = fal
     if (!want) return find('done')
     if (level === 'easy' && rnd() < 0.4) return find('done')
     // Keep a card or two for the next turn unless the point is at stake right now.
-    if (short <= 0 && P.hand.length <= 3 && phase !== 'draw') return find('done')
+    if (short <= 0 && P.hand.length <= W.freeKeep && phase !== 'draw') return find('done')
     return best(opts, (x) => (x.t === 'event' ? 3 : x.t === 'hand' ? (short > 0 ? 2 : -1) : x.t === 'done' ? 0 : -9))
   }
 

@@ -1,0 +1,38 @@
+{
+ "game": "horobeat",
+ "tried": 726,
+ "kept": [
+  "cover 0.2 -> 0.1, body 4 -> 3: 52.0% then 51.7%",
+  "keepWaza 3.2 -> 1.6: 52.3% then 51.5%",
+  "power 1 -> 2: 51.4% then 51.5%",
+  "body 3 -> 2: 51.4% then 52.1%",
+  "reserveBodies 2 -> 3, soonNow 6 -> 5: 51.6% then 51.2%",
+  "wazaGlut 1 -> 2, soonNow 5 -> 4: 52.2% then 52.6%",
+  "soonNow 4 -> 3, soonNow 3 -> 2: 55.3% then 55.1%",
+  "keepWaza 1.6 -> 2.4: 51.6% then 51.5%",
+  "reserveBodies 3 -> 4, reserve 1 -> 2: 52.0% then 52.1%"
+ ],
+ "weights": {
+  "mullEarly": 2,
+  "mullCost": 3,
+  "chargeTo": 6,
+  "chargeMax": 9,
+  "chargeHand": 3,
+  "opensColor": 3,
+  "keepWaza": 2.4,
+  "wazaGlut": 2,
+  "twinWaza": 0.3,
+  "soonNow": 2,
+  "soonNext": 4,
+  "soonLate": 2,
+  "keepPower": 0.5,
+  "twin": 0.5,
+  "body": 2,
+  "power": 2,
+  "downed": 3.5,
+  "cover": 0.1,
+  "worthIt": 0.55,
+  "reserve": 2,
+  "reserveBodies": 4
+ }
+}
