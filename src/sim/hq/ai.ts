@@ -74,9 +74,9 @@ export const MISTAKES: { id: string; taught: string; what: string; forbid: boole
 
 /** One of the computer's own choices in a planned turn: receive or block, then who goes into which area. */
 type Step = { kind: 'start' | 'enter'; t: Opt['t']; area?: Opt['area']; uid?: number }
-const MAX_PLANS = 14
-const MAX_NODES = 70
-const WIDTH = 3
+const MAX_PLANS = 6
+const MAX_NODES = 40
+const WIDTH = 2
 
 /**
  * Whole turns to weigh against each other: receive or block, and for each area the habit's own pick
@@ -199,7 +199,7 @@ export function handClass(g: HQ, uid: number) {
  * How much likelier than chance each kind of card is to be in a player's hand.
  * Measured from the lab's own games (tools/bot-lab/read-stats.ts), not guessed. 1 means no lean.
  */
-export const HAND_LEAN: Record<string, number> = {}
+export const HAND_LEAN: Record<string, number> = { event: 1.19, attacker: 1, receiver: 1, blocker: 0.91, setter: 0.64 }
 
 export function searchGame(real: HQ, flat = false): SearchGame<HQ> {
   const me = real.req!.p
@@ -241,12 +241,12 @@ export function searchGame(real: HQ, flat = false): SearchGame<HQ> {
  */
 export const WEIGHTS = {
   mullChars: 3, blockCards: 1,
-  blW: 3, blWorth: 0.3,
+  blW: 2, blWorth: 0.3,
   svW: 2, svKeep: 0.6,
-  rcKeeps: 2, rcOver: 1, rcAt: 0.3,
+  rcKeeps: 2, rcOver: 0, rcAt: 0.3,
   stW: 4, stHasAtk: 3, stNoAtk: 10, stAt: 0.5,
-  atW: 3, atEnter: 1,
-  freeKeep: 3,
+  atW: 3, atEnter: 0,
+  freeKeep: 2,
 }
 export type Weights = typeof WEIGHTS
 /** The first values, kept for the tutorials' suggested moves so the lessons never change. */
@@ -266,7 +266,8 @@ function habit(g: HQ, level: 'easy' | 'normal', rnd: () => number, classic = fal
   const find = (t: string) => opts.findIndex((x) => x.t === t)
   const off = g.s.off[o] ?? 0
   const sloppy = level === 'easy' ? () => rnd() * 2 : () => 0
-  const W = classic ? CLASSIC : seatWeights[p] ?? WEIGHTS
+  // Easy (and Beginner, which plays like Easy) keeps the first numbers: it is meant to be beatable, and the tutorials' opponent must never change.
+  const W = classic || level === 'easy' ? CLASSIC : seatWeights[p] ?? WEIGHTS
 
   if (req.kind === 'mulligan') {
     const chars = P.hand.filter((u) => g.isChar(u)).length

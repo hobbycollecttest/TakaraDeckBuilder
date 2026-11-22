@@ -19,8 +19,8 @@ const best = (opts: Opt[], score: (o: Opt, i: number) => number) => {
 export const WEIGHTS = {
   mullEarly: 2, mullCost: 3,
   chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3,
-  keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5,
-  body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2,
+  keepWaza: 2.4, wazaGlut: 2, twinWaza: 0.3, soonNow: 2, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5,
+  body: 2, power: 2, downed: 3.5, cover: 0.1, worthIt: 0.55, reserve: 2, reserveBodies: 4,
 }
 export type Weights = typeof WEIGHTS
 /** The first values, kept for the tutorial's suggested moves so the lesson never changes. */
@@ -164,8 +164,8 @@ export const MISTAKES: { id: string; taught: string; what: string; forbid: boole
 
 /** One play in a planned Summon Phase. A plan is a list of these, and always finishes by ending the phase. */
 type Step = { uid: number; via: Opt['via']; line?: number }
-const MAX_PLANS = 12
-const MAX_NODES = 60
+const MAX_PLANS = 5
+const MAX_NODES = 40
 
 /**
  * Every sensible way to spend this Summon Phase with the cards in hand right now, as whole plans.
@@ -300,7 +300,11 @@ export function handClass(m: Match, uid: number, unused: number, ena = 99) {
  * have left unused. Measured from the lab's own games (tools/bot-lab/read-stats.ts), not guessed.
  * 1 means no lean. Rows: 0, 1, or 2 and more unused Ena.
  */
-export const HAND_LEAN: Record<string, number>[] = [{}, {}, {}]
+export const HAND_LEAN: Record<string, number>[] = [
+  { bodyTooBig: 1.19, wazaLater: 1.35, boost: 0.71, bodyLater: 0.72 },
+  { bodyTooBig: 1.2, wazaLater: 1.49, wazaReady: 1.36, boost: 0.67, bodyLater: 0.68 },
+  { bodyTooBig: 1.3, wazaLater: 1.42, wazaReady: 1.45, boost: 0.69, bodyLater: 0.88, bodyReady: 0.61 },
+]
 
 export function searchGame(real: Match, flat = false): SearchGame<Match> {
   const me = real.req!.p
@@ -349,7 +353,8 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
   const P = m.P(p)
   const opts = req.opts
   const find = (t: string) => opts.findIndex((x) => x.t === t)
-  const W = classic ? CLASSIC : seatWeights[p] ?? WEIGHTS
+  // Easy (and Beginner, which plays like Easy) keeps the first numbers: it is meant to be beatable, and the tutorials' opponent must never change.
+  const W = classic || level === 'easy' ? CLASSIC : seatWeights[p] ?? WEIGHTS
 
   if (req.kind === 'mulligan') {
     if (level === 'easy') return find('keep')
