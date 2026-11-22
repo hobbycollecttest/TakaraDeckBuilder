@@ -10,6 +10,10 @@ const flags = Object.fromEntries(process.argv.slice(2).filter((a) => a.startsWit
 const [gameName] = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const g = game(gameName)
 const decks = decksFor(gameName)
+// --mine=Green tunes a game plan: the numbers are tested only in the hands of decks that are mostly that
+// color, against every test deck piloted with the current numbers and plans.
+const mine = flags.mine ? decks.filter((d) => g.plan?.(d.ids) === flags.mine) : null
+if (mine && !mine.length) throw new Error(`No test deck is mostly ${flags.mine}`)
 const N = +(flags.games || 2000)
 const minutes = +(flags.minutes || 20)
 const out = flags.out || `tuned-${gameName}.json`
@@ -23,6 +27,25 @@ function duel(cand: W, base: W, games: number) {
   batch++
   let w = 0
   let n = 0
+  if (mine) {
+    // The same deals twice: once with the candidate holding the deck, once with the current numbers.
+    let diff = 0
+    for (let i = 0; i < games / 2; i++) {
+      const s = i % 2
+      const mineDeck = mine[i % mine.length].ids
+      const other = decks[(i * 3 + 1) % decks.length].ids
+      const setup = { seed: batch * 1000003 + i * 97, decks: (s ? [other, mineDeck] : [mineDeck, other]) as [string[], string[]], names: ['A', 'B'] as [string, string] }
+      for (const [set, sign] of [[cand, 1], [base, -1]] as const) {
+        g.seatWeights[s] = set
+        g.seatWeights[1 - s] = null
+        const { winner } = playMatch(g, setup, [who, who])
+        if (winner === s) diff += sign
+      }
+      n++
+    }
+    g.seatWeights[0] = g.seatWeights[1] = null
+    return 0.5 + diff / (2 * n)
+  }
   for (let i = 0; i < games; i++) {
     const pair = Math.floor(i / 2)
     const flip = i % 2
@@ -51,7 +74,8 @@ while (Date.now() - start < minutes * 60000) {
     const k = keys[Math.floor(r() * keys.length)]
     const before = cand[k]
     if (whole(k)) cand[k] = Math.max(0, before + (r() < 0.5 ? -1 : 1))
-    else cand[k] = +(before * [0.5, 0.7, 0.85, 1.2, 1.5, 2][Math.floor(r() * 6)]).toFixed(3)
+    else if (before === 0) cand[k] = [0.15, 0.3, 0.6, 1.2][Math.floor(r() * 4)]
+    else cand[k] = r() < 0.08 ? 0 : +(before * [0.5, 0.7, 0.85, 1.2, 1.5, 2][Math.floor(r() * 6)]).toFixed(3)
     if (cand[k] !== before) changed.push(`${k} ${before} -> ${cand[k]}`)
   }
   if (!changed.length) continue
