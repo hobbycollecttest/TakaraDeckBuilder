@@ -57,6 +57,8 @@ When someone reports "the bot does X and it is a waste":
 | 2026-11-22 | HORO-BEAT | Do not play a Horobeat and cover it the same turn unless a card gains from the stack; play the bigger one alone | 1,630 to 36 in 3,000 games; win rate unchanged |
 | 2026-11-22 | HORO-BEAT | On a free play, take the empty line unless covering wins the line | 2 of 22 to 0 of 22 |
 | 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line already being won | 50 to 7 uses in 60 games (the 7 are effect Waza) |
+| 2026-11-22 | HORO-BEAT | Never end the Summon Phase with an empty board when a Horobeat could be played | Hard did this 28 times in 60 games (18 on the first round); now 0 |
+| 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line that stays lost even with everything affordable | Hard: 0 of 161 chances after the fix |
 | 2026-11-22 | Haikyu | Block when the block is certain and the hand cannot finish a rally | +3.4 points |
 | 2026-11-22 | Haikyu | Block when one blocker is enough | +3.4 points; new beats old 58% over 1,600 Normal games |
 

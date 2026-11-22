@@ -86,6 +86,52 @@ function needless(m: Match, x: Opt) {
   return !sc.wazaOnUse && !sc.wazaOnWin && !(top != null && m.sc(top).onWazaUsed)
 }
 
+/** Ending the Summon Phase with no Horobeat of its own on the board when one could have been played to a line. */
+function passesWithEmptyBoard(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'main' || x.t !== 'end') return false
+  return m.countH(req.p) === 0 && req.opts.some((y) => y.t === 'play' && y.via === 'new')
+}
+
+/** What each Boost or Waza on offer would add to the line right now, and what it costs. */
+function powerPlays(m: Match, p: Side, line: number, opts: Opt[]) {
+  const o = (1 - p) as Side
+  const zone = m.P(p).waza[line]
+  const mine = m.power(p, line)
+  const theirs = m.power(o, line)
+  return opts.map((x, i) => {
+    if ((x.t !== 'waza' && x.t !== 'boost') || x.uid == null) return null
+    zone.push({ uid: x.uid, boost: x.t === 'boost' })
+    const gain = m.power(p, line) - mine - (m.power(o, line) - theirs)
+    zone.pop()
+    return { i, gain, cost: x.t === 'boost' ? 1 : m.def(x.uid).cost }
+  }).filter((x): x is { i: number; gain: number; cost: number } => !!x && x.gain > 0)
+}
+
+/**
+ * Adding power to a line that stays lost: even everything affordable would not catch up. Waza that do
+ * something besides add power are left to judgement.
+ */
+function hopelessPower(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'battle' || (x.t !== 'waza' && x.t !== 'boost') || x.uid == null) return false
+  const p = req.p
+  const o = (1 - p) as Side
+  const line = m.s.line
+  if (m.top(o, line) == null || m.power(p, line) >= m.power(o, line)) return false
+  const top = m.top(p, line)
+  if (x.t === 'boost') {
+    if (top != null && m.sc(top).onBoostUsed) return false
+  } else {
+    const sc = m.rawScript(x.uid)
+    if (sc.wazaOnUse || sc.wazaOnWin || (top != null && m.sc(top).onWazaUsed)) return false
+  }
+  let budget = m.unused(p)
+  let total = 0
+  for (const y of powerPlays(m, p, line, req.opts).sort((a, b) => b.gain / b.cost - a.gain / a.cost)) if (y.cost <= budget) { budget -= y.cost; total += y.gain }
+  return m.power(p, line) + total < m.power(o, line)
+}
+
 /**
  * What the computer has been taught not to do. Each entry is a mistake a player spotted, written as a
  * test on one choice. Normal avoids them by habit; Hard and Expert never consider them. The bot lab
@@ -95,6 +141,8 @@ export const MISTAKES: { id: string; taught: string; what: string; is: (m: Match
   { id: 'cover-fresh', taught: '2026-11-22', what: 'Plays a Horobeat and covers it in the same turn with nothing gained from the stack', is: coversFresh },
   { id: 'cover-on-free-play', taught: '2026-11-22', what: 'On a trigger or free play, covers a standing Horobeat when an empty line was open and the line was not being lost', is: coversOnFreePlay },
   { id: 'needless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line it is already winning, or with no one across', is: needless },
+  { id: 'pass-with-empty-board', taught: '2026-11-22', what: 'Ends its Summon Phase with no Horobeat on the board when it could have played one', is: passesWithEmptyBoard },
+  { id: 'hopeless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line that stays lost even with everything it can afford', is: hopelessPower },
 ]
 
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
@@ -224,16 +272,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
     const mine = m.power(p, line)
     if (mine > theirs) return pass
     if (level === 'easy' && rnd() < 0.4) return pass
-    const zone = P.waza[line]
-    const plays = opts.map((x, i) => {
-      if (x.t === 'pass') return null
-      const d = m.def(x.uid!)
-      zone.push({ uid: x.uid!, boost: x.t === 'boost' })
-      const gain = m.power(p, line) - mine
-      const theirsAfter = m.power(o, line)
-      zone.pop()
-      return { i, gain: gain - (theirsAfter - theirs), cost: x.t === 'boost' ? 1 : d.cost }
-    }).filter((x): x is { i: number; gain: number; cost: number } => !!x && x.gain > 0)
+    const plays = powerPlays(m, p, line, opts)
     const need = theirs - mine
     const winners = plays.filter((x) => x.gain > need).sort((a, b) => a.cost - b.cost || a.gain - b.gain)
     if (winners.length) return winners[0].i
