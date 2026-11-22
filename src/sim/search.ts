@@ -37,8 +37,8 @@ export const LEVELS: { id: Level; label: string }[] = [
 ]
 /** How long Hard and Expert may think about one choice. */
 export const EFFORT: Partial<Record<Level, Effort>> = {
-  hard: { sims: 48, ms: 300, maxSteps: 600 },
-  expert: { sims: 320, ms: 700, maxSteps: 600 },
+  hard: { sims: 150, ms: 300, maxSteps: 600 },
+  expert: { sims: 600, ms: 900, maxSteps: 600 },
 }
 
 export function rng(seed: number) {
