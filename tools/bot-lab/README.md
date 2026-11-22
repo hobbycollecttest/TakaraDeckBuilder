@@ -131,6 +131,13 @@ Expert is the level that needs work next.
   What this says: Hard and Expert already weigh both boards and every effect, because each choice is played
   out to the end of the match with the real rules. Small additions to the Normal habits no longer move the
   result. The next real gain is a position judge, or exact positions from real games where the bot chose wrong.
+- **Assuming a sharp opponent** (`:sharp=1`, 2026-11-23). In each sample game the other player's next reply is
+  not left to habit: every reply is tried and the worst one for the bot is taken. It costs about five times
+  the thinking per sample, so it was tested at equal time: 60 samples with sharp replies against 300 plain
+  scored 32.5% over 80 HORO-BEAT games, and 40 samples with two-sample replies scored 31.3% over 80.
+  A clear loss. More samples beat a smarter imagined opponent at this budget. Worth another look only once
+  samples are much cheaper.
+- Hard now uses 300 sample games per choice (was 150) and may take 0.4 s (was 0.3).
 
 ## Lessons about testing (learned the hard way)
 
