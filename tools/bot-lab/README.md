@@ -70,6 +70,7 @@ When someone reports "the bot does X and it is a waste":
 | 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line already being won | 50 to 7 uses in 60 games (the 7 are effect Waza) |
 | 2026-11-22 | HORO-BEAT | Passing with an empty board is a last resort, chosen only when clearly better (saving Ena for the Ena Draw can be right) | Hard passed 28 times in 60 games, mostly wrongly; now about 5 in 123 chances, 3 of them confirmed better |
 | 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line that stays lost even with everything affordable | Hard: 0 of 161 chances after the fix |
+| 2026-11-23 | HORO-BEAT | Always play a Horobeat on turn 1 when one is affordable (a firm rule, asked for by Jeff: it sets up better) | Hard skipped 12 of 217 chances; blanket skipping scored 48.8 to 49.7% at Normal over 8,000 games, so the rule costs nothing measurable. In 27% of turn 1s there is simply nothing affordable |
 | 2026-11-22 | Haikyu | Block when the block is certain and the hand cannot finish a rally | +3.4 points |
 | 2026-11-22 | Haikyu | Block when one blocker is enough | +3.4 points; new beats old 58% over 1,600 Normal games |
 

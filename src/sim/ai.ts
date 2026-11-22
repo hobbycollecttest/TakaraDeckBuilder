@@ -179,6 +179,12 @@ function drawEngine(m: Match, p: Side) {
   for (let l = 0; l < 5; l++) { const t = m.top(p, l); if (t != null && !m.isDown(p, l)) n += read(m, t).winDraw }
   return n
 }
+/** Ending the very first Summon Phase without a Horobeat when one could have been played. An early body sets the board up. */
+function skipsTurnOne(m: Match, x: Opt) {
+  const req = m.req!
+  return req.kind === 'main' && x.t === 'end' && m.s.round === 1 && m.countH(req.p) === 0 && req.opts.some((y) => y.t === 'play' && y.via === 'new')
+}
+
 /** What each Boost or Waza on offer would add to the line right now, and what it costs. */
 function powerPlays(m: Match, p: Side, line: number, opts: Opt[]) {
   const o = (1 - p) as Side
@@ -230,6 +236,7 @@ export const MISTAKES: { id: string; taught: string; what: string; forbid: boole
   { id: 'needless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line it is already winning, or with no one across', forbid: true, is: needless },
   { id: 'pass-with-empty-board', taught: '2026-11-22', what: 'Ends its Summon Phase with no Horobeat on the board when it could have played one', forbid: false, is: passesWithEmptyBoard },
   { id: 'hopeless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line that stays lost even with everything it can afford', forbid: true, is: hopelessPower },
+  { id: 'skip-turn-one', taught: '2026-11-23', what: 'Ends its first Summon Phase without playing a Horobeat when it could have', forbid: true, is: skipsTurnOne },
 ]
 
 /** One play in a planned Summon Phase. A plan is a list of these, and always finishes by ending the phase. */
