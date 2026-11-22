@@ -98,6 +98,10 @@ tries several hundred candidates. Results are saved as `tuned-<game>-<date>.json
 - The tuner was still finding HORO-BEAT gains when it stopped. Run it again from the current values.
 - To confirm a tuned set at Hard level: `npm run bot:ladder -- <game> hard hard 200 --weights=<file>`.
 
+Level ladder after tuning: Normal beats Easy 72% (HORO-BEAT) and 70% (Haikyu) over 2,000 games; Hard beats
+Normal 88% over 120 and 84% over 80; Expert beats Hard 54% over 70 and 52.5% over 40 (not proven either way).
+Expert is the level that needs work next.
+
 ## Experiments that did not win (code kept, switched off)
 
 - **Whole-turn planning** (`:plan`). Hard compares complete turns instead of one choice at a time. First try
