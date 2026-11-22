@@ -113,6 +113,23 @@ Expert is the level that needs work next.
   50% more often than chance and playable Horobeat about 40% less (`read-stats.ts`). Leaning the guesses that
   way scored 44.1% in HORO-BEAT over 220 games and 50.9% in Haikyu over 110. No gain, possibly harmful.
   The pattern is real but describes the bots, and the sample games already play out both hands.
+- **Reading the other board, card effects, and a plan per deck** (2026-11-23). Asked for: the bot should play
+  to each deck's own plan (Green goes big, and need not save Ena once Horobeast Jumbo is out) and read the
+  opponent's board. All of it was built into the Normal habits behind numbers that start at 0 (off):
+  - Line matchups when summoning (`openFirst`, `openSure`, `beats`, `loses`, `flips`), card text (`dd`,
+    `etbDraw`, `winDraw`), and less Ena held back with a draw engine standing (`engineSave`): the tuner tried
+    515 settings over 22 minutes and kept none.
+  - A plan read from the deck list (`deckTraits`: how big, how many Waza, how much draw, bending eight habit
+    numbers through `big_power` and the like): 368 settings over 20 minutes, none kept.
+  - Ordering summons so the right Horobeat faces the right line: changed a move in about 1 game in 6 and
+    scored 50.0% over 8,000 games, twice. Removed.
+  - Always filling an empty line while a draw-on-win Horobeat is standing (`engineGo`): the bot does end its
+    Summon Phase with 2 or more Ena unused in about 17% (Normal) to 26% (Hard, 34 chances) of those spots,
+    so the report was accurate. But forcing the play made every Green test deck 1.3 to 3.1 points worse
+    over 3,000 paired games each (margin about 1.3). In the bot's hands, saving Ena there wins more.
+  What this says: Hard and Expert already weigh both boards and every effect, because each choice is played
+  out to the end of the match with the real rules. Small additions to the Normal habits no longer move the
+  result. The next real gain is a position judge, or exact positions from real games where the bot chose wrong.
 
 ## Lessons about testing (learned the hard way)
 

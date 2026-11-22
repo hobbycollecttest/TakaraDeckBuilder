@@ -22,7 +22,7 @@ export const WEIGHTS = {
   keepWaza: 2.4, wazaGlut: 2, twinWaza: 0.3, soonNow: 2, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5,
   body: 2, power: 2, downed: 3.5, cover: 0.1, worthIt: 0.55, reserve: 2, reserveBodies: 4,
   // Reading the other side of the board, and what the card itself does (see `read` below).
-  openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0,
+  openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0, engineGo: 0,
   // How the deck's own make-up bends the numbers above (see `planFor` below).
   big_body: 0, big_power: 0, big_worthIt: 0, big_reserve: 0, big_chargeTo: 0, big_soonLate: 0, big_keepWaza: 0, big_cover: 0,
   waza_body: 0, waza_power: 0, waza_worthIt: 0, waza_reserve: 0, waza_chargeTo: 0, waza_soonLate: 0, waza_keepWaza: 0, waza_cover: 0,
@@ -30,7 +30,7 @@ export const WEIGHTS = {
 }
 export type Weights = typeof WEIGHTS
 /** The first values, kept for the tutorial's suggested moves so the lesson never changes. */
-const CLASSIC: Weights = { ...(Object.fromEntries(Object.keys(WEIGHTS).map((k) => [k, 0])) as Weights), mullEarly: 2, mullCost: 3, chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3, keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5, body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2, openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0 }
+const CLASSIC: Weights = { ...(Object.fromEntries(Object.keys(WEIGHTS).map((k) => [k, 0])) as Weights), mullEarly: 2, mullCost: 3, chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3, keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5, body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2, openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0, engineGo: 0 }
 /** Lets the bot lab give each seat its own numbers when it tests one set against another. */
 export const seatWeights: [Weights | null, Weights | null] = [null, null]
 
@@ -173,6 +173,12 @@ function passesWithEmptyBoard(m: Match, x: Opt) {
   return m.countH(req.p) === 0 && req.opts.some((y) => y.t === 'play' && y.via === 'new')
 }
 
+/** How many cards the player's standing Horobeat draw when they win a battle (a draw engine, like Horobeast Jumbo). */
+function drawEngine(m: Match, p: Side) {
+  let n = 0
+  for (let l = 0; l < 5; l++) { const t = m.top(p, l); if (t != null && !m.isDown(p, l)) n += read(m, t).winDraw }
+  return n
+}
 /** What each Boost or Waza on offer would add to the line right now, and what it costs. */
 function powerPlays(m: Match, p: Side, line: number, opts: Opt[]) {
   const o = (1 - p) as Side
@@ -446,8 +452,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
     const behind = m.countH(p) < m.countH(o)
     const careful = level === 'normal' && !classic
     // A Horobeat already on the board that draws cards when it wins makes saving Ena for the Ena Draw matter less.
-    let engine = 0
-    if (careful) for (let l = 0; l < 5; l++) { const t = m.top(p, l); if (t != null && !m.isDown(p, l)) engine += read(m, t).winDraw }
+    const engine = careful ? drawEngine(m, p) : 0
     const reserve = level === 'normal' && hasTrick && m.s.round >= 2 && !behind && m.countH(p) >= W.reserveBodies ? Math.max(0, W.reserve - (engine >= 2 ? W.engineSave : 0)) : 0
     // The other side has finished summoning this round when this player is not the First Player.
     const sure = m.s.first !== p
@@ -482,8 +487,10 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
         if (careful && wasteful(m, x)) return
         if (careful) { const was = m.power(p, x.line!); value += matchup(x, was + d.power - m.def(base).power, was) }
       }
-      if (free - paid < reserve) return
-      const v = value / (paid + 1) + (level === 'easy' ? rnd() * 0.8 : 0)
+      // With a draw engine standing, cards are coming anyway: fill an empty line rather than save Ena for the Ena Draw.
+      const go = W.engineGo > 0 && engine >= W.engineGo && x.via === 'new'
+      if (free - paid < reserve && !go) return
+      const v = value / (paid + 1) + (level === 'easy' ? rnd() * 0.8 : 0) + (go ? 1 : 0)
       if (v > top) { top = v; pick = i }
     })
     if (careful && pick >= 0 && opts[pick].t === 'play' && opts[pick].via === 'new') {
