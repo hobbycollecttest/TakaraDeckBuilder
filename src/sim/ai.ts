@@ -1,6 +1,6 @@
 // The CPU opponent. It plays by the same rules as a person and only looks at what a
 // person in its seat could see: its own hand and the cards that are face up.
-import { Match, type Opt, type Side } from './engine'
+import { DEFS, Match, type Opt, type Side } from './engine'
 import { EFFORT, LEVELS, dealLeaning, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from './search'
 
 export { EFFORT, LEVELS, type Level }
@@ -21,12 +21,76 @@ export const WEIGHTS = {
   chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3,
   keepWaza: 2.4, wazaGlut: 2, twinWaza: 0.3, soonNow: 2, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5,
   body: 2, power: 2, downed: 3.5, cover: 0.1, worthIt: 0.55, reserve: 2, reserveBodies: 4,
+  // Reading the other side of the board, and what the card itself does (see `read` below).
+  openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0, engineGo: 0,
+  // How the deck's own make-up bends the numbers above (see `planFor` below).
+  big_body: 0, big_power: 0, big_worthIt: 0, big_reserve: 0, big_chargeTo: 0, big_soonLate: 0, big_keepWaza: 0, big_cover: 0,
+  waza_body: 0, waza_power: 0, waza_worthIt: 0, waza_reserve: 0, waza_chargeTo: 0, waza_soonLate: 0, waza_keepWaza: 0, waza_cover: 0,
+  draw_body: 0, draw_power: 0, draw_worthIt: 0, draw_reserve: 0, draw_chargeTo: 0, draw_soonLate: 0, draw_keepWaza: 0, draw_cover: 0,
 }
 export type Weights = typeof WEIGHTS
 /** The first values, kept for the tutorial's suggested moves so the lesson never changes. */
-const CLASSIC: Weights = { mullEarly: 2, mullCost: 3, chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3, keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5, body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2 }
+const CLASSIC: Weights = { ...(Object.fromEntries(Object.keys(WEIGHTS).map((k) => [k, 0])) as Weights), mullEarly: 2, mullCost: 3, chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3, keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5, body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2, openFirst: 0, openSure: 0, beats: 0, loses: 0, flips: 0, dd: 0, etbDraw: 0, winDraw: 0, engineSave: 0, engineGo: 0 }
 /** Lets the bot lab give each seat its own numbers when it tests one set against another. */
 export const seatWeights: [Weights | null, Weights | null] = [null, null]
+
+/**
+ * Game plans. Every deck wants something different: one goes big, one goes wide, one leans on Waza.
+ * The bot reads its own deck list for three things and bends the numbers above to suit:
+ *   big   how expensive its Horobeat are on average
+ *   waza  how many Waza it runs
+ *   draw  how many of its cards draw cards
+ * Each is measured against a typical deck (0 means typical, about +1 or -1 at the extremes). A number
+ * named like `big_power` says how much `power` grows (or shrinks) per point of `big`. They start at 0,
+ * which means "one playbook for everyone", and are tuned by self-play in the bot lab.
+ */
+const TRAITS = ['big', 'waza', 'draw'] as const
+const BENDS = ['body', 'power', 'worthIt', 'reserve', 'chargeTo', 'soonLate', 'keepWaza', 'cover'] as const
+export function deckTraits(ids: string[]): Record<(typeof TRAITS)[number], number> {
+  const cards = ids.map((id) => DEFS.get(id)).filter((d): d is NonNullable<typeof d> => !!d)
+  const bodies = cards.filter((d) => d.type === 'Horobeat')
+  const avg = bodies.length ? bodies.reduce((a, d) => a + d.cost, 0) / bodies.length : 4.2
+  const clamp = (v: number) => Math.max(-2, Math.min(2, v))
+  return {
+    big: clamp((avg - 4.2) / 0.8),
+    waza: clamp((cards.length - bodies.length - 9) / 4),
+    draw: clamp((cards.filter((d) => /draw \d/i.test(d.effect || '')).length - 6.5) / 5),
+  }
+}
+const bent = new WeakMap<object, Map<string, Weights>>()
+/** The numbers this seat plays by: the given set, bent to suit the deck in that seat. */
+function planFor(m: Match, p: Side, W: Weights) {
+  let byDeck = bent.get(W)
+  if (!byDeck) bent.set(W, (byDeck = new Map()))
+  const ids = m.setup.decks[p]
+  const key = ids.join(',')
+  let out = byDeck.get(key)
+  if (!out) {
+    const t = deckTraits(ids)
+    const w = { ...W } as Record<string, number>
+    for (const k of BENDS) {
+      let f = 1
+      for (const tr of TRAITS) f += (w[`${tr}_${k}`] || 0) * t[tr]
+      w[k] = Number.isInteger(W[k]) ? Math.max(0, Math.round(W[k] * f)) : +(W[k] * Math.max(0, f)).toFixed(4)
+    }
+    out = w as Weights
+    byDeck.set(key, out)
+  }
+  return out
+}
+
+/** What a card's text says it does, as far as the habits care. Read once per card. */
+const traits = new Map<string, { dd: boolean; etbDraw: number; winDraw: number }>()
+function read(m: Match, uid: number) {
+  const d = m.def(uid)
+  let t = traits.get(d.id)
+  if (!t) {
+    const e = d.effect || ''
+    t = { dd: /Double Damage/i.test(e), etbDraw: +(/enters play, draw (\d)/i.exec(e)?.[1] ?? 0), winDraw: +(/wins a battle[^●]*?draw (\d)/i.exec(e)?.[1] ?? 0) }
+    traits.set(d.id, t)
+  }
+  return t
+}
 
 /** How much the CPU wants to hold on to a card in its hand. */
 function keepValue(m: Match, p: Side, uid: number, W: Weights) {
@@ -109,6 +173,18 @@ function passesWithEmptyBoard(m: Match, x: Opt) {
   return m.countH(req.p) === 0 && req.opts.some((y) => y.t === 'play' && y.via === 'new')
 }
 
+/** How many cards the player's standing Horobeat draw when they win a battle (a draw engine, like Horobeast Jumbo). */
+function drawEngine(m: Match, p: Side) {
+  let n = 0
+  for (let l = 0; l < 5; l++) { const t = m.top(p, l); if (t != null && !m.isDown(p, l)) n += read(m, t).winDraw }
+  return n
+}
+/** Ending the very first Summon Phase without a Horobeat when one could have been played. An early body sets the board up. */
+function skipsTurnOne(m: Match, x: Opt) {
+  const req = m.req!
+  return req.kind === 'main' && x.t === 'end' && m.s.round === 1 && m.countH(req.p) === 0 && req.opts.some((y) => y.t === 'play' && y.via === 'new')
+}
+
 /** What each Boost or Waza on offer would add to the line right now, and what it costs. */
 function powerPlays(m: Match, p: Side, line: number, opts: Opt[]) {
   const o = (1 - p) as Side
@@ -160,6 +236,7 @@ export const MISTAKES: { id: string; taught: string; what: string; forbid: boole
   { id: 'needless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line it is already winning, or with no one across', forbid: true, is: needless },
   { id: 'pass-with-empty-board', taught: '2026-11-22', what: 'Ends its Summon Phase with no Horobeat on the board when it could have played one', forbid: false, is: passesWithEmptyBoard },
   { id: 'hopeless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line that stays lost even with everything it can afford', forbid: true, is: hopelessPower },
+  { id: 'skip-turn-one', taught: '2026-11-23', what: 'Ends its first Summon Phase without playing a Horobeat when it could have', forbid: true, is: skipsTurnOne },
 ]
 
 /** One play in a planned Summon Phase. A plan is a list of these, and always finishes by ending the phase. */
@@ -329,6 +406,7 @@ export function searchGame(real: Match, flat = true): SearchGame<Match> {
         dealLeaning(slots, rest, (u) => lean[handClass(m, u, unused, ena)] ?? 1, rnd)
       }
     },
+    mine: (x) => !!x.req && x.req.p === me,
     open: (m) => !!m.req,
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
@@ -354,7 +432,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
   const opts = req.opts
   const find = (t: string) => opts.findIndex((x) => x.t === t)
   // Easy (and Beginner, which plays like Easy) keeps the first numbers: it is meant to be beatable, and the tutorials' opponent must never change.
-  const W = classic || level === 'easy' ? CLASSIC : seatWeights[p] ?? WEIGHTS
+  const W = classic || level === 'easy' ? CLASSIC : planFor(m, p, seatWeights[p] ?? WEIGHTS)
 
   if (req.kind === 'mulligan') {
     if (level === 'easy') return find('keep')
@@ -380,8 +458,24 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
     const free = m.unused(p)
     const hasTrick = P.hand.some((u) => m.def(u).type === 'Waza' || m.def(u).boost > 0)
     const behind = m.countH(p) < m.countH(o)
-    const reserve = level === 'normal' && hasTrick && m.s.round >= 2 && !behind && m.countH(p) >= W.reserveBodies ? W.reserve : 0
     const careful = level === 'normal' && !classic
+    // A Horobeat already on the board that draws cards when it wins makes saving Ena for the Ena Draw matter less.
+    const engine = careful ? drawEngine(m, p) : 0
+    const reserve = level === 'normal' && hasTrick && m.s.round >= 2 && !behind && m.countH(p) >= W.reserveBodies ? Math.max(0, W.reserve - (engine >= 2 ? W.engineSave : 0)) : 0
+    // The other side has finished summoning this round when this player is not the First Player.
+    const sure = m.s.first !== p
+    /** What the matchup on this line is worth with `mine` power there instead of `was`. */
+    const matchup = (x: Opt, mine: number, was: number | null) => {
+      const r = read(m, x.uid!)
+      let v = r.dd ? W.dd : 0
+      v += r.etbDraw * W.etbDraw
+      const across = m.top(o, x.line!)
+      if (across == null) return v + (was == null ? (sure ? W.openSure : W.openFirst) : 0) + r.winDraw * W.winDraw
+      const theirs = m.power(o, x.line!)
+      if (mine > theirs) v += (was == null ? W.beats : was <= theirs ? W.flips : 0) + r.winDraw * W.winDraw
+      else if (mine < theirs) v -= W.loses
+      return v
+    }
     let pick = find('end')
     let top = W.worthIt
     opts.forEach((x, i) => {
@@ -392,15 +486,19 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
       if (x.via === 'new') {
         paid = d.cost
         value = W.body + (d.power / 1500) * W.power
+        if (careful) value += matchup(x, d.power, null)
       } else {
         const base = m.top(p, x.line!)!
         paid = Math.max(0, d.cost - m.costInLine(base))
         value = ((d.power - m.def(base).power) / 1500) * W.power + (m.isDown(p, x.line!) ? W.downed : 0) + W.cover
         // Do not cover a Horobeat that came down this very turn unless something gains from the stack.
         if (careful && wasteful(m, x)) return
+        if (careful) { const was = m.power(p, x.line!); value += matchup(x, was + d.power - m.def(base).power, was) }
       }
-      if (free - paid < reserve) return
-      const v = value / (paid + 1) + (level === 'easy' ? rnd() * 0.8 : 0)
+      // With a draw engine standing, cards are coming anyway: fill an empty line rather than save Ena for the Ena Draw.
+      const go = W.engineGo > 0 && engine >= W.engineGo && x.via === 'new'
+      if (free - paid < reserve && !go) return
+      const v = value / (paid + 1) + (level === 'easy' ? rnd() * 0.8 : 0) + (go ? 1 : 0)
       if (v > top) { top = v; pick = i }
     })
     if (careful && pick >= 0 && opts[pick].t === 'play' && opts[pick].via === 'new') {

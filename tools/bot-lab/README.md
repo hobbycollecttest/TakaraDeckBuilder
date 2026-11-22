@@ -70,6 +70,7 @@ When someone reports "the bot does X and it is a waste":
 | 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line already being won | 50 to 7 uses in 60 games (the 7 are effect Waza) |
 | 2026-11-22 | HORO-BEAT | Passing with an empty board is a last resort, chosen only when clearly better (saving Ena for the Ena Draw can be right) | Hard passed 28 times in 60 games, mostly wrongly; now about 5 in 123 chances, 3 of them confirmed better |
 | 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line that stays lost even with everything affordable | Hard: 0 of 161 chances after the fix |
+| 2026-11-23 | HORO-BEAT | Always play a Horobeat on turn 1 when one is affordable (a firm rule, asked for by Jeff: it sets up better) | Hard skipped 12 of 217 chances; blanket skipping scored 48.8 to 49.7% at Normal over 8,000 games, so the rule costs nothing measurable. In 27% of turn 1s there is simply nothing affordable |
 | 2026-11-22 | Haikyu | Block when the block is certain and the hand cannot finish a rally | +3.4 points |
 | 2026-11-22 | Haikyu | Block when one blocker is enough | +3.4 points; new beats old 58% over 1,600 Normal games |
 
@@ -113,6 +114,31 @@ Expert is the level that needs work next.
   50% more often than chance and playable Horobeat about 40% less (`read-stats.ts`). Leaning the guesses that
   way scored 44.1% in HORO-BEAT over 220 games and 50.9% in Haikyu over 110. No gain, possibly harmful.
   The pattern is real but describes the bots, and the sample games already play out both hands.
+- **Reading the other board, card effects, and a plan per deck** (2026-11-23). Asked for: the bot should play
+  to each deck's own plan (Green goes big, and need not save Ena once Horobeast Jumbo is out) and read the
+  opponent's board. All of it was built into the Normal habits behind numbers that start at 0 (off):
+  - Line matchups when summoning (`openFirst`, `openSure`, `beats`, `loses`, `flips`), card text (`dd`,
+    `etbDraw`, `winDraw`), and less Ena held back with a draw engine standing (`engineSave`): the tuner tried
+    515 settings over 22 minutes and kept none.
+  - A plan read from the deck list (`deckTraits`: how big, how many Waza, how much draw, bending eight habit
+    numbers through `big_power` and the like): 368 settings over 20 minutes, none kept.
+  - Ordering summons so the right Horobeat faces the right line: changed a move in about 1 game in 6 and
+    scored 50.0% over 8,000 games, twice. Removed.
+  - Always filling an empty line while a draw-on-win Horobeat is standing (`engineGo`): the bot does end its
+    Summon Phase with 2 or more Ena unused in about 17% (Normal) to 26% (Hard, 34 chances) of those spots,
+    so the report was accurate. But forcing the play made every Green test deck 1.3 to 3.1 points worse
+    over 3,000 paired games each (margin about 1.3). In the bot's hands, saving Ena there wins more.
+  What this says: Hard and Expert already weigh both boards and every effect, because each choice is played
+  out to the end of the match with the real rules. Small additions to the Normal habits no longer move the
+  result. The next real gain is a position judge, or exact positions from real games where the bot chose wrong.
+- **Assuming a sharp opponent** (`:sharp=1`, 2026-11-23). In each sample game the other player's next reply is
+  not left to habit: every reply is tried and the worst one for the bot is taken. It costs about five times
+  the thinking per sample, so it was tested at equal time: 60 samples with sharp replies against 300 plain
+  scored 32.5% over 80 HORO-BEAT games, and 40 samples with two-sample replies scored 31.3% over 80.
+  In Haikyu the same test scored 40.0% over 40 games (margin about 8). A clear loss in HORO-BEAT, a likely
+  one in Haikyu. More samples beat a smarter imagined opponent at this budget. Worth another look only once
+  samples are much cheaper.
+- Hard now uses 300 sample games per choice (was 150) and may take 0.4 s (was 0.3).
 
 ## Lessons about testing (learned the hard way)
 

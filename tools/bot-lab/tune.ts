@@ -15,6 +15,7 @@ const minutes = +(flags.minutes || 20)
 const out = flags.out || `tuned-${gameName}.json`
 const r = rng(+(flags.seed || 1) * 7717)
 const who = seat(flags.player || 'normal')
+// --only=_ tunes just the numbers whose name contains that text (the deck-plan bends are named like big_power).
 type W = Record<string, number>
 let best: W = flags.from ? JSON.parse(fs.readFileSync(flags.from, 'utf8')).weights : { ...g.weights }
 let batch = 0
@@ -36,8 +37,8 @@ function duel(cand: W, base: W, games: number) {
   g.seatWeights[0] = g.seatWeights[1] = null
   return n ? w / n : 0.5
 }
-const keys = Object.keys(best)
-const whole = (k: string) => Number.isInteger(g.weights[k])
+const keys = Object.keys(best).filter((k) => !flags.only || k.includes(flags.only))
+const whole = (k: string) => (Number.isInteger(g.weights[k]) && g.weights[k] !== 0) || k === 'engineSave'
 const log: string[] = []
 const start = Date.now()
 const se = 0.5 / Math.sqrt(N)
@@ -51,7 +52,8 @@ while (Date.now() - start < minutes * 60000) {
     const k = keys[Math.floor(r() * keys.length)]
     const before = cand[k]
     if (whole(k)) cand[k] = Math.max(0, before + (r() < 0.5 ? -1 : 1))
-    else cand[k] = +(before * [0.5, 0.7, 0.85, 1.2, 1.5, 2][Math.floor(r() * 6)]).toFixed(3)
+    else if (before === 0) cand[k] = [0.15, 0.3, 0.6, 1.2][Math.floor(r() * 4)] * (k.includes('_') ? [0.5, -0.5, 1, -1][Math.floor(r() * 4)] : 1)
+    else cand[k] = r() < 0.08 ? 0 : +(before * [0.5, 0.7, 0.85, 1.2, 1.5, 2][Math.floor(r() * 6)]).toFixed(3)
     if (cand[k] !== before) changed.push(`${k} ${before} -> ${cand[k]}`)
   }
   if (!changed.length) continue
