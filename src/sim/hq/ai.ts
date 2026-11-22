@@ -156,7 +156,7 @@ function planTurn(real: HQ, e: Effort, rnd: () => number): number | null {
   const turn = real.s.turnNo
   const plans = turnPlans(real, rnd)
   if (plans.length < 2) return null
-  const base = searchGame(real, e.flat)
+  const base = searchGame(real, !e.lean)
   const first = (i: number) => real.req!.opts.findIndex((o) => o.t === plans[i][0].t && o.uid === plans[i][0].uid && o.area === plans[i][0].area)
   const fresh = new WeakSet<HQ>()
   const game: SearchGame<HQ> = {
@@ -180,11 +180,11 @@ export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, 
   }
   if (level === 'easy' || level === 'normal') return habit(g, level, rnd)
   const e = effort ?? EFFORT[level]!
-  if ((g.req!.kind === 'start' || g.req!.kind === 'enter') && !e.stepwise) {
+  if ((g.req!.kind === 'start' || g.req!.kind === 'enter') && e.plan) {
     const planned = planTurn(g, e, rnd)
     if (planned != null) return planned
   }
-  return searchChoice(searchGame(g, e.flat), count, habit(g, 'normal', rnd), e, rnd)
+  return searchChoice(searchGame(g, !e.lean), count, habit(g, 'normal', rnd), e, rnd)
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Score cards. */
@@ -201,7 +201,7 @@ export function handClass(g: HQ, uid: number) {
  */
 export const HAND_LEAN: Record<string, number> = { event: 1.19, attacker: 1, receiver: 1, blocker: 0.91, setter: 0.64 }
 
-export function searchGame(real: HQ, flat = false): SearchGame<HQ> {
+export function searchGame(real: HQ, flat = true): SearchGame<HQ> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {

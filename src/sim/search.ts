@@ -27,8 +27,8 @@ export type SearchGame<M> = {
    */
   doubt?: (choice: number) => boolean
 }
-/** `sims` is how many sample games one choice may use in all, `ms` the longest it may take. `plain` keeps the first, simpler way of sharing them out, `flat` guesses the other player's hand with no lean, and `stepwise` judges one card at a time instead of whole turns (all three are for comparisons). */
-export type Effort = { sims: number; ms: number; maxSteps: number; plain?: boolean; flat?: boolean; stepwise?: boolean }
+/** `sims` is how many sample games one choice may use in all, `ms` the longest it may take. `plain` keeps the first, simpler way of sharing them out (for comparisons). `lean` and `plan` switch on two experiments that have not yet beaten the standard player in testing: leaning the guess about the other player's hand, and weighing whole turns instead of one choice at a time. */
+export type Effort = { sims: number; ms: number; maxSteps: number; plain?: boolean; lean?: boolean; plan?: boolean }
 
 export type Level = 'beginner' | 'easy' | 'normal' | 'hard' | 'expert'
 export const LEVELS: { id: Level; label: string }[] = [

@@ -255,7 +255,7 @@ function planTurn(real: Match, e: Effort, rnd: () => number): number | null {
   const stamp = real.turnStamp()
   const plans = turnPlans(real, rnd)
   if (plans.length < 2) return null
-  const base = searchGame(real, e.flat)
+  const base = searchGame(real, !e.lean)
   const first = (i: number) => (plans[i].length ? real.req!.opts.findIndex((o) => o.t === 'play' && o.uid === plans[i][0].uid && o.via === plans[i][0].via && o.line === plans[i][0].line) : real.req!.opts.findIndex((o) => o.t === 'end'))
   const fresh = new WeakSet<Match>()
   const game: SearchGame<Match> = {
@@ -278,11 +278,11 @@ export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.rando
   if (level === 'beginner') return rnd() < 0.35 ? Math.floor(rnd() * count) : habit(m, 'easy', rnd)
   if (level === 'easy' || level === 'normal') return habit(m, level, rnd)
   const e = effort ?? EFFORT[level]!
-  if (m.req!.kind === 'main' && !e.stepwise) {
+  if (m.req!.kind === 'main' && e.plan) {
     const planned = planTurn(m, e, rnd)
     if (planned != null) return planned
   }
-  return searchChoice(searchGame(m, e.flat), count, habit(m, 'normal', rnd), e, rnd)
+  return searchChoice(searchGame(m, !e.lean), count, habit(m, 'normal', rnd), e, rnd)
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Hearts. */
@@ -306,7 +306,7 @@ export const HAND_LEAN: Record<string, number>[] = [
   { bodyTooBig: 1.3, wazaLater: 1.42, wazaReady: 1.45, boost: 0.69, bodyLater: 0.88, bodyReady: 0.61 },
 ]
 
-export function searchGame(real: Match, flat = false): SearchGame<Match> {
+export function searchGame(real: Match, flat = true): SearchGame<Match> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {

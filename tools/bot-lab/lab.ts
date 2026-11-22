@@ -63,8 +63,8 @@ export function seat(spec: string): Seat {
   const effort: Effort = { ...base, ms: 1e9 }
   for (const m of mods) {
     if (m === 'plain') effort.plain = true
-    else if (m === 'flat') effort.flat = true
-    else if (m === 'stepwise') effort.stepwise = true
+    else if (m === 'lean') effort.lean = true
+    else if (m === 'plan') effort.plan = true
     else if (m.startsWith('sims=')) effort.sims = +m.slice(5)
     else throw new Error(`Unknown setting "${m}" in "${spec}"`)
   }
