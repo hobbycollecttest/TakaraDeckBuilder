@@ -40,20 +40,25 @@ function stackingPays(m: Match, p: Side, uid: number, line: number, paying = tru
   return paying && !P.ena.some((e) => m.def(e.uid).color === d.color)
 }
 
+/** Paying to cover a Horobeat that came down this very turn, with nothing to gain from the stack. */
+function coversFresh(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'main' || x.t !== 'play' || x.via !== 'over' || x.uid == null || x.line == null) return false
+  const st = m.P(req.p).lines[x.line]
+  return !!st && !st.down && st.at === m.turnStamp() && !stackingPays(m, req.p, x.uid, x.line)
+}
+
 /**
- * Two ways of covering a Horobeat that throw value away:
- * - paying to cover one that came down this very turn, with nothing to gain from the stack;
- * - on a free play (a trigger or an effect), covering a standing Horobeat when the same card could
- *   take an empty line, unless the bigger card turns a losing line into a winning one.
+ * On a free play (a trigger or an effect), covering a standing Horobeat when the same card could take
+ * an empty line, unless the bigger card turns a losing line into a winning one.
  */
-function wasteful(m: Match, x: Opt) {
+function coversOnFreePlay(m: Match, x: Opt) {
   const req = m.req!
   if (x.via !== 'over' || x.uid == null || x.line == null) return false
+  if (x.t !== 'trig-play' && !(req.kind === 'pick' && x.t === 'play')) return false
   const p = req.p
   const st = m.P(p).lines[x.line]
   if (!st || st.down) return false
-  if (req.kind === 'main' && x.t === 'play') return st.at === m.turnStamp() && !stackingPays(m, p, x.uid, x.line)
-  if (x.t !== 'trig-play' && !(req.kind === 'pick' && x.t === 'play')) return false
   if (!req.opts.some((y) => y.uid === x.uid && y.via === 'new')) return false
   if (stackingPays(m, p, x.uid, x.line, false)) return false
   const o = (1 - p) as Side
@@ -61,6 +66,7 @@ function wasteful(m: Match, x: Opt) {
   const theirs = m.power(o, x.line)
   return !(m.power(p, x.line) <= theirs && m.def(x.uid).power > theirs)
 }
+const wasteful = (m: Match, x: Opt) => coversFresh(m, x) || coversOnFreePlay(m, x)
 
 /**
  * Adding power to a line that is already being won, or that has no one across from it. Passing loses
@@ -80,6 +86,66 @@ function needless(m: Match, x: Opt) {
   return !sc.wazaOnUse && !sc.wazaOnWin && !(top != null && m.sc(top).onWazaUsed)
 }
 
+/** Ending the Summon Phase with no Horobeat of its own on the board when one could have been played to a line. */
+function passesWithEmptyBoard(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'main' || x.t !== 'end') return false
+  return m.countH(req.p) === 0 && req.opts.some((y) => y.t === 'play' && y.via === 'new')
+}
+
+/** What each Boost or Waza on offer would add to the line right now, and what it costs. */
+function powerPlays(m: Match, p: Side, line: number, opts: Opt[]) {
+  const o = (1 - p) as Side
+  const zone = m.P(p).waza[line]
+  const mine = m.power(p, line)
+  const theirs = m.power(o, line)
+  return opts.map((x, i) => {
+    if ((x.t !== 'waza' && x.t !== 'boost') || x.uid == null) return null
+    zone.push({ uid: x.uid, boost: x.t === 'boost' })
+    const gain = m.power(p, line) - mine - (m.power(o, line) - theirs)
+    zone.pop()
+    return { i, gain, cost: x.t === 'boost' ? 1 : m.def(x.uid).cost }
+  }).filter((x): x is { i: number; gain: number; cost: number } => !!x && x.gain > 0)
+}
+
+/**
+ * Adding power to a line that stays lost: even everything affordable would not catch up. Waza that do
+ * something besides add power are left to judgement.
+ */
+function hopelessPower(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'battle' || (x.t !== 'waza' && x.t !== 'boost') || x.uid == null) return false
+  const p = req.p
+  const o = (1 - p) as Side
+  const line = m.s.line
+  if (m.top(o, line) == null || m.power(p, line) >= m.power(o, line)) return false
+  const top = m.top(p, line)
+  if (x.t === 'boost') {
+    if (top != null && m.sc(top).onBoostUsed) return false
+  } else {
+    const sc = m.rawScript(x.uid)
+    if (sc.wazaOnUse || sc.wazaOnWin || (top != null && m.sc(top).onWazaUsed)) return false
+  }
+  let budget = m.unused(p)
+  let total = 0
+  for (const y of powerPlays(m, p, line, req.opts).sort((a, b) => b.gain / b.cost - a.gain / a.cost)) if (y.cost <= budget) { budget -= y.cost; total += y.gain }
+  return m.power(p, line) + total < m.power(o, line)
+}
+
+/**
+ * What the computer has been taught. Each entry is a mistake a player spotted, written as a test on
+ * one choice. Normal avoids them by habit. Hard and Expert never consider a `forbid` one (it can never
+ * be right); the others are usually wrong, so they are weighed and chosen only when clearly better. The bot lab
+ * (tools/bot-lab) counts how often each one happens and keeps saved positions to check against.
+ */
+export const MISTAKES: { id: string; taught: string; what: string; forbid: boolean; is: (m: Match, x: Opt) => boolean }[] = [
+  { id: 'cover-fresh', taught: '2026-11-22', what: 'Plays a Horobeat and covers it in the same turn with nothing gained from the stack', forbid: true, is: coversFresh },
+  { id: 'cover-on-free-play', taught: '2026-11-22', what: 'On a trigger or free play, covers a standing Horobeat when an empty line was open and the line was not being lost', forbid: false, is: coversOnFreePlay },
+  { id: 'needless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line it is already winning, or with no one across', forbid: true, is: needless },
+  { id: 'pass-with-empty-board', taught: '2026-11-22', what: 'Ends its Summon Phase with no Horobeat on the board when it could have played one', forbid: false, is: passesWithEmptyBoard },
+  { id: 'hopeless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line that stays lost even with everything it can afford', forbid: true, is: hopelessPower },
+]
+
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = m.req!.opts.length
   if (count <= 1) return 0
@@ -90,7 +156,7 @@ export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.rando
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Hearts. */
-function searchGame(real: Match): SearchGame<Match> {
+export function searchGame(real: Match): SearchGame<Match> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {
@@ -111,7 +177,8 @@ function searchGame(real: Match): SearchGame<Match> {
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
-    skip: (i) => wasteful(real, real.req!.opts[i]) || needless(real, real.req!.opts[i]),
+    skip: (i) => MISTAKES.some((k) => k.forbid && k.is(real, real.req!.opts[i])),
+    doubt: (i) => MISTAKES.some((k) => !k.forbid && k.is(real, real.req!.opts[i])),
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.countH(me) - m.countH((1 - me) as Side)
@@ -207,16 +274,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
     const mine = m.power(p, line)
     if (mine > theirs) return pass
     if (level === 'easy' && rnd() < 0.4) return pass
-    const zone = P.waza[line]
-    const plays = opts.map((x, i) => {
-      if (x.t === 'pass') return null
-      const d = m.def(x.uid!)
-      zone.push({ uid: x.uid!, boost: x.t === 'boost' })
-      const gain = m.power(p, line) - mine
-      const theirsAfter = m.power(o, line)
-      zone.pop()
-      return { i, gain: gain - (theirsAfter - theirs), cost: x.t === 'boost' ? 1 : d.cost }
-    }).filter((x): x is { i: number; gain: number; cost: number } => !!x && x.gain > 0)
+    const plays = powerPlays(m, p, line, opts)
     const need = theirs - mine
     const winners = plays.filter((x) => x.gain > need).sort((a, b) => a.cost - b.cost || a.gain - b.gain)
     if (winners.length) return winners[0].i

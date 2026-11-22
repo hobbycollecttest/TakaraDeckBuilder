@@ -53,6 +53,25 @@ function mustBlock(g: HQ) {
   return blockPlan(g, req.p, off).sum >= off && !fullRally(g, chars, off)
 }
 
+/** A single blocker is enough to stop the ball, and the bot receives anyway. Not always wrong, so it is only a habit, never forbidden. */
+function oneBlockerEnough(g: HQ) {
+  const req = g.req!
+  if (req.kind !== 'start' || !req.opts.some((x) => x.t === 'block')) return false
+  const off = g.s.off[(1 - req.p) as Side] ?? 0
+  const plan = blockPlan(g, req.p, off)
+  return plan.sum >= off && plan.picks.length <= 1
+}
+
+/**
+ * What the computer has been taught about. `forbid` marks a choice Hard and Expert never consider;
+ * the others are habits the lab keeps count of. The bot lab (tools/bot-lab) measures how often each
+ * happens and keeps saved positions to check against.
+ */
+export const MISTAKES: { id: string; taught: string; what: string; forbid: boolean; is: (g: HQ, x: Opt) => boolean }[] = [
+  { id: 'receive-when-must-block', taught: '2026-11-22', what: 'Receives when a block was certain and the hand could not finish a rally', forbid: true, is: (g, x) => x.t === 'receive' && mustBlock(g) },
+  { id: 'receive-when-one-blocker-enough', taught: '2026-11-22', what: 'Receives when a single blocker would have stopped the ball', forbid: false, is: (g, x) => x.t === 'receive' && oneBlockerEnough(g) },
+]
+
 export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = g.req!.opts.length
   if (count <= 1) return 0
@@ -66,7 +85,7 @@ export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, 
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Score cards. */
-function searchGame(real: HQ): SearchGame<HQ> {
+export function searchGame(real: HQ): SearchGame<HQ> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {
@@ -87,7 +106,8 @@ function searchGame(real: HQ): SearchGame<HQ> {
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
-    skip: (i) => mustBlock(real) && real.req!.opts[i].t === 'receive',
+    skip: (i) => MISTAKES.some((k) => k.forbid && k.is(real, real.req!.opts[i])),
+    doubt: (i) => MISTAKES.some((k) => !k.forbid && k.is(real, real.req!.opts[i])),
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.P(me).score.length - m.P((1 - me) as Side).score.length

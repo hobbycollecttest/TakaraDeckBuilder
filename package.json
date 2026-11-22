@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "bot:check": "npx tsx tools/bot-lab/check.ts",
+    "bot:audit": "npx tsx tools/bot-lab/audit.ts",
+    "bot:ladder": "npx tsx tools/bot-lab/ladder.ts",
+    "bot:league": "npx tsx tools/bot-lab/league.ts",
+    "bot:report": "npx tsx tools/bot-lab/report.ts",
+    "bot:swaps": "npx tsx tools/bot-lab/swaps.ts"
   },
   "dependencies": {
     "@neon/neon-js": "^0.10.2",
