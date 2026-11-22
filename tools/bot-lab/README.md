@@ -19,6 +19,7 @@ Run everything from the repo root.
 | `npm run bot:report -- results/hb.json > results/hb.md` | Ranking, first/second split and matchup table from league results. |
 | `npm run bot:swaps -- horobeat hard:sims=12 400 base.json idea.json` | Is this deck change better than the original? |
 | `npx tsx tools/bot-lab/card-stats.ts ...` | HORO-BEAT only: win rate per card when it is in the opening hand. |
+| `npx tsx tools/bot-lab/timing.ts horobeat hard 6` | How long one decision takes. |
 
 A player is written as a level with optional settings: `normal`, `hard`, `expert`, `hard:sims=150`,
 `hard:plain` (the first, simpler thinking method, kept for comparisons). In the lab, thinking is never
@@ -31,8 +32,12 @@ Game names: `horobeat` (or `hb`), `haikyu` (or `hq`).
 - `src/sim/ai.ts` and `src/sim/hq/ai.ts`: the habits (rules of thumb) for Beginner, Easy and Normal.
 - `src/sim/search.ts`: thinking ahead for Hard and Expert. It imagines the hidden cards, plays sample
   games with the Normal habits for each choice, and picks the choice that wins most.
-- `MISTAKES` in each `ai.ts`: what the bot has been taught not to do. Normal avoids these by habit;
-  Hard and Expert never consider a forbidden one.
+- `MISTAKES` in each `ai.ts`: what the bot has been taught. Normal avoids these by habit. There are two kinds:
+  - `forbid: true`: a move that can never be right (adding power to a line already won). Hard and Expert never consider it.
+  - `forbid: false`: usually wrong, sometimes right (passing with an empty board to save Ena for the Ena Draw).
+    Hard and Expert weigh it like any other move. If it comes out on top it is played off against the best
+    ordinary move for longer, and chosen only when clearly ahead. A close call goes to the ordinary move.
+  Prefer `forbid: false` unless the move is strictly dominated. The goal is to win the match, not one battle.
 - The tutorials use `tutorChoice`, a frozen copy of the original Normal habits, so lessons never change.
 
 ## Teaching the bot something new
@@ -55,12 +60,23 @@ When someone reports "the bot does X and it is a waste":
 | Date | Game | Lesson | Measured |
 |---|---|---|---|
 | 2026-11-22 | HORO-BEAT | Do not play a Horobeat and cover it the same turn unless a card gains from the stack; play the bigger one alone | 1,630 to 36 in 3,000 games; win rate unchanged |
-| 2026-11-22 | HORO-BEAT | On a free play, take the empty line unless covering wins the line | 2 of 22 to 0 of 22 |
+| 2026-11-22 | HORO-BEAT | On a free play, prefer the empty line unless covering wins the line (a default, not a ban) | 2 of 22 to 0 of 22 |
 | 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line already being won | 50 to 7 uses in 60 games (the 7 are effect Waza) |
-| 2026-11-22 | HORO-BEAT | Never end the Summon Phase with an empty board when a Horobeat could be played | Hard did this 28 times in 60 games (18 on the first round); now 0 |
+| 2026-11-22 | HORO-BEAT | Passing with an empty board is a last resort, chosen only when clearly better (saving Ena for the Ena Draw can be right) | Hard passed 28 times in 60 games, mostly wrongly; now about 5 in 123 chances, 3 of them confirmed better |
 | 2026-11-22 | HORO-BEAT | No Boost or power-only Waza on a line that stays lost even with everything affordable | Hard: 0 of 161 chances after the fix |
 | 2026-11-22 | Haikyu | Block when the block is certain and the hand cannot finish a rally | +3.4 points |
 | 2026-11-22 | Haikyu | Block when one blocker is enough | +3.4 points; new beats old 58% over 1,600 Normal games |
+
+## What we know about thinking budgets (2026-11-22)
+
+- The current way of sharing out sample games (drop choices that are clearly behind, spend on close calls,
+  stop early) beats the first method about 58% of the time at the same budget, in both games.
+- Hard: 48 to 150 sample games per choice was worth 63% (HORO-BEAT) and 57% (Haikyu). 300 beat 150 57% of the time.
+- Expert: going from 320 to 1,000 samples did not help in HORO-BEAT (45% over 40 games). More samples has run out;
+  the next gains need better judgement in the sample games (whole-turn planning, tuned habits, a position judge).
+- Expert beats Hard 57.5% in HORO-BEAT but only about 54% in Haikyu (not proven). Haikyu Expert needs work.
+- One decision on the build machine: Hard about 45 to 80 ms, Expert about 200 to 300 ms. Phones are several
+  times slower; the time caps (0.3 s Hard, 0.9 s Expert) are what protect them. `timing.ts` measures this.
 
 ## Lessons about testing (learned the hard way)
 
