@@ -66,6 +66,8 @@ export function seat(spec: string): Seat {
     else if (m === 'lean') effort.lean = true
     else if (m === 'plan') effort.plan = true
     else if (m.startsWith('sims=')) effort.sims = +m.slice(5)
+    else if (m.startsWith('sharp=')) effort.sharp = +m.slice(6)
+    else if (m.startsWith('depth=')) effort.sharpDepth = +m.slice(6)
     else throw new Error(`Unknown setting "${m}" in "${spec}"`)
   }
   return { level, effort, label: spec }

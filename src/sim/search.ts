@@ -18,6 +18,8 @@ export type SearchGame<M> = {
   habit: (m: M, rnd: () => number) => number
   /** How the finished (or cut off) match went for the deciding player, from 0 to 1. */
   result: (m: M) => number
+  /** Is it the deciding player's turn to answer in this copy? Needed for `sharp`. */
+  mine?: (m: M) => boolean
   /** Choices that are known mistakes and not worth thinking about. Never all of them. */
   skip?: (choice: number) => boolean
   /**
@@ -28,7 +30,15 @@ export type SearchGame<M> = {
   doubt?: (choice: number) => boolean
 }
 /** `sims` is how many sample games one choice may use in all, `ms` the longest it may take. `plain` keeps the first, simpler way of sharing them out (for comparisons). `lean` and `plan` switch on two experiments that have not yet beaten the standard player in testing: leaning the guess about the other player's hand, and weighing whole turns instead of one choice at a time. */
-export type Effort = { sims: number; ms: number; maxSteps: number; plain?: boolean; lean?: boolean; plan?: boolean }
+export type Effort = {
+  sims: number; ms: number; maxSteps: number; plain?: boolean; lean?: boolean; plan?: boolean
+  /**
+   * An experiment: assume a sharp opponent. In each sample game the other player's next `sharpDepth`
+   * decisions (default 1) are not left to habit: every reply is tried in `sharp` sample games of its own,
+   * and the one that is worst for the deciding player is taken.
+   */
+  sharp?: number; sharpDepth?: number
+}
 
 export type Level = 'beginner' | 'easy' | 'normal' | 'hard' | 'expert'
 export const LEVELS: { id: Level; label: string }[] = [
@@ -37,7 +47,7 @@ export const LEVELS: { id: Level; label: string }[] = [
 ]
 /** How long Hard and Expert may think about one choice. */
 export const EFFORT: Partial<Record<Level, Effort>> = {
-  hard: { sims: 150, ms: 300, maxSteps: 600 },
+  hard: { sims: 300, ms: 400, maxSteps: 600 },
   expert: { sims: 600, ms: 900, maxSteps: 600 },
 }
 
@@ -95,7 +105,42 @@ export function searchChoice<M>(game: SearchGame<M>, count: number, favourite: n
       game.hide(m, rng(base + k * 7919))
       const luck = rng(base + k * 104729 + 1)
       game.answer(m, choice)
-      for (let steps = 0; game.open(m) && steps < effort.maxSteps; steps++) game.answer(m, game.habit(m, luck))
+      if (!effort.sharp || !game.mine) {
+        for (let steps = 0; game.open(m) && steps < effort.maxSteps; steps++) game.answer(m, game.habit(m, luck))
+      } else {
+        const path = [choice]
+        let left = effort.sharpDepth ?? 1
+        for (let steps = 0; game.open(m) && steps < effort.maxSteps; steps++) {
+          let a = game.habit(m, luck)
+          const n = game.options(m)
+          if (left > 0 && n > 1 && !game.mine(m)) {
+            left--
+            // The other player looks ahead too: try each reply in the same imagined game.
+            let worst = Infinity
+            for (let j = 0; j < n; j++) {
+              let sum = 0
+              let got = 0
+              for (let t = 0; t < effort.sharp; t++) {
+                try {
+                  const w = game.copy()
+                  game.hide(w, rng(base + k * 7919))
+                  for (const x of path) game.answer(w, x)
+                  game.answer(w, j)
+                  const l2 = rng(base + k * 31337 + steps * 613 + t * 977 + 5)
+                  for (let s2 = 0; game.open(w) && s2 < effort.maxSteps; s2++) game.answer(w, game.habit(w, l2))
+                  sum += game.result(w)
+                  got++
+                } catch { /* skip */ }
+              }
+              if (!got) continue
+              const v = sum / got - (j === a ? 0.02 : 0)
+              if (v < worst) { worst = v; a = j }
+            }
+          }
+          path.push(a)
+          game.answer(m, a)
+        }
+      }
       total[choice] += game.result(m)
       runs[choice]++
     } catch {

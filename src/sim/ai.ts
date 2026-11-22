@@ -399,6 +399,7 @@ export function searchGame(real: Match, flat = true): SearchGame<Match> {
         dealLeaning(slots, rest, (u) => lean[handClass(m, u, unused, ena)] ?? 1, rnd)
       }
     },
+    mine: (x) => !!x.req && x.req.p === me,
     open: (m) => !!m.req,
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),

@@ -221,6 +221,7 @@ export function searchGame(real: HQ, flat = true): SearchGame<HQ> {
         dealLeaning(slots, rest, (u) => HAND_LEAN[handClass(m, u)] ?? 1, rnd)
       }
     },
+    mine: (x) => !!x.req && x.req.p === me,
     open: (m) => !!m.req,
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
