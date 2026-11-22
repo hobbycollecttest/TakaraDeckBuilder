@@ -28,7 +28,7 @@ export type GameDef = {
 }
 export type Mistake = { id: string; taught: string; what: string; forbid?: boolean; is: (m: AnyMatch, opt: AnyMatch) => boolean }
 export const GAMES: Record<string, GameDef> = {
-  horobeat: { label: 'HORO-BEAT', create: (s) => new Match(s as never), choose: (m, l, r, e) => horobeatChoice(m, l, r, e), replay: (s, a) => Match.replay(s as never, a), mistakes: horobeatMistakes.map((k) => ({ ...k, forbid: true })), first: (m) => m.s.first ?? null },
+  horobeat: { label: 'HORO-BEAT', create: (s) => new Match(s as never), choose: (m, l, r, e) => horobeatChoice(m, l, r, e), replay: (s, a) => Match.replay(s as never, a), mistakes: horobeatMistakes, first: (m) => m.s.first ?? null },
   haikyu: { label: 'Haikyu!! VOBACA!! BREAK', create: (s) => new HQ(s as never), choose: (m, l, r, e) => haikyuChoice(m, l, r, e), replay: (s, a) => HQ.replay(s as never, a), mistakes: haikyuMistakes, first: (m) => m.s.serveRight ?? null },
 }
 export function game(name: string): GameDef {

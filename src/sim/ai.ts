@@ -133,16 +133,17 @@ function hopelessPower(m: Match, x: Opt) {
 }
 
 /**
- * What the computer has been taught not to do. Each entry is a mistake a player spotted, written as a
- * test on one choice. Normal avoids them by habit; Hard and Expert never consider them. The bot lab
+ * What the computer has been taught. Each entry is a mistake a player spotted, written as a test on
+ * one choice. Normal avoids them by habit. Hard and Expert never consider a `forbid` one (it can never
+ * be right); the others are usually wrong, so they are weighed and chosen only when clearly better. The bot lab
  * (tools/bot-lab) counts how often each one happens and keeps saved positions to check against.
  */
-export const MISTAKES: { id: string; taught: string; what: string; is: (m: Match, x: Opt) => boolean }[] = [
-  { id: 'cover-fresh', taught: '2026-11-22', what: 'Plays a Horobeat and covers it in the same turn with nothing gained from the stack', is: coversFresh },
-  { id: 'cover-on-free-play', taught: '2026-11-22', what: 'On a trigger or free play, covers a standing Horobeat when an empty line was open and the line was not being lost', is: coversOnFreePlay },
-  { id: 'needless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line it is already winning, or with no one across', is: needless },
-  { id: 'pass-with-empty-board', taught: '2026-11-22', what: 'Ends its Summon Phase with no Horobeat on the board when it could have played one', is: passesWithEmptyBoard },
-  { id: 'hopeless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line that stays lost even with everything it can afford', is: hopelessPower },
+export const MISTAKES: { id: string; taught: string; what: string; forbid: boolean; is: (m: Match, x: Opt) => boolean }[] = [
+  { id: 'cover-fresh', taught: '2026-11-22', what: 'Plays a Horobeat and covers it in the same turn with nothing gained from the stack', forbid: true, is: coversFresh },
+  { id: 'cover-on-free-play', taught: '2026-11-22', what: 'On a trigger or free play, covers a standing Horobeat when an empty line was open and the line was not being lost', forbid: false, is: coversOnFreePlay },
+  { id: 'needless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line it is already winning, or with no one across', forbid: true, is: needless },
+  { id: 'pass-with-empty-board', taught: '2026-11-22', what: 'Ends its Summon Phase with no Horobeat on the board when it could have played one', forbid: false, is: passesWithEmptyBoard },
+  { id: 'hopeless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line that stays lost even with everything it can afford', forbid: true, is: hopelessPower },
 ]
 
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
@@ -155,7 +156,7 @@ export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.rando
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Hearts. */
-function searchGame(real: Match): SearchGame<Match> {
+export function searchGame(real: Match): SearchGame<Match> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {
@@ -176,7 +177,8 @@ function searchGame(real: Match): SearchGame<Match> {
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
-    skip: (i) => MISTAKES.some((k) => k.is(real, real.req!.opts[i])),
+    skip: (i) => MISTAKES.some((k) => k.forbid && k.is(real, real.req!.opts[i])),
+    doubt: (i) => MISTAKES.some((k) => !k.forbid && k.is(real, real.req!.opts[i])),
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.countH(me) - m.countH((1 - me) as Side)

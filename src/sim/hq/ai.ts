@@ -85,7 +85,7 @@ export function cpuChoice(g: HQ, level: Level, rnd: () => number = Math.random, 
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Score cards. */
-function searchGame(real: HQ): SearchGame<HQ> {
+export function searchGame(real: HQ): SearchGame<HQ> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {
@@ -107,6 +107,7 @@ function searchGame(real: HQ): SearchGame<HQ> {
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
     skip: (i) => MISTAKES.some((k) => k.forbid && k.is(real, real.req!.opts[i])),
+    doubt: (i) => MISTAKES.some((k) => !k.forbid && k.is(real, real.req!.opts[i])),
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.P(me).score.length - m.P((1 - me) as Side).score.length

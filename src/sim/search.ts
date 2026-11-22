@@ -20,6 +20,12 @@ export type SearchGame<M> = {
   result: (m: M) => number
   /** Choices that are known mistakes and not worth thinking about. Never all of them. */
   skip?: (choice: number) => boolean
+  /**
+   * Choices that are usually wrong but not always. They are thought about like any other, and chosen
+   * only when the sample games show them clearly ahead of the best ordinary choice. A near tie goes
+   * to the ordinary choice.
+   */
+  doubt?: (choice: number) => boolean
 }
 /** `sims` is how many sample games one choice may use in all, `ms` the longest it may take. `plain` keeps the first, simpler way of sharing them out (for comparisons). */
 export type Effort = { sims: number; ms: number; maxSteps: number; plain?: boolean }
@@ -101,16 +107,17 @@ export function searchChoice<M>(game: SearchGame<M>, count: number, favourite: n
     // stops early once one choice is clearly ahead of all the others.
     const seen: number[][] = Array.from({ length: count }, () => [])
     const mean = (c: number) => (runs[c] ? total[c] / runs[c] : 0) + (c === favourite ? 0.02 : 0)
-    const behind = (lead: number, c: number) => {
+    const behind = (lead: number, c: number, strict = false) => {
       const n = Math.min(seen[lead].length, seen[c].length)
-      if (n < 6) return false
+      if (n < (strict ? 12 : 6)) return false
       let sum = 0
       let sq = 0
       for (let t = 0; t < n; t++) { const d = seen[lead][t] - seen[c][t]; sum += d; sq += d * d }
       const avg = sum / n
       const se = Math.sqrt(Math.max(1e-9, sq / n - avg * avg) / n)
-      return avg - 2.2 * se > 0
+      return avg - (strict ? 2.6 : 2.2) * se > 0
     }
+    const doubted = (c: number) => !!game.doubt && game.doubt(c)
     const cuts = [0.3, 0.55, 0.75]
     let cut = 0
     while (alive.length > 1 && spent < effort.sims && now() < deadline) {
@@ -126,7 +133,29 @@ export function searchChoice<M>(game: SearchGame<M>, count: number, favourite: n
       alive = alive.filter((c) => c === lead || !behind(lead, c))
       if (cut < cuts.length && spent >= effort.sims * cuts[cut]) {
         cut++
-        alive = [...alive].sort((a, b) => mean(b) - mean(a)).slice(0, Math.max(2, Math.ceil(alive.length / 2)))
+        const ranked = [...alive].sort((a, b) => mean(b) - mean(a))
+        const keep = ranked.slice(0, Math.max(2, Math.ceil(alive.length / 2)))
+        // While a doubtful choice is in the running, the best ordinary choice stays to be compared with it.
+        const ordinary = ranked.find((c) => !doubted(c))
+        if (ordinary != null && !keep.includes(ordinary) && keep.some(doubted)) keep.push(ordinary)
+        alive = keep
+      }
+    }
+    if (runs.some((n) => n > 0) && game.doubt) {
+      const tried = Array.from({ length: count }, (_, c) => c).filter((c) => runs[c] > 0)
+      const top = (alive.length ? alive : tried).reduce((a, b) => (mean(b) > mean(a) ? b : a))
+      const ordinary = tried.filter((c) => !doubted(c)).sort((a, b) => mean(b) - mean(a))[0]
+      if (doubted(top) && ordinary != null) {
+        // An unusual choice on top deserves a closer look before it is trusted or thrown out: play the
+        // two off against each other for a while longer. It has to win by a wide, well-sampled margin,
+        // because being on top is partly luck; anything less goes to the ordinary choice.
+        const one = (c: number) => { const before = total[c]; const ran = runs[c]; playOut(c, k); seen[c].push(runs[c] > ran ? total[c] - before : 0.5) }
+        // Only games both have played can be compared, so line the two records up first.
+        const shared = Math.min(seen[top].length, seen[ordinary].length)
+        seen[top].length = shared
+        seen[ordinary].length = shared
+        for (let extra = 0; extra < effort.sims && now() < deadline && !behind(top, ordinary, true) && !behind(ordinary, top); extra += 2, k++) { one(top); one(ordinary) }
+        return behind(top, ordinary, true) ? top : ordinary
       }
     }
   }
