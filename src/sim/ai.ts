@@ -1,7 +1,7 @@
 // The CPU opponent. It plays by the same rules as a person and only looks at what a
 // person in its seat could see: its own hand and the cards that are face up.
 import { Match, type Opt, type Side } from './engine'
-import { EFFORT, LEVELS, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from './search'
+import { EFFORT, LEVELS, dealLeaning, searchChoice, shuffleSlots, type Effort, type Level, type SearchGame } from './search'
 
 export { EFFORT, LEVELS, type Level }
 
@@ -12,15 +12,31 @@ const best = (opts: Opt[], score: (o: Opt, i: number) => number) => {
   return at
 }
 
+/**
+ * The numbers behind the Normal player's rules of thumb. They were first set by feel and are now tuned
+ * by self-play in the bot lab (tools/bot-lab/tune.ts). Whole numbers are counts; the rest are weights.
+ */
+export const WEIGHTS = {
+  mullEarly: 2, mullCost: 3,
+  chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3,
+  keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5,
+  body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2,
+}
+export type Weights = typeof WEIGHTS
+/** The first values, kept for the tutorial's suggested moves so the lesson never changes. */
+const CLASSIC: Weights = { mullEarly: 2, mullCost: 3, chargeTo: 6, chargeMax: 9, chargeHand: 3, opensColor: 3, keepWaza: 3.2, wazaGlut: 1, twinWaza: 0.3, soonNow: 6, soonNext: 4, soonLate: 2, keepPower: 0.5, twin: 0.5, body: 4, power: 1, downed: 3.5, cover: 0.2, worthIt: 0.55, reserve: 1, reserveBodies: 2 }
+/** Lets the bot lab give each seat its own numbers when it tests one set against another. */
+export const seatWeights: [Weights | null, Weights | null] = [null, null]
+
 /** How much the CPU wants to hold on to a card in its hand. */
-function keepValue(m: Match, p: Side, uid: number) {
+function keepValue(m: Match, p: Side, uid: number, W: Weights) {
   const P = m.P(p)
   const d = m.def(uid)
   const ena = P.ena.length
   const twins = P.hand.filter((u) => m.name(u) === d.name).length - 1
-  if (d.type === 'Waza') return 3.2 - (P.hand.filter((u) => m.def(u).type === 'Waza').length > 2 ? 1 : 0) - twins * 0.3
-  const soon = d.cost <= ena + 1 ? 6 : d.cost <= ena + 3 ? 4 : 2
-  return soon + d.power / 20000 - twins * 0.5
+  if (d.type === 'Waza') return W.keepWaza - (P.hand.filter((u) => m.def(u).type === 'Waza').length > 2 ? W.wazaGlut : 0) - twins * W.twinWaza
+  const soon = d.cost <= ena + 1 ? W.soonNow : d.cost <= ena + 3 ? W.soonNext : W.soonLate
+  return soon + (d.power / 10000) * W.keepPower - twins * W.twin
 }
 
 /**
@@ -146,17 +162,147 @@ export const MISTAKES: { id: string; taught: string; what: string; forbid: boole
   { id: 'hopeless-power', taught: '2026-11-22', what: 'Uses a Boost or a power-only Waza on a line that stays lost even with everything it can afford', forbid: true, is: hopelessPower },
 ]
 
+/** One play in a planned Summon Phase. A plan is a list of these, and always finishes by ending the phase. */
+type Step = { uid: number; via: Opt['via']; line?: number }
+const MAX_PLANS = 12
+const MAX_NODES = 60
+
+/**
+ * Every sensible way to spend this Summon Phase with the cards in hand right now, as whole plans.
+ * The first plan is always what the Normal habits would do. Plans that end with the same board,
+ * hand and Ena are the same plan (the order the cards went down in does not matter).
+ */
+function turnPlans(real: Match, rnd: () => number): Step[][] {
+  const me = real.req!.p
+  const stamp = real.turnStamp()
+  const inHand = new Set(real.P(me).hand)
+  const at = (path: number[]) => Match.replay(real.setup, [...real.answers, ...path])
+  const mine = (m: Match) => !!m.req && m.req.p === me && m.turnStamp() === stamp
+  // Answer the small questions a play raises (targets, "use this effect?") the way the habits would.
+  const settle = (m: Match, path: number[]) => {
+    for (let n = 0; n < 12 && m.req && m.req.kind !== 'main' && m.turnStamp() === stamp && m.s.phase === real.s.phase; n++) {
+      const c = m.req.opts.length <= 1 ? 0 : habit(m, 'normal', rnd)
+      path.push(c)
+      m.answer(c)
+    }
+    return mine(m) && m.req!.kind === 'main'
+  }
+  const sign = (m: Match) => {
+    const P = m.P(me)
+    return P.lines.map((st) => (st ? st.cards.map((u) => m.s.cards[u]).join('+') + (st.down ? 'd' : '') : '-')).sort().join('|') + '#' + [...P.hand].map((u) => m.s.cards[u]).sort().join(',') + '#' + m.unused(me)
+  }
+  const plans: Step[][] = []
+  const seen = new Set<string>()
+  // What the habits would do, first.
+  {
+    const m = at([])
+    const steps: Step[] = []
+    for (let n = 0; n < 8 && mine(m) && m.req!.kind === 'main'; n++) {
+      const c = habit(m, 'normal', rnd)
+      const o = m.req!.opts[c]
+      if (o.t !== 'play') break
+      steps.push({ uid: o.uid!, via: o.via, line: o.line })
+      m.answer(c)
+      if (!settle(m, [])) break
+    }
+    plans.push(steps)
+  }
+  let nodes = 0
+  const walk = (path: number[], steps: Step[]) => {
+    if (plans.length >= MAX_PLANS || nodes++ > MAX_NODES) return
+    const m = at(path)
+    if (!(mine(m) && m.req!.kind === 'main')) return
+    const key = sign(m)
+    if (seen.has(key)) return
+    seen.add(key)
+    // Stopping here is a plan of its own.
+    const same = (a: Step[], b: Step[]) => a.length === b.length && a.every((x, i) => x.uid === b[i].uid && x.via === b[i].via && x.line === b[i].line)
+    if (!plans.some((pl) => same(pl, steps))) plans.push(steps)
+    m.req!.opts.forEach((o, i) => {
+      if (o.t !== 'play' || o.uid == null || !inHand.has(o.uid)) return
+      if (MISTAKES.some((k) => k.forbid && k.is(m, o))) return
+      const next = [...path, i]
+      const child = at(next)
+      if (!settle(child, next)) return
+      walk(next, [...steps, { uid: o.uid, via: o.via, line: o.line }])
+    })
+  }
+  walk([], [])
+  return plans
+}
+
+/** Carry a plan out on a copy of the match (whose hidden cards may have been reshuffled), then end the phase. */
+function followPlan(m: Match, me: Side, stamp: number, steps: Step[], rnd: () => number) {
+  const here = () => !!m.req && m.req.p === me && m.turnStamp() === stamp
+  const settle = () => { for (let n = 0; n < 12 && here() && m.req!.kind !== 'main'; n++) m.answer(m.req!.opts.length <= 1 ? 0 : habit(m, 'normal', rnd)) }
+  for (const st of steps) {
+    settle()
+    if (!here() || m.req!.kind !== 'main') return
+    const i = m.req!.opts.findIndex((o) => o.t === 'play' && o.uid === st.uid && o.via === st.via && o.line === st.line)
+    if (i < 0) return
+    m.answer(i)
+  }
+  settle()
+  if (here() && m.req!.kind === 'main') {
+    const end = m.req!.opts.findIndex((o) => o.t === 'end')
+    if (end >= 0) m.answer(end)
+  }
+}
+
+/** Hard and Expert in the Summon Phase: weigh whole turns against each other, then make the first play of the best one. */
+function planTurn(real: Match, e: Effort, rnd: () => number): number | null {
+  const me = real.req!.p
+  const stamp = real.turnStamp()
+  const plans = turnPlans(real, rnd)
+  if (plans.length < 2) return null
+  const base = searchGame(real, e.flat)
+  const first = (i: number) => (plans[i].length ? real.req!.opts.findIndex((o) => o.t === 'play' && o.uid === plans[i][0].uid && o.via === plans[i][0].via && o.line === plans[i][0].line) : real.req!.opts.findIndex((o) => o.t === 'end'))
+  const fresh = new WeakSet<Match>()
+  const game: SearchGame<Match> = {
+    ...base,
+    copy: () => { const m = base.copy(); fresh.add(m); return m },
+    // The first answer on a copy is "follow this plan"; after that the match is played out as usual.
+    answer: (m, i) => { if (fresh.has(m)) { fresh.delete(m); followPlan(m, me, stamp, plans[i], rnd) } else m.answer(i) },
+    skip: undefined,
+    doubt: (i) => { const o = real.req!.opts[first(i)]; return !!o && MISTAKES.some((k) => !k.forbid && k.is(real, o)) },
+  }
+  const pick = searchChoice(game, plans.length, 0, e, rnd)
+  const choice = first(pick)
+  return choice >= 0 ? choice : null
+}
+
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = m.req!.opts.length
   if (count <= 1) return 0
   // Beginner plays like Easy, but about a third of the time it just does something legal.
   if (level === 'beginner') return rnd() < 0.35 ? Math.floor(rnd() * count) : habit(m, 'easy', rnd)
   if (level === 'easy' || level === 'normal') return habit(m, level, rnd)
-  return searchChoice(searchGame(m), count, habit(m, 'normal', rnd), effort ?? EFFORT[level]!, rnd)
+  const e = effort ?? EFFORT[level]!
+  if (m.req!.kind === 'main' && !e.stepwise) {
+    const planned = planTurn(m, e, rnd)
+    if (planned != null) return planned
+  }
+  return searchChoice(searchGame(m, e.flat), count, habit(m, 'normal', rnd), e, rnd)
 }
 
 /** Everything the player to move cannot see is reshuffled: the other hand, both decks and the Hearts. */
-export function searchGame(real: Match): SearchGame<Match> {
+/** How a card is sorted when guessing what the other player holds. */
+export function handClass(m: Match, uid: number, unused: number, ena = 99) {
+  const d = m.def(uid)
+  if (d.type === 'Waza') return d.cost <= unused ? 'wazaReady' : 'wazaLater'
+  // A Horobeat that costs more than the player's whole Ena Zone cannot have been played yet.
+  if (d.cost > ena) return 'bodyTooBig'
+  if (d.boost > 0) return 'boost'
+  return d.cost <= unused ? 'bodyReady' : 'bodyLater'
+}
+/**
+ * How much likelier than chance each kind of card is to be in a player's hand, by how much Ena they
+ * have left unused. Measured from the lab's own games (tools/bot-lab/read-stats.ts), not guessed.
+ * 1 means no lean. Rows: 0, 1, or 2 and more unused Ena.
+ */
+export const HAND_LEAN: Record<string, number>[] = [{}, {}, {}]
+
+export function searchGame(real: Match, flat = false): SearchGame<Match> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {
@@ -168,9 +314,15 @@ export function searchGame(real: Match): SearchGame<Match> {
         const slots: { get: () => number; set: (u: number) => void }[] = []
         const list = (arr: number[]) => arr.forEach((u, i) => { if (!shown.has(u)) slots.push({ get: () => arr[i], set: (v) => { arr[i] = v } }) })
         list(P.deck)
-        if (side !== me) list(P.hand)
         P.hearts.forEach((h) => { if (!shown.has(h.uid)) slots.push({ get: () => h.uid, set: (v) => { h.uid = v } }) })
-        shuffleSlots(slots, rnd)
+        if (side === me) { shuffleSlots(slots, rnd); continue }
+        const rest = slots.splice(0)
+        list(P.hand)
+        if (flat) { shuffleSlots([...slots, ...rest], rnd); continue }
+        const unused = m.unused(side)
+        const lean = HAND_LEAN[Math.min(2, unused)]
+        const ena = P.ena.length
+        dealLeaning(slots, rest, (u) => lean[handClass(m, u, unused, ena)] ?? 1, rnd)
       }
     },
     open: (m) => !!m.req,
@@ -197,16 +349,17 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
   const P = m.P(p)
   const opts = req.opts
   const find = (t: string) => opts.findIndex((x) => x.t === t)
+  const W = classic ? CLASSIC : seatWeights[p] ?? WEIGHTS
 
   if (req.kind === 'mulligan') {
     if (level === 'easy') return find('keep')
-    const early = P.hand.filter((u) => m.def(u).type === 'Horobeat' && m.def(u).cost <= 3).length
-    return find(early >= 2 ? 'keep' : 'mulligan')
+    const early = P.hand.filter((u) => m.def(u).type === 'Horobeat' && m.def(u).cost <= W.mullCost).length
+    return find(early >= W.mullEarly ? 'keep' : 'mulligan')
   }
 
   if (req.kind === 'charge') {
     const ena = P.ena.length
-    const wantsMore = ena < 6 || (ena < 9 && P.hand.length >= 3 && P.hand.some((u) => m.def(u).cost > ena))
+    const wantsMore = ena < W.chargeTo || (ena < W.chargeMax && P.hand.length >= W.chargeHand && P.hand.some((u) => m.def(u).cost > ena))
     if (!wantsMore) return find('skip')
     // A color the hand needs but the Ena Zone lacks is worth charging first.
     const have = new Set(P.ena.map((e) => m.def(e.uid).color))
@@ -214,7 +367,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
       if (x.t !== 'charge') return -100
       const d = m.def(x.uid!)
       const opensColor = !have.has(d.color) && P.hand.some((u) => u !== x.uid && m.def(u).color === d.color)
-      return -keepValue(m, p, x.uid!) + (opensColor ? 3 : 0)
+      return -keepValue(m, p, x.uid!, W) + (opensColor ? W.opensColor : 0)
     })
   }
 
@@ -222,10 +375,10 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
     const free = m.unused(p)
     const hasTrick = P.hand.some((u) => m.def(u).type === 'Waza' || m.def(u).boost > 0)
     const behind = m.countH(p) < m.countH(o)
-    const reserve = level === 'normal' && hasTrick && m.s.round >= 2 && !behind && m.countH(p) >= 2 ? 1 : 0
+    const reserve = level === 'normal' && hasTrick && m.s.round >= 2 && !behind && m.countH(p) >= W.reserveBodies ? W.reserve : 0
     const careful = level === 'normal' && !classic
     let pick = find('end')
-    let top = 0.55
+    let top = W.worthIt
     opts.forEach((x, i) => {
       if (x.t !== 'play') return
       const d = m.def(x.uid!)
@@ -233,11 +386,11 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
       let paid: number
       if (x.via === 'new') {
         paid = d.cost
-        value = 4 + d.power / 1500
+        value = W.body + (d.power / 1500) * W.power
       } else {
         const base = m.top(p, x.line!)!
         paid = Math.max(0, d.cost - m.costInLine(base))
-        value = (d.power - m.def(base).power) / 1500 + (m.isDown(p, x.line!) ? 3.5 : 0) + 0.2
+        value = ((d.power - m.def(base).power) / 1500) * W.power + (m.isDown(p, x.line!) ? W.downed : 0) + W.cover
         // Do not cover a Horobeat that came down this very turn unless something gains from the stack.
         if (careful && wasteful(m, x)) return
       }
@@ -257,7 +410,7 @@ function habit(m: Match, level: 'easy' | 'normal', rnd: () => number, classic = 
           .filter((x) => {
             const b = m.def(x.uid!)
             if (b.cost <= a.cost || b.cost > budget || m.rawScript(x.uid!).noOverbeatFromHand) return false
-            return ((b.power - a.power) / 1500 + 0.2) / (b.cost - a.cost + 1) > 0.55
+            return (((b.power - a.power) / 1500) * W.power + W.cover) / (b.cost - a.cost + 1) > W.worthIt
           })
           .sort((x, y) => m.def(y.uid!).power - m.def(x.uid!).power)[0]
         if (bigger) pick = opts.indexOf(bigger)

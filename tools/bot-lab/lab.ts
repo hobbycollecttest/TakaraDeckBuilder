@@ -4,9 +4,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { Match } from '../../src/sim/engine'
-import { cpuChoice as horobeatChoice, MISTAKES as horobeatMistakes } from '../../src/sim/ai'
+import { cpuChoice as horobeatChoice, MISTAKES as horobeatMistakes, WEIGHTS as horobeatWeights, seatWeights as horobeatSeats } from '../../src/sim/ai'
 import { HQ } from '../../src/sim/hq/engine'
-import { cpuChoice as haikyuChoice, MISTAKES as haikyuMistakes } from '../../src/sim/hq/ai'
+import { cpuChoice as haikyuChoice, MISTAKES as haikyuMistakes, WEIGHTS as haikyuWeights, seatWeights as haikyuSeats } from '../../src/sim/hq/ai'
 import { EFFORT, rng, type Effort, type Level } from '../../src/sim/search'
 
 export { rng }
@@ -25,11 +25,14 @@ export type GameDef = {
   mistakes: Mistake[]
   /** Which seat has the first turn (or first serve), read once the match has started. */
   first: (m: AnyMatch) => 0 | 1 | null
+  /** The numbers behind the Normal habits, and a way to give each seat its own set for a test. */
+  weights: Record<string, number>
+  seatWeights: [Record<string, number> | null, Record<string, number> | null]
 }
 export type Mistake = { id: string; taught: string; what: string; forbid?: boolean; is: (m: AnyMatch, opt: AnyMatch) => boolean }
 export const GAMES: Record<string, GameDef> = {
-  horobeat: { label: 'HORO-BEAT', create: (s) => new Match(s as never), choose: (m, l, r, e) => horobeatChoice(m, l, r, e), replay: (s, a) => Match.replay(s as never, a), mistakes: horobeatMistakes, first: (m) => m.s.first ?? null },
-  haikyu: { label: 'Haikyu!! VOBACA!! BREAK', create: (s) => new HQ(s as never), choose: (m, l, r, e) => haikyuChoice(m, l, r, e), replay: (s, a) => HQ.replay(s as never, a), mistakes: haikyuMistakes, first: (m) => m.s.serveRight ?? null },
+  horobeat: { label: 'HORO-BEAT', create: (s) => new Match(s as never), choose: (m, l, r, e) => horobeatChoice(m, l, r, e), replay: (s, a) => Match.replay(s as never, a), mistakes: horobeatMistakes, first: (m) => m.s.first ?? null, weights: horobeatWeights, seatWeights: horobeatSeats as never },
+  haikyu: { label: 'Haikyu!! VOBACA!! BREAK', create: (s) => new HQ(s as never), choose: (m, l, r, e) => haikyuChoice(m, l, r, e), replay: (s, a) => HQ.replay(s as never, a), mistakes: haikyuMistakes, first: (m) => m.s.serveRight ?? null, weights: haikyuWeights, seatWeights: haikyuSeats as never },
 }
 export function game(name: string): GameDef {
   const g = GAMES[name] || GAMES[{ hb: 'horobeat', hq: 'haikyu' }[name] || '']
@@ -60,6 +63,8 @@ export function seat(spec: string): Seat {
   const effort: Effort = { ...base, ms: 1e9 }
   for (const m of mods) {
     if (m === 'plain') effort.plain = true
+    else if (m === 'flat') effort.flat = true
+    else if (m === 'stepwise') effort.stepwise = true
     else if (m.startsWith('sims=')) effort.sims = +m.slice(5)
     else throw new Error(`Unknown setting "${m}" in "${spec}"`)
   }
