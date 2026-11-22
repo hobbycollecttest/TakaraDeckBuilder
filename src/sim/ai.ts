@@ -62,6 +62,24 @@ function wasteful(m: Match, x: Opt) {
   return !(m.power(p, x.line) <= theirs && m.def(x.uid).power > theirs)
 }
 
+/**
+ * Adding power to a line that is already being won, or that has no one across from it. Passing loses
+ * nothing: if the opponent answers, the turn comes back before the battle is settled. Waza that do
+ * something besides add power are left to judgement.
+ */
+function needless(m: Match, x: Opt) {
+  const req = m.req!
+  if (req.kind !== 'battle' || (x.t !== 'waza' && x.t !== 'boost') || x.uid == null) return false
+  const p = req.p
+  const o = (1 - p) as Side
+  const line = m.s.line
+  if (m.top(o, line) != null && m.power(p, line) <= m.power(o, line)) return false
+  const top = m.top(p, line)
+  if (x.t === 'boost') return !(top != null && m.sc(top).onBoostUsed)
+  const sc = m.rawScript(x.uid)
+  return !sc.wazaOnUse && !sc.wazaOnWin && !(top != null && m.sc(top).onWazaUsed)
+}
+
 export function cpuChoice(m: Match, level: Level, rnd: () => number = Math.random, effort?: Effort): number {
   const count = m.req!.opts.length
   if (count <= 1) return 0
@@ -93,7 +111,7 @@ function searchGame(real: Match): SearchGame<Match> {
     options: (m) => m.req!.opts.length,
     answer: (m, i) => m.answer(i),
     habit: (m, rnd) => habit(m, 'normal', rnd),
-    skip: (i) => wasteful(real, real.req!.opts[i]),
+    skip: (i) => wasteful(real, real.req!.opts[i]) || needless(real, real.req!.opts[i]),
     result: (m) => {
       if (m.s.winner != null) return m.s.winner === me ? 1 : 0
       const diff = m.countH(me) - m.countH((1 - me) as Side)
