@@ -12,7 +12,8 @@
     "bot:ladder": "npx tsx tools/bot-lab/ladder.ts",
     "bot:league": "npx tsx tools/bot-lab/league.ts",
     "bot:report": "npx tsx tools/bot-lab/report.ts",
-    "bot:swaps": "npx tsx tools/bot-lab/swaps.ts"
+    "bot:swaps": "npx tsx tools/bot-lab/swaps.ts",
+    "bot:build": "tsx tools/bot-lab/build.ts"
   },
   "dependencies": {
     "@neon/neon-js": "^0.10.2",
