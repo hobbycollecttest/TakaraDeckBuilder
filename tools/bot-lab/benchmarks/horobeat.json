@@ -1,0 +1,19 @@
+{
+ "note": "The benchmark card for each level: a card of that cost with no effect. Card scores compare every card with the benchmark of its own type, level and color. Stats come from the real no-effect cards where one exists (real: true); the gaps are filled in along the same curve (real: false). Edit freely.",
+ "Horobeat": {
+  "2": { "power": 4000, "boost": 0, "trigger": "Entry Trigger", "real": true },
+  "3": { "power": 5000, "boost": 0, "trigger": "Entry Trigger", "real": true },
+  "4": { "power": 6000, "boost": 2000, "trigger": "Over Trigger", "real": true },
+  "5": { "power": 7000, "boost": 2000, "trigger": "Over Trigger", "real": true },
+  "6": { "power": 8500, "boost": 2000, "trigger": "Over Trigger", "real": true },
+  "7": { "power": 9500, "boost": 2000, "trigger": "Last Over Trigger", "real": false },
+  "8": { "power": 10000, "boost": 2000, "trigger": "Last Over Trigger", "real": true },
+  "9": { "power": 12000, "boost": 2000, "trigger": "Last Over Trigger", "real": false },
+  "10": { "power": 18000, "boost": 0, "trigger": "Last Over Trigger", "real": true }
+ },
+ "Waza": {
+  "1": { "power": 3000, "boost": 0, "trigger": "Draw Trigger", "real": false },
+  "2": { "power": 5000, "boost": 0, "trigger": "Draw Trigger", "real": true },
+  "3": { "power": 7000, "boost": 0, "trigger": "Draw Trigger", "real": true }
+ }
+}

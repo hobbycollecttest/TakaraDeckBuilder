@@ -1,40 +1,41 @@
 Card scores for Justice Waza (Blue), piloted by normal, 4000 deals per card against 13 decks.
-Points of win rate one copy adds each time it shows up, compared with a plain card in the same spot (Tofu Kozo, Blue 2-cost 4000).
+Points of win rate one copy adds each time it shows up, compared with the no-effect benchmark card of its own level and color in the same spot.
 
 In deck Card                                         Score  +/-     Hand Heart Early  Late   First Second
-        8 Mile: Hozuki & Gasha (B 8)                  +2.1   1.2    +2.6  +1.0  +3.0  +1.7    +2.5   +1.6
-4x      Rule the Heavens with Justice (B W1)          +1.8   1.1    +2.9  +0.9  +1.7  +1.7    +1.8   +1.9
-4x      Guardian of Order: Kurobou & Yoshihiko (B 5   +1.8   1.2    +3.9  +2.8  +1.0  +0.7    +2.1   +1.4
-        Kappa Diver (B 6)                             +1.3   1.2    +2.6  +0.9  +1.3  +0.8    +1.6   +1.0
-        Valiant Beniten (B 4)                         +0.8   1.1    +3.5  -2.3  +2.0  +0.2    +1.1   +0.6
-4x      Three Years of Patience (B W1)                +0.8   1.1    +0.4  +0.2  +1.6  +0.9    +1.5   +0.2
-        Horobeast Kurobou (B 6)                       +0.8   1.1    +1.8  +0.9  +0.3  +0.6    +0.5   +1.1
-        Ignorant Gaze (B W1)                          +0.8   1.1    +1.3  +0.0  +0.6  +0.9    +1.3   +0.2
-        At the Soul's Mercy (B W2)                    +0.6   1.2    +0.6  -0.3  +0.5  +1.1    +1.0   +0.2
-        Tengu Kurobou (B 2)                           +0.6   0.7    +1.5  +0.4  +0.0  +0.5    +0.1   +1.1
-        Lonely Nokaze (B 3)                           +0.5   1.0    +2.7  +0.9  -0.4  -0.1    +0.1   +1.0
-4x      Kurobo-chan (B 2)                             +0.3   0.8    +1.9  -0.7  +1.0  -0.4    +0.9   -0.1
-4x      Enforcer Tada and Sanbon-Datara (B 2)         +0.3   0.8    +2.7  +0.0  -0.3  -0.3    +0.6   +0.1
-        Shamisen Hozuki and MC Gasha (B 7)            +0.3   1.2    -0.3  -2.5  +2.2  +0.5    +0.6   -0.0
-2x      Tofu Nice Guy (B 3)                           +0.1   1.0    -0.6  +1.2  -0.5  +0.5    +0.0   +0.3
-        It Comes! The Dreaded Spider (B 3)            +0.0   1.0    +3.0  +0.4  -1.1  -0.9    -0.2   +0.2
-        Gashanosuke (B 2)                             +0.0   0.8    +0.9  -1.0  +0.3  -0.2    -0.5   +0.4
-4x      Yamanba Yamahime (B 3)                        -0.1   1.0    -0.4  +1.6  -0.6  -0.5    +0.1   -0.3
-        Nagure and Bodyguard Headbull (B 3)           -0.2   1.0    +2.4  +0.0  -1.0  -1.1    -0.4   -0.0
-4x      Yoshihiko and Righteous Kurobou (B 4)         -0.3   1.0    +3.9  -3.6  -0.6  -1.0    -0.7   +0.0
-        Captain Ikuchi (B 5)                          -0.3   1.2    -0.8  -1.2  +0.1  -0.1    -0.4   -0.3
-        Skeletal Gasha (B 5)                          -0.4   1.1    +0.4  -2.5  -0.3  +0.1    -0.6   -0.1
-3x      Beat Burst: Strike of the Living Body (B W2   -0.4   1.1    +0.2  +0.6  -1.1  -0.7    -0.9   +0.0
-3x      The Going Loop (B W2)                         -0.4   1.1    -1.6  -1.3  +0.5  +0.0    -0.8   -0.0
-        Fleeting Dreams, The World Is Yo! Yo! (B W3   -0.5   1.1    +0.1  -0.6  -1.1  -0.3    +0.1   -1.0
-        Giri Mukuro (B 4)                             -0.6   1.1    +3.0  -4.3  -0.4  -0.8    +0.0   -1.1
-2x      Kawaero (B 4)                                 -0.8   1.1    -0.3  -1.9  +0.7  -1.5    -1.0   -0.6
-        Great Kappa Gatara (B 7)                      -0.9   1.1    -0.3  -1.9  -1.8  -0.2    -0.4   -1.4
-        Keep Away from Danger, Kid (B W1)             -1.0   1.1    -0.6  -1.0  -1.9  -0.6    -0.4   -1.7
-        Ippon-Datara (B 5)                            -1.1   1.1    -0.9  -2.1  -0.7  -0.9    -0.9   -1.2
-4x      Horobeast Gashadokuro (B 8)                   -1.2   1.1    -0.1  -5.2  -0.9  -0.1    -0.2   -2.1
-        Bull Beat Headnaguru (B 6)                    -2.0   1.1    -1.4  -1.9  -2.9  -1.7    -2.2   -1.8
-4x      Seigi Overbeat Girobou (B 6)                  -2.0   1.1    -3.7  -1.4  -1.4  -1.8    -1.3   -2.8
-        Odosu Beat Sanbon-Tadatara (B 6)              -2.4   1.1    -3.1  -2.2  -2.5  -2.1    -2.6   -2.2
+4x      L5 Guardian of Order: Kurobou & Yoshihiko     +3.4   0.8    +3.9  +4.4  +4.0  +2.3    +3.1   +3.7
+        L8 8 Mile: Hozuki & Gasha                     +3.4   0.8    +3.7  +5.3  +3.5  +2.4    +3.5   +3.3
+        L6 Kappa Diver                                +1.3   0.8    +2.7  +0.7  +1.2  +1.0    +1.5   +1.2
+4x      L8 Horobeast Gashadokuro                      +1.0   0.9    +1.7  -0.1  +0.9  +1.2    +1.1   +0.9
+        L7 Shamisen Hozuki and MC Gasha               +0.9   0.8    -0.5  +2.2  +0.5  +1.4    +1.0   +0.8
+        L6 Horobeast Kurobou                          +0.8   0.9    +1.9  +0.7  +0.2  +0.7    +0.4   +1.3
+        L2 Tengu Kurobou                              +0.6   0.7    +1.7  +0.3  +0.4  +0.3    +0.1   +1.1
+2x      L3 Tofu Nice Guy                              +0.5   1.0    -1.3  +0.5  +0.4  +1.5    +0.4   +0.6
+4x      L2 Kurobo-chan                                +0.3   0.8    +2.0  -0.7  +1.0  -0.5    +1.0   -0.3
+4x      L2 Enforcer Tada and Sanbon-Datara            +0.3   0.9    +2.8  +0.0  -0.4  -0.3    +0.7   +0.0
+        L4 Valiant Beniten                            +0.3   0.9    -0.8  +0.0  +1.3  +0.4    +1.5   -0.8
+3x      W2 The Going Loop                             +0.3   0.6    +0.9  +0.7  +1.7  -1.1    +0.1   +0.5
+4x      W1 Three Years of Patience                    +0.3   0.8    +0.9  +0.0  +1.5  -0.8    +0.2   +0.3
+        W2 At the Soul's Mercy                        +0.2   0.6    +0.3  +0.0  +0.3  +0.1    +0.2   +0.1
+4x      L2 Tofu Kozo                                  +0.1   0.2    +0.2  +0.1  +0.1  +0.0    +0.1   +0.1
+        L2 Gashanosuke                                +0.0   0.8    +1.0  -1.2  +0.7  -0.4    -0.4   +0.4
+        L5 Captain Ikuchi                             +0.0   0.9    -1.2  +1.3  +0.4  -0.2    +0.3   -0.2
+        L3 Lonely Nokaze                              +0.0   0.0    +0.0  +0.0  +0.0  +0.0    +0.0   +0.0
+        L5 Skeletal Gasha                             +0.0   0.0    +0.0  +0.0  +0.0  +0.0    +0.0   +0.0
+        W3 Fleeting Dreams, The World Is Yo! Yo!      +0.0   0.0    +0.0  +0.0  +0.0  +0.0    +0.0   +0.0
+4x      L3 Yamanba Yamahime                           -0.0   0.6    +0.0  +0.4  -0.3  -0.1    +0.4   -0.4
+4x      L6 Seigi Overbeat Girobou                     -0.1   1.0    +1.1  -0.4  -0.8  +0.0    +0.1   -0.2
+4x      W1 Rule the Heavens with Justice              -0.1   0.8    -0.2  -0.1  +0.0  -0.2    +0.1   -0.4
+        L7 Great Kappa Gatara                         -0.3   1.0    -0.5  +2.8  -3.5  +0.6    +0.1   -0.5
+4x      L4 Yoshihiko and Righteous Kurobou            -0.4   0.9    +3.0  -1.0  -2.1  -0.7    -1.0   +0.2
+        L3 It Comes! The Dreaded Spider               -0.5   0.9    +0.3  -0.4  -0.7  -0.8    -0.2   -0.8
+        W1 Ignorant Gaze                              -0.6   0.5    -0.6  +0.0  -0.7  -0.8    -0.8   -0.4
+        L5 Ippon-Datara                               -0.7   0.7    -1.3  +0.4  -0.4  -1.0    -0.3   -1.1
+        L3 Nagure and Bodyguard Headbull              -0.7   0.9    -0.3  -0.9  -0.6  -1.0    -0.4   -1.0
+3x      W2 Beat Burst: Strike of the Living Body      -0.9   0.7    +0.5  -0.1  -0.9  -2.2    -1.1   -0.8
+        L4 Giri Mukuro                                -1.1   0.9    -1.3  -1.9  -1.1  -0.6    +0.4   -2.5
+2x      L4 Kawaero                                    -1.8   1.0    -2.1  -3.7  -1.9  -0.8    -1.2   -2.5
+        L6 Bull Beat Headnaguru                       -1.9   0.9    -1.3  -2.1  -3.0  -1.6    -2.3   -1.6
+        W1 Keep Away from Danger, Kid                 -2.4   0.8    -2.6  -1.0  -3.2  -2.3    -2.4   -2.3
+        L6 Odosu Beat Sanbon-Tadatara                 -2.4   0.8    -3.0  -2.3  -2.6  -1.9    -2.7   -2.1
 
 Saved to results/score-blue.json
