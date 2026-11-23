@@ -1,0 +1,62 @@
+Card scores for Shinazuisho Overbeat (Green), piloted by normal, 4000 deals per card against 13 decks.
+Points of win rate one copy adds each time it shows up, compared with a plain card in the same spot (Tsukumono Jumbo, Green 2-cost 4000).
+
+In deck Card                                         Score  +/-     Hand Heart Early  Late   First Second
+3x      Horobeast Jumbo (G 8)                         +3.5   1.2    +4.6  +2.8  +6.2  +1.4    +3.9   +3.0
+4x      Blaze Overbeat Shinazuisho (G 9)              +2.1   1.3    +5.7  -2.0  +4.3  +0.7    +1.9   +2.4
+        Raise Beat Shinazuisho (G 9)                  +1.5   1.2    +4.0  -0.7  +3.3  +0.1    +1.2   +1.8
+4x      Shinazui-sama (G 2)                           +1.4   1.0    +2.0  +1.3  +2.2  +0.5    +1.4   +1.3
+2x      Don Dekakegen (G 9)                           +1.3   1.2    +1.2  -0.7  +3.0  +1.2    +1.7   +0.9
+3x      Phantom Carriage (G 5)                        +0.7   1.1    +1.6  -1.2  +2.9  -0.4    +0.8   +0.6
+4x      Keukegen (G 2)                                +0.7   0.9    +1.3  +0.9  +0.7  +0.3    +0.1   +1.3
+2x      Phantom Taxi (G 6)                            +0.6   1.2    +3.9  -2.5  +1.4  -0.4    +1.5   -0.3
+3x      Horobeast Shinazui (G 5)                      +0.5   1.2    +2.7  -1.8  +2.7  -1.1    +0.9   +0.1
+        Snoozing Jumbo (G 2)                          +0.5   0.9    +2.7  -0.6  +0.0  +0.1    +0.7   +0.2
+        Never Give Up! Shinazui (G 8)                 +0.3   1.2    +2.6  -1.9  +1.7  -0.6    +0.1   +0.6
+        Kui Beat Tavelle (G 6)                        +0.2   1.2    +1.4  -1.2  +0.6  -0.1    +0.1   +0.3
+        Shinazui of the Flame (G 2)                   +0.1   0.9    +2.1  -1.0  +0.1  -0.3    +0.1   +0.2
+2x      Kesaran-Pasaran (G 3)                         +0.1   1.0    +2.4  -0.4  +0.8  -1.3    -0.9   +1.1
+        Solo Camp Shinazui-sama (G 2)                 +0.1   0.9    +2.1  -1.5  -0.2  -0.1    +0.2   -0.0
+        Moss Boy (G 3)                                +0.1   1.1    +0.3  +0.6  -0.4  +0.1    -0.1   +0.2
+        Undying Shinazui (G 2)                        +0.1   0.8    -0.3  -0.6  -0.6  +0.9    +0.1   +0.0
+4x      Rare Kegen (G 3)                              +0.0   1.1    -3.4  +2.9  -0.1  +0.5    +0.9   -0.8
+        Balloon Jump (G 2)                            +0.0   0.8    -0.3  -0.7  -0.3  +0.7    +0.1   -0.0
+        Thousand-Year Tree Spirit Kyodama (G 10)      +0.0   1.4    +0.9  -2.5  +1.2  -0.1    +0.1   -0.0
+        Forest Spirit Kegen (G 4)                     +0.0   1.2    +3.7  -2.2  -0.5  -0.6    -0.5   +0.4
+        Is It 1?! Is It 2?! Which Is It?! (G W1)      -0.0   1.2    +0.6  -1.9  +0.0  +0.5    -0.4   +0.3
+        Fluffy Iroha and Floaty Jumbo (G 5)           -0.1   1.1    +2.4  -1.9  +0.8  -1.0    -0.1   +0.0
+        We're Going for the Win...! (G W1)            -0.1   1.2    +1.5  -1.8  -0.1  -0.1    -0.3   +0.2
+        Full Throttle Helicon (G 8)                   -0.1   1.2    +1.8  -2.5  +1.0  -0.6    -0.3   +0.1
+        Noodle Shop Chikara and Bishagatsuku (G 2)    -0.1   0.8    +0.8  -1.2  -0.8  +0.5    -0.1   -0.0
+        Strange Bird Yogen (G 5)                      -0.1   1.2    +3.4  -1.8  -0.8  -0.6    -0.3   +0.1
+        Fukuromujina (G 5)                            -0.1   1.2    +3.4  -2.1  -0.8  -0.5    -0.2   +0.0
+        Beat Burst: Undying Eternal Flame! (G W2)     -0.1   1.2    +0.8  -2.3  +0.4  +0.1    -0.7   +0.4
+        Sho and Shinazui Soaring Through the Night    -0.1   1.2    +4.0  -1.6  -0.7  -1.2    +0.1   -0.3
+4x      Zoom, Here We Go, Jan! (G W1)                 -0.2   1.1    -1.5  -2.2  +1.8  +0.1    +0.0   -0.3
+        Hitorima (G 5)                                -0.2   1.2    +2.8  -2.2  -0.8  -0.5    -0.6   +0.1
+        Mana Beat Furarinte (G 5)                     -0.2   1.1    +3.1  -2.1  -0.5  -0.9    -0.4   -0.0
+        Cut Down with Personal Grudge! (G W1)         -0.3   1.2    +0.9  -1.9  -0.9  +0.2    -0.5   -0.1
+3x      Strike First! Shinazui & Sho (G 5)            -0.3   1.2    +1.8  -3.1  +1.8  -1.5    +0.7   -1.3
+        Iroha and Jumbo (G 7)                         -0.3   1.2    +2.1  -3.5  +0.0  -0.3    +0.3   -0.9
+        Strange Bird Furari-hi and Science Inte (G    -0.4   1.1    +0.1  +0.7  -0.5  -1.1    -0.5   -0.3
+        Taverna and Futakuchi Girl (G 3)              -0.4   1.1    +0.4  -1.2  -1.5  +0.2    -0.4   -0.5
+        Strange Bird Hizama (G 4)                     -0.6   1.2    +2.7  -2.3  -1.2  -1.0    -0.9   -0.2
+        Hammer Ranbo (G 7)                            -0.6   1.2    +1.4  -3.8  -0.5  -0.3    -0.5   -0.8
+        Men Beat Chikaragatsuku (G 8)                 -0.7   1.2    +0.6  -2.5  +0.0  -0.9    -0.7   -0.6
+4x      Blaze Green, Burn Bright! (G W2)              -0.7   1.1    -2.9  -3.7  +1.5  +0.3    -0.7   -0.7
+        Mori Beat Furutsuki (G 7)                     -0.7   1.2    +0.3  -3.5  +0.1  -0.5    -0.8   -0.6
+        Winged Kegen (G 4)                            -0.7   1.1    +2.1  -3.7  -0.1  -1.2    -1.1   -0.4
+        Itsuki and the Strange Tree Furusoma (G 4)    -0.8   1.2    +1.2  -1.9  -1.9  -0.5    -0.4   -1.2
+        Strange Bird Kamigiri (G 7)                   -0.8   1.2    -0.1  -2.3  -0.7  -0.6    -1.5   -0.2
+        Lonesome Old Man's House (G 5)                -0.9   1.2    +1.3  -3.5  -1.3  -0.7    -0.8   -1.1
+        Long Distance, Buried! (G W3)                 -0.9   1.2    -0.3  -2.3  -1.5  -0.3    -1.2   -0.7
+        Strange Bird Shibiro (G 4)                    -1.0   1.2    +2.2  -3.2  -2.1  -1.0    -1.3   -0.8
+        Destined Meeting: Shinazui and Sho (G 5)      -1.1   1.1    +1.7  -3.5  -1.5  -1.0    -1.3   -0.8
+4x      Hitodama Morun (G 4)                          -1.3   1.2    -2.3  -4.2  +1.3  -1.0    -1.5   -1.0
+        Yoohoo! Iroha and Jumbo (G 6)                 -1.4   1.1    -0.6  -3.1  -1.7  -0.8    -1.4   -1.4
+        Iroha and Cruising Jumbo (G 6)                -1.6   1.1    -0.5  -3.8  -1.9  -1.0    -1.7   -1.5
+        Overbeat Shinazuisho (G 9)                    -1.6   1.2    -1.7  -3.4  -1.4  -1.0    -2.3   -1.0
+        Zoom Drone (G 4)                              -1.7   1.2    -0.6  -2.9  -2.8  -1.0    -2.0   -1.4
+        Clunker Car (G 3)                             -2.5   1.2    -6.3  -0.6  -2.2  -1.5    -1.9   -3.0
+
+Saved to results/score-green.json

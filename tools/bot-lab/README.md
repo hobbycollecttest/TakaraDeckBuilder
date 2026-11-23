@@ -18,6 +18,7 @@ Run everything from the repo root.
 | `npm run bot:league -- horobeat hard 8 --out=results/hb.json` | Every test deck against every other. |
 | `npm run bot:report -- results/hb.json > results/hb.md` | Ranking, first/second split and matchup table from league results. |
 | `npm run bot:swaps -- horobeat hard:sims=12 400 base.json idea.json` | Is this deck change better than the original? |
+| `npx tsx tools/bot-lab/score.ts horobeat decks/horobeat/x.json --games=4000` | Card scores: what one copy of a card is worth in this deck, measured against a plain card in the same spot of the same game, so the rest of the deck cannot carry it. Scores cards the deck does not run too. Use this, not card-stats, to judge cards. |
 | `npm run bot:build -- horobeat decks/horobeat/x.json --minutes=60` | The deck builder: keeps changing cards in a deck while the changes win more against the test decks, piloted by the Hard bot. Screens with Normal, tests with Hard, confirms on fresh games, then a final check against the starting deck. HORO-BEAT only so far. |
 | `npx tsx tools/bot-lab/card-stats.ts ...` | HORO-BEAT only: win rate per card when it is in the opening hand. |
 | `npx tsx tools/bot-lab/timing.ts horobeat hard 6` | How long one decision takes. |
