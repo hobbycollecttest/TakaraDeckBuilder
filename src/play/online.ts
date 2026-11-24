@@ -36,6 +36,62 @@ export const sendChoice = (code: string, rev: number, i: number) => post({ op: '
 export const leaveRoom = (code: string, rev: number) => post({ op: 'leave', code, rev })
 export const checkRoom = (code: string, rev: number) => fetch(`/api/match?code=${code}&seat=${seat()}&rev=${rev}`).then(read)
 
+// Checking in with the server. Every check-in wakes the database, and the database is paid for by
+// the time it is awake, so a room nobody is looking at must go quiet:
+//   - no check-ins while the tab is in the background
+//   - slower check-ins the longer nothing has happened
+//   - after 12 minutes with no move and no tap or key press, check-ins stop until the player comes back
+const ROOM_IDLE_MS = 12 * 60 * 1000
+type Watched = { code: string; rev: number; status: string; req: unknown; apply(p: never): boolean }
+export function watchRoom(m: Watched, changed: () => void, paused: (v: boolean) => void) {
+  let stop = false
+  let timer = 0
+  let quiet = 0
+  let last = Date.now()
+  let asleep = false
+  const delay = () => {
+    const idle = Date.now() - last
+    if (m.status === 'waiting') return idle < 120000 ? 3000 : 8000
+    if (m.status === 'playing' && !!m.req) return idle < 300000 ? 12000 : 30000
+    return quiet < 40 ? 2500 : quiet < 120 ? 5000 : 10000
+  }
+  const loop = async () => {
+    if (stop || m.status === 'over') return
+    if (Date.now() - last > ROOM_IDLE_MS) { asleep = true; paused(true); return }
+    if (document.visibilityState === 'visible') {
+      try {
+        if (m.apply((await checkRoom(m.code, m.rev)) as never)) { quiet = 0; last = Date.now(); changed() } else quiet++
+      } catch { quiet++ }
+    }
+    // The check-in above may have ended the match.
+    if (stop || (m.status as string) === 'over') return
+    timer = window.setTimeout(loop, delay())
+  }
+  const wake = () => {
+    last = Date.now()
+    if (!asleep || stop) return
+    asleep = false
+    paused(false)
+    clearTimeout(timer)
+    timer = window.setTimeout(loop, 200)
+  }
+  const seen = () => { if (document.visibilityState === 'visible') wake() }
+  const inputs = ['pointerdown', 'keydown', 'touchstart', 'wheel'] as const
+  inputs.forEach((t) => window.addEventListener(t, wake, { passive: true }))
+  document.addEventListener('visibilitychange', seen)
+  timer = window.setTimeout(loop, 2500)
+  return {
+    /** Check again soon, after this player has just done something. */
+    kick: () => { wake(); clearTimeout(timer); timer = window.setTimeout(loop, 1500) },
+    stop: () => {
+      stop = true
+      clearTimeout(timer)
+      inputs.forEach((t) => window.removeEventListener(t, wake))
+      document.removeEventListener('visibilitychange', seen)
+    },
+  }
+}
+
 const HIDDEN: Def = { id: '', name: 'Hidden card', type: 'Horobeat', color: 'Red', cost: 0, power: 0, boost: 0, trigger: '', tribe: '', effect: '', triggerText: '' }
 const EMPTY: View = {
   ps: [0, 1].map(() => ({ deck: [], hand: [], hearts: [], check: [], grave: [], ena: [], lines: [null, null, null, null, null], waza: [[], [], [], [], []] })) as unknown as View['ps'],

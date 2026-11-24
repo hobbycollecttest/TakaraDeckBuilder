@@ -8,7 +8,7 @@ import { useGlide } from '../motion'
 import { authReady, currentAccount } from '../../auth'
 import { listDecks, type CloudDeck } from '../../cloud'
 import { store, type View } from '../../game'
-import { checkRoom, createRoom, joinRoom, leaveRoom, sendChoice } from '../online'
+import { createRoom, joinRoom, leaveRoom, sendChoice, watchRoom } from '../online'
 import { HQRemote, type Payload } from './online'
 import { steadyRandom } from '../tutor'
 import { HQ_TUTORIAL_SEED, hqLessonFor, hqTipFor, hqTutorialDecks, type HQTutor, type Team } from './tutor'
@@ -251,26 +251,12 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
   const [copied, setCopied] = useState(false)
   const kick = useRef<() => void>(() => {})
 
-  // Check in with the server. Often while waiting on the other player, rarely when the
-  // next move is yours, and not at all while the tab is in the background.
+  // Check in with the server. watchRoom slows down and then stops when nobody is there.
+  const [paused, setPaused] = useState(false)
   useEffect(() => {
-    let stop = false
-    let timer = 0
-    let quiet = 0
-    const loop = async () => {
-      if (stop || m.status === 'over') return
-      if (document.visibilityState === 'visible') {
-        try {
-          if (m.apply((await checkRoom(m.code, m.rev)) as unknown as Payload)) { quiet = 0; setVersion((n) => n + 1) } else quiet++
-        } catch { quiet++ }
-      }
-      if (stop || (m.status as string) === 'over') return
-      const myMove = m.status === 'playing' && !!m.req
-      timer = window.setTimeout(loop, m.status === 'waiting' ? 3000 : myMove ? 12000 : quiet < 40 ? 2500 : quiet < 120 ? 5000 : 10000)
-    }
-    kick.current = () => { clearTimeout(timer); timer = window.setTimeout(loop, 1500) }
-    timer = window.setTimeout(loop, 2500)
-    return () => { stop = true; clearTimeout(timer) }
+    const w = watchRoom(m, () => setVersion((n) => n + 1), setPaused)
+    kick.current = w.kick
+    return w.stop
   }, [])
 
   const act = async (i: number) => {
@@ -297,13 +283,13 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
           <button className="btn" onClick={() => { void navigator.clipboard?.writeText(link).then(() => setCopied(true)) }}>{copied ? 'Link copied' : 'Copy invite link'}</button>
           <button className="ghost" onClick={leave}>Cancel</button>
         </div>
-        <p className="fine">Waiting for the other player…</p>
+        <p className="fine">{paused ? 'Paused to save power. Tap anywhere to keep waiting.' : 'Waiting for the other player…'}</p>
       </main>
     )
   }
   const foe = (1 - m.side) as Side
   return (
-    <Table m={m} me={m.side} view={view} version={version} onAct={act} waitText={`Waiting for ${m.nm(foe)}…`}
+    <Table m={m} me={m.side} view={view} version={version} onAct={act} waitText={paused ? 'Paused. Tap anywhere to check again.' : `Waiting for ${m.nm(foe)}…`}
       after={<button className="btn" onClick={onExit}>Back to menu</button>}
       extra={m.status === 'over' ? null : <button className="ctl" onClick={() => (sure ? leave() : setSure(true))} onBlur={() => setSure(false)}>{sure ? 'Leave and lose?' : `Room ${m.code}`}</button>} />
   )
