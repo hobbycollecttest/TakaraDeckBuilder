@@ -796,13 +796,11 @@ function Table({ m, me, view, version = 0, onAct, cpu, waitText, after, extra, t
           })() : null}
         </div>
         <div className={`hand ${P0.hand.length > 9 ? 'packed' : P0.hand.length > 7 ? 'snug' : ''}`}>
-          {P0.hand.map((u, i, all) => {
-            const off = i - (all.length - 1) / 2
+          {P0.hand.map((u) => {
             return (
               <span key={u} className="hslot" data-uid={u} data-side={me}>
                 <button
                   className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''} ${dragging === u ? 'lifted' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`}
-                  style={{ '--rot': `${off * 2.2}deg`, '--dy': `${off * off * 1.4}px` } as React.CSSProperties}
                   onClick={() => pickCard(u)}
                   onMouseEnter={() => show(u)}
                   onPointerDown={(e) => { if (cardOpts(u).length && e.button === 0) drag.current = { uid: u, x0: e.clientX, y0: e.clientY, on: false } }}

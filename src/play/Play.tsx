@@ -806,13 +806,11 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
         </div>
         {plate(me, bigOpt ? <button className={`endbtn ${bigOpt.i === hint ? 'hint' : ''}`} onClick={() => act(bigOpt.i)}>{bigOpt.t === 'end' ? 'End Summon Phase' : 'Skip Ena Charge'}</button> : null)}
         <div className={`hand ${v.ps[me].hand.length > 8 ? 'packed' : v.ps[me].hand.length > 6 ? 'snug' : ''}`}>
-          {v.ps[me].hand.map((u, i, all) => {
-            const off = i - (all.length - 1) / 2
+          {v.ps[me].hand.map((u) => {
             return (
               <span key={u} className="hslot" data-uid={u} data-side={me}>
                 <button
                   className={`hand-card ${cardOpts(u).length ? 'can' : ''} ${chosen === u ? 'sel' : ''} ${dragging === u ? 'lifted' : ''} ${hintOpt?.uid === u && chosen !== u ? 'hint' : ''}`}
-                  style={{ '--rot': `${off * 2.4}deg`, '--dy': `${off * off * 1.6}px` } as React.CSSProperties}
                   onClick={() => pickCard(u)}
                   onMouseEnter={() => show(u)}
                   onPointerDown={(e) => { if (cardOpts(u).length && e.button === 0) drag.current = { uid: u, x0: e.clientX, y0: e.clientY, on: false } }}
