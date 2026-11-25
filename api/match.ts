@@ -10,7 +10,7 @@ type Engine = {
   answer(i: number): void
   record: boolean
   events: AnyEv[]
-  req: { p: Side; show?: number[]; opts: { uid?: number }[] } | null
+  req: { p: Side; show?: number[]; opts: { uid?: number; t?: string; w?: number }[] } | null
   log: { round: number; text: string }[]
   s: { cards: string[]; phase: string; winner: Side | null; reason: string }
   snapshot(): unknown
@@ -24,6 +24,8 @@ type Game = {
   deckRule: string
   redact(view: unknown, me: Side): unknown
   seen(view: unknown, into: Set<number>): void
+  /** The move made for a player who ran out of time. */
+  autoPick(m: Engine): number
 }
 
 // Matches between two people, joined with a room code. The server keeps the real game:
@@ -37,6 +39,32 @@ type Row = {
   game: string; code: string; seed: number; seat0: string; seat1: string | null; name0: string; name1: string | null
   deck0: string[]; deck1: string[] | null; answers: number[]; rev: number; status: string; quit: number | null
   manual0?: boolean | null; manual1?: boolean | null
+  open?: boolean | null; created_at?: string | Date | null; moved_at?: string | Date | null; strikes0?: number | null; strikes1?: number | null
+  emote?: string | null; emote_by?: number | null; eseq?: number | null; emote_at?: string | Date | null
+}
+/** How long a player has for each choice in an online match. After that, the other player can ask the server to move for them. */
+const TURN_MS = 90_000
+/** A player who runs out of time this many times loses the match. */
+const MAX_STRIKES = 3
+/** Quick messages players can send each other. Only these, so nothing can be used to harass. */
+const EMOTES = ['Hi!', 'Good luck!', 'Nice play!', 'Thinking…', 'Oops!', 'Good game!', 'Thanks!']
+/** An open room counts as someone waiting for a random match only while they keep checking in. */
+const OPEN_FRESH = "45 seconds"
+const ms = (t: string | Date | null | undefined) => (t ? new Date(t).getTime() : 0)
+/**
+ * The move made for a player who ran out of time: the quiet choice (keep the hand, pay automatically, pass,
+ * end the phase, decline) when there is one, otherwise the choice the game marks as usual, otherwise the first.
+ */
+const QUIET = ['auto', 'keep', 'pass', 'end', 'skip', 'no']
+function safePick(m: Engine): number {
+  const opts = (m.req?.opts ?? []) as { t?: string; w?: number }[]
+  for (const t of QUIET) {
+    const i = opts.findIndex((o) => o.t === t)
+    if (i >= 0) return i
+  }
+  let best = 0
+  opts.forEach((o, i) => { if ((o.w ?? 0) > (opts[best].w ?? 0)) best = i })
+  return best
 }
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 const newCode = () => Array.from({ length: 5 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('')
@@ -62,6 +90,16 @@ async function setup() {
   // Whether each player picks their own Ena to pay with (HORO-BEAT).
   await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS manual0 boolean NOT NULL DEFAULT false`
   await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS manual1 boolean NOT NULL DEFAULT false`
+  // Random matches, the turn clock and quick messages.
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS open boolean NOT NULL DEFAULT false`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now()`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS moved_at timestamptz`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS strikes0 smallint NOT NULL DEFAULT 0`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS strikes1 smallint NOT NULL DEFAULT 0`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS emote text`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS emote_by smallint`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS eseq integer NOT NULL DEFAULT 0`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS emote_at timestamptz`
 }
 // The table is brought up to date once per server start, so an older table from before
 // a new column was added can never block a request.
@@ -144,11 +182,13 @@ const GAMES: Record<string, Game> = {
     label: 'HORO-BEAT', deckRule: 'That deck is not a legal 50-card deck.', cleanDeck: hbDeck,
     start: (s) => new Match(s) as unknown as Engine,
     redact: (v, me) => hbRedact(v as View, me), seen: (v, into) => hbSeen(v as View, into),
+    autoPick: safePick,
   },
   haikyu: {
     label: 'Haikyu!! VOBACA!! BREAK', deckRule: 'That deck is not a legal deck. It needs exactly 40 cards with no more than 8 Events.', cleanDeck: hqDeck,
     start: (s) => new HQ(s) as unknown as Engine,
     redact: (v, me) => hqRedact(v as HQView, me), seen: (v, into) => hqSeen(v as HQView, into),
+    autoPick: safePick,
   },
 }
 const gameOf = (row: Row) => GAMES[row.game] || GAMES.horobeat
@@ -162,7 +202,7 @@ const replay = (row: Row, names: [string, string], upTo: number, record: boolean
 /** Everything one player's screen needs, starting from the last change they have already seen. */
 function stateFor(row: Row, side: Side, clientRev: number) {
   const names: [string, string] = [row.name0, row.name1 || 'Opponent']
-  if (row.status === 'waiting' || !row.deck1) return { rev: row.rev, status: 'waiting', code: row.code, game: row.game, side, names }
+  if (row.status === 'waiting' || !row.deck1) return { rev: row.rev, status: 'waiting', code: row.code, game: row.game, side, names, open: !!row.open }
   const answers = row.answers
   const from = clientRev >= 0 && clientRev <= answers.length ? clientRev : answers.length
   const G = gameOf(row)
@@ -198,11 +238,52 @@ function stateFor(row: Row, side: Side, clientRev: number) {
     rev: row.rev, status: phase === 'over' ? 'over' : 'playing', code: row.code, game: row.game, side, names,
     events, view, req: phase === 'over' ? null : req, turn: m.req ? m.req.p : null,
     log: m.log, cards, phase, winner, reason, manualPay: !!m.manualPay?.[side],
+    clock: { moveAt: ms(row.moved_at) || ms(row.created_at), now: Date.now(), limit: TURN_MS, strikes: [row.strikes0 ?? 0, row.strikes1 ?? 0], max: MAX_STRIKES },
+    emote: { seq: row.eseq ?? 0, by: row.emote_by ?? null, text: row.emote ?? '' },
+    // Once the match is over nothing is hidden any more, so both players get everything needed to replay it.
+    replay: phase === 'over' ? { game: row.game, seed: row.seed, decks: [row.deck0, row.deck1], names, manualPay: [!!row.manual0, !!row.manual1], answers: row.answers } : undefined,
   }
 }
 
 const sideOf = (row: Row, seat: string): Side | null => (row.seat0 === seat ? 0 : row.seat1 === seat ? 1 : null)
 const load = async (code: string) => (await withTable(() => sql!`SELECT * FROM takaradecks_matches WHERE code = ${code}`))[0] as Row | undefined
+
+/** Seat a player in someone else's open room, as the second player. Null if that room was taken first. */
+async function joinOpen(code: string, seat: string, name: string, deck: string[], manual: boolean) {
+  const seed = Math.floor(Math.random() * 2 ** 31)
+  const rows = await sql!`
+    UPDATE takaradecks_matches SET seat1 = ${seat}, name1 = ${name}, deck1 = ${JSON.stringify(deck)}::jsonb, seed = ${seed}, manual1 = ${manual},
+      status = 'playing', moved_at = now(), updated_at = now()
+    WHERE code = ${code} AND status = 'waiting' AND open AND seat0 <> ${seat} RETURNING *`
+  return (rows[0] as Row) || null
+}
+/** The longest-waiting open room of this game, other than the player's own, that is still being checked on. */
+async function oldestOpen(game: string, seat: string, olderThan?: Row) {
+  const rows = olderThan
+    ? await sql!`SELECT code FROM takaradecks_matches WHERE status = 'waiting' AND open AND game = ${game} AND seat0 <> ${seat}
+        AND updated_at > now() - ${OPEN_FRESH}::interval AND created_at < ${olderThan.created_at as unknown as string} ORDER BY created_at LIMIT 3`
+    : await sql!`SELECT code FROM takaradecks_matches WHERE status = 'waiting' AND open AND game = ${game} AND seat0 <> ${seat}
+        AND updated_at > now() - ${OPEN_FRESH}::interval ORDER BY created_at LIMIT 3`
+  return rows.map((r) => r.code as string)
+}
+/**
+ * A player waiting in their own open room checks whether someone else has been waiting longer. If so, they
+ * join that room and theirs is closed. Only the newer room ever joins the older, so two players never cross.
+ */
+async function pairUp(row: Row): Promise<Row | null> {
+  for (const code of await oldestOpen(row.game, row.seat0, row)) {
+    const joined = await joinOpen(code, row.seat0, row.name0, row.deck0, !!row.manual0)
+    if (!joined) continue
+    const gone = await sql!`DELETE FROM takaradecks_matches WHERE code = ${row.code} AND status = 'waiting' RETURNING code`
+    // Someone joined this player's room in the same moment: keep that match and leave the new one.
+    if (!gone.length) {
+      await sql!`UPDATE takaradecks_matches SET quit = 1, status = 'over', updated_at = now() WHERE code = ${code}`
+      return null
+    }
+    return joined
+  }
+  return null
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Cache-Control', 'no-store')
@@ -215,9 +296,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const rev = Number(q('rev') ?? -1)
       if (!isCode(code) || !isSeat(seat)) return res.status(400).json({ error: 'That room code does not look right.' })
       // The cheap check: has anything changed since this player last looked?
-      const head = (await withTable(() => sql!`SELECT rev, status, quit FROM takaradecks_matches WHERE code = ${code} AND (seat0 = ${seat} OR seat1 = ${seat})`))[0]
+      const eseq = Number(q('eseq') ?? -1)
+      const head = (await withTable(() => sql!`SELECT rev, status, quit, eseq, open FROM takaradecks_matches WHERE code = ${code} AND (seat0 = ${seat} OR seat1 = ${seat})`))[0]
       if (!head) return res.status(404).json({ error: 'That room was not found. It may have expired.' })
-      if (head.rev === rev && head.status !== 'waiting' && head.quit == null) return res.status(200).json({ same: true })
+      if (head.rev === rev && head.status !== 'waiting' && head.quit == null && (eseq < 0 || head.eseq === eseq)) return res.status(200).json({ same: true })
+      // Someone waiting for a random match: keep their room fresh, and pair them with anyone who has waited longer.
+      if (head.status === 'waiting' && head.open) {
+        const mine = (await sql!`UPDATE takaradecks_matches SET updated_at = now() WHERE code = ${code} AND status = 'waiting' RETURNING *`)[0] as Row | undefined
+        if (mine) {
+          const joined = await pairUp(mine)
+          if (joined) return res.status(200).json(stateFor(joined, 1, -1))
+        }
+      }
       const row = (await load(code))!
       return res.status(200).json(stateFor(row, sideOf(row, seat)!, rev))
     }
@@ -248,6 +338,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Could not make a room. Please try again.' })
     }
 
+    // A random match: join whoever has waited longest, or open a room and wait for the next player.
+    if (body.op === 'find') {
+      const deck = GAMES[game].cleanDeck(body.deck)
+      if (!deck) return res.status(400).json({ error: GAMES[game].deckRule })
+      await withTable(() => sql!`DELETE FROM takaradecks_matches WHERE status = 'waiting' AND open AND seat0 = ${seat}`)
+      for (const code of await oldestOpen(game, seat)) {
+        const joined = await joinOpen(code, seat, name, deck, manual)
+        if (joined) return res.status(200).json(stateFor(joined, 1, -1))
+      }
+      for (let tries = 0; tries < 5; tries++) {
+        const code = newCode()
+        const rows = await sql!`
+          INSERT INTO takaradecks_matches (code, seat0, name0, deck0, game, manual0, open) VALUES (${code}, ${seat}, ${name}, ${JSON.stringify(deck)}::jsonb, ${game}, ${manual}, true)
+          ON CONFLICT (code) DO NOTHING RETURNING *`
+        if (rows.length) return res.status(200).json(stateFor(rows[0] as Row, 0, -1))
+      }
+      return res.status(500).json({ error: 'Could not start looking for a match. Please try again.' })
+    }
+
     const code = typeof body.code === 'string' ? body.code.toUpperCase() : ''
     if (!isCode(code)) return res.status(400).json({ error: 'Room codes are 5 letters and numbers.' })
     const row = await load(code)
@@ -262,7 +371,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!deck) return res.status(400).json({ error: gameOf(row).deckRule })
       const seed = Math.floor(Math.random() * 2 ** 31)
       const rows = await sql!`
-        UPDATE takaradecks_matches SET seat1 = ${seat}, name1 = ${name}, deck1 = ${JSON.stringify(deck)}::jsonb, seed = ${seed}, manual1 = ${manual}, status = 'playing', updated_at = now()
+        UPDATE takaradecks_matches SET seat1 = ${seat}, name1 = ${name}, deck1 = ${JSON.stringify(deck)}::jsonb, seed = ${seed}, manual1 = ${manual}, status = 'playing', moved_at = now(), updated_at = now()
         WHERE code = ${code} AND status = 'waiting' RETURNING *`
       if (!rows.length) return res.status(409).json({ error: 'That room already has two players.' })
       return res.status(200).json(stateFor(rows[0] as Row, 1, -1))
@@ -295,6 +404,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(stateFor((rows[0] as Row) || (await load(code))!, side, clientRev))
     }
 
+    // The other player ran out of time: the server makes one simple move for them.
+    if (body.op === 'timeout') {
+      if (row.status !== 'playing' || !row.deck1 || row.quit != null) return res.status(200).json(stateFor(row, side, clientRev))
+      if (Date.now() - (ms(row.moved_at) || ms(row.created_at)) < TURN_MS) return res.status(200).json(stateFor(row, side, clientRev))
+      const m = replay(row, [row.name0, row.name1 || ''], row.answers.length, false)
+      if (!m.req || m.req.p === side) return res.status(200).json(stateFor(row, side, clientRev))
+      const late = m.req.p
+      const strikes = (late === 0 ? row.strikes0 : row.strikes1) ?? 0
+      let rows
+      if (strikes + 1 >= MAX_STRIKES) {
+        rows = await sql!`UPDATE takaradecks_matches SET quit = ${late}, status = 'over', rev = rev + 1, updated_at = now()
+          WHERE code = ${code} AND rev = ${row.rev} AND status = 'playing' RETURNING *`
+      } else {
+        const i = gameOf(row).autoPick(m)
+        m.answer(i)
+        const status = m.s.phase === 'over' ? 'over' : 'playing'
+        rows = late === 0
+          ? await sql!`UPDATE takaradecks_matches SET answers = answers || ${JSON.stringify([i])}::jsonb, rev = rev + 1, status = ${status}, strikes0 = strikes0 + 1, moved_at = now(), updated_at = now()
+              WHERE code = ${code} AND rev = ${row.rev} AND status = 'playing' RETURNING *`
+          : await sql!`UPDATE takaradecks_matches SET answers = answers || ${JSON.stringify([i])}::jsonb, rev = rev + 1, status = ${status}, strikes1 = strikes1 + 1, moved_at = now(), updated_at = now()
+              WHERE code = ${code} AND rev = ${row.rev} AND status = 'playing' RETURNING *`
+      }
+      return res.status(200).json(stateFor((rows[0] as Row) || (await load(code))!, side, clientRev))
+    }
+
+    // A quick message from the fixed list, at most one every few seconds.
+    if (body.op === 'emote') {
+      const text = typeof body.text === 'string' && EMOTES.includes(body.text) ? body.text : ''
+      if (!text) return res.status(400).json({ error: 'Unknown message.' })
+      if (row.status !== 'playing') return res.status(200).json({ ok: false })
+      const rows = await sql!`UPDATE takaradecks_matches SET emote = ${text}, emote_by = ${side}, eseq = eseq + 1, emote_at = now()
+        WHERE code = ${code} AND (emote_at IS NULL OR emote_at < now() - interval '3 seconds' OR emote_by <> ${side}) RETURNING eseq`
+      return res.status(200).json({ ok: rows.length > 0, seq: rows[0]?.eseq ?? row.eseq })
+    }
+
     if (body.op === 'act') {
       const i = body.i
       if (row.status !== 'playing' || !row.deck1) return res.status(409).json({ error: 'This match is not in progress.' })
@@ -306,7 +450,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       m.answer(i as number)
       const status = m.s.phase === 'over' ? 'over' : 'playing'
       const rows = await sql!`
-        UPDATE takaradecks_matches SET answers = answers || ${JSON.stringify([i])}::jsonb, rev = rev + 1, status = ${status}, updated_at = now()
+        UPDATE takaradecks_matches SET answers = answers || ${JSON.stringify([i])}::jsonb, rev = rev + 1, status = ${status}, moved_at = now(), updated_at = now()
         WHERE code = ${code} AND rev = ${row.rev} AND status = 'playing' RETURNING *`
       if (!rows.length) return res.status(200).json(stateFor((await load(code))!, side, clientRev))
       return res.status(200).json(stateFor(rows[0] as Row, side, clientRev))

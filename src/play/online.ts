@@ -9,6 +9,12 @@ export type Payload = {
   events?: Ev[]; view?: View; req?: Req | null; turn?: Side | null
   log?: { round: number; text: string }[]; cards?: Record<number, string>; phase?: string; winner?: Side | null; reason?: string
   manualPay?: boolean
+  open?: boolean
+  /** When the player to move last moved, by the server's clock, and how long each choice may take. */
+  clock?: { moveAt: number; now: number; limit: number; strikes: [number, number]; max: number }
+  emote?: { seq: number; by: Side | null; text: string }
+  /** Everything needed to watch the match back, sent once it is over. */
+  replay?: { game: string; seed: number; decks: [string[], string[]]; names: [string, string]; manualPay: [boolean, boolean]; answers: number[] }
 }
 
 /** A secret kept in this browser that proves which seat in the room is yours. */
@@ -35,8 +41,13 @@ export const createRoom = (name: string, deck: string[], game = 'horobeat', manu
 export const joinRoom = (code: string, name: string, deck?: string[], game = 'horobeat', manualPay = false) => post({ op: 'join', code, name, deck, game, manualPay })
 export const sendChoice = (code: string, rev: number, i: number) => post({ op: 'act', code, rev, i })
 export const setRoomPay = (code: string, rev: number, manual: boolean) => post({ op: 'pay', code, rev, manual })
+export const findMatch = (name: string, deck: string[], game = 'horobeat', manualPay = false) => post({ op: 'find', name, deck, game, manualPay })
+export const claimTimeout = (code: string, rev: number) => post({ op: 'timeout', code, rev })
+export const sendEmote = (code: string, text: string) =>
+  fetch('/api/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ op: 'emote', code, text, seat: seat() }) }).then((r) => r.json() as Promise<{ ok: boolean; seq: number }>)
+export const EMOTES = ['Hi!', 'Good luck!', 'Nice play!', 'Thinking…', 'Oops!', 'Good game!', 'Thanks!']
 export const leaveRoom = (code: string, rev: number) => post({ op: 'leave', code, rev })
-export const checkRoom = (code: string, rev: number) => fetch(`/api/match?code=${code}&seat=${seat()}&rev=${rev}`).then(read)
+export const checkRoom = (code: string, rev: number, eseq = -1) => fetch(`/api/match?code=${code}&seat=${seat()}&rev=${rev}&eseq=${eseq}`).then(read)
 
 // Checking in with the server. Every check-in wakes the database, and the database is paid for by
 // the time it is awake, so a room nobody is looking at must go quiet:
@@ -44,7 +55,7 @@ export const checkRoom = (code: string, rev: number) => fetch(`/api/match?code=$
 //   - slower check-ins the longer nothing has happened
 //   - after 12 minutes with no move and no tap or key press, check-ins stop until the player comes back
 const ROOM_IDLE_MS = 12 * 60 * 1000
-type Watched = { code: string; rev: number; status: string; req: unknown; apply(p: never): boolean }
+type Watched = { code: string; rev: number; status: string; req: unknown; eseq?: number; apply(p: never): boolean }
 export function watchRoom(m: Watched, changed: () => void, paused: (v: boolean) => void) {
   let stop = false
   let timer = 0
@@ -62,7 +73,7 @@ export function watchRoom(m: Watched, changed: () => void, paused: (v: boolean) 
     if (Date.now() - last > ROOM_IDLE_MS) { asleep = true; paused(true); return }
     if (document.visibilityState === 'visible') {
       try {
-        if (m.apply((await checkRoom(m.code, m.rev)) as never)) { quiet = 0; last = Date.now(); changed() } else quiet++
+        if (m.apply((await checkRoom(m.code, m.rev, m.eseq ?? -1)) as never)) { quiet = 0; last = Date.now(); changed() } else quiet++
       } catch { quiet++ }
     }
     // The check-in above may have ended the match.
@@ -113,6 +124,14 @@ export class RemoteMatch {
   turn: Side | null = null
   /** Whether this player picks their own Ena to pay with. */
   manualPay = false
+  /** A room for a random match, rather than one made for a friend. */
+  open = false
+  clock: Payload['clock'] | null = null
+  /** How far this device's clock is from the server's. */
+  skew = 0
+  emote: Payload['emote'] | null = null
+  eseq = -1
+  replay: Payload['replay'] | null = null
   private view: View = EMPTY
 
   constructor(first: Payload) { this.apply(first) }
@@ -124,6 +143,7 @@ export class RemoteMatch {
     this.side = p.side
     this.names = p.names
     this.status = p.status
+    this.open = !!p.open
     if (p.status === 'waiting' || !p.view) return true
     this.rev = p.rev
     if (p.events?.length) this.events.push(...p.events)
@@ -131,6 +151,9 @@ export class RemoteMatch {
     this.req = p.req ?? null
     this.turn = p.turn ?? null
     this.manualPay = !!p.manualPay
+    if (p.clock) { this.clock = p.clock; this.skew = p.clock.now - Date.now() }
+    if (p.emote) { this.emote = p.emote; this.eseq = p.emote.seq }
+    if (p.replay) this.replay = p.replay
     this.log = p.log || []
     Object.assign(this.s.cards, p.cards)
     this.s.phase = p.phase || 'summon'

@@ -468,6 +468,11 @@ export class Match {
     const st = P.lines[line]
     if (!st) return
     const uid = st.cards[st.cards.length - 1]
+    // "Cannot be destroyed" stops every destroy, from damage or from an effect (Blaze Overbeat Shinazuisho).
+    if (this.sc(uid).indestructible) {
+      this.say(`${this.name(uid)} cannot be destroyed.`)
+      return
+    }
     const sc = this.sc(uid)
     P.lines[line] = null
     P.grave.push(...st.cards.slice(0, -1))

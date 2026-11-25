@@ -1,0 +1,18 @@
+{
+  "name": "HORO-BEAT Play | TakaraDecks",
+  "short_name": "HORO-BEAT",
+  "description": "Play HORO-BEAT against the computer or other players, with the official rules built in.",
+  "id": "/play",
+  "start_url": "/play",
+  "scope": "/",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
+  "background_color": "#17140f",
+  "theme_color": "#6b1814",
+  "icons": [
+    { "src": "/app/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/app/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

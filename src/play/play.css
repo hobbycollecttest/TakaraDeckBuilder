@@ -465,3 +465,97 @@ button.under:hover, button.under:focus-visible { background: var(--cream); color
 .tray .hand-card.marked img { outline: 3px solid var(--hq, #e9c877); outline-offset: -3px; filter: brightness(0.6); }
 .tray .hand-card.marked::after { content: 'Pay'; position: absolute; left: 0; right: 0; top: 34%; font: 700 12px/1 var(--cond); letter-spacing: 0.06em; text-transform: uppercase; color: #fff; text-align: center; text-shadow: 0 1px 4px #000; }
 @media (max-width: 640px) { .opening-cards .mark.back::after { font-size: 10px; top: 38%; } .opening-cards .read { font-size: 10px; } }
+
+/* ---------- big moments ---------- */
+/* A rare card or a boss takes the stage: it swings in edge-on, settles, and a light passes over it. */
+.star-entry { position: absolute; inset: 0; z-index: 24; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: radial-gradient(ellipse at center, rgba(12, 9, 7, 0.9) 0%, rgba(12, 9, 7, 0.78) 45%, rgba(12, 9, 7, 0.25) 100%); cursor: pointer; animation: starfade calc(1850ms / var(--spd, 1)) ease-in-out both; }
+.star-stage { position: relative; width: min(calc(var(--cw) * 2.3), 210px); perspective: 900px; }
+.star-card { position: relative; border-radius: 9px; overflow: hidden; transform-style: preserve-3d; box-shadow: 0 0 0 2px #e9c877, 0 0 46px rgba(240, 183, 50, 0.75), 0 26px 50px rgba(0, 0, 0, 0.8); animation: starswing calc(1850ms / var(--spd, 1)) cubic-bezier(0.2, 0.9, 0.25, 1) both; }
+.star-entry.theirs .star-card { --turn: 1; }
+.star-card img { display: block; width: 100%; }
+.star-shine { position: absolute; inset: -20% -60%; background: linear-gradient(105deg, rgba(255, 255, 255, 0) 40%, rgba(255, 244, 214, 0.75) 50%, rgba(255, 255, 255, 0) 60%); mix-blend-mode: screen; animation: starshine calc(1850ms / var(--spd, 1)) ease-in-out both; }
+.star-ring { position: absolute; left: 50%; top: 50%; width: 170%; aspect-ratio: 1; margin: -85% 0 0 -85%; border: 3px solid rgba(233, 200, 119, 0.9); border-radius: 50%; animation: starring calc(1850ms / var(--spd, 1)) ease-out both; }
+.star-name { text-align: center; animation: starname calc(1850ms / var(--spd, 1)) ease-out both; }
+.star-name strong { display: block; font: 700 clamp(18px, 2.4vw, 26px)/1.15 'Cinzel', var(--disp); letter-spacing: 0.08em; color: #f6dfa4; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9); }
+.star-name span { display: block; margin-top: 6px; font: 600 12px/1 var(--cond); letter-spacing: 0.18em; text-transform: uppercase; color: var(--cream); }
+@keyframes starfade { 0% { opacity: 0; } 10% { opacity: 1; } 84% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes starswing {
+  0% { opacity: 0; transform: translateY(40px) rotateY(calc(-82deg + var(--turn, 0) * 164deg)) rotateX(18deg) scale(0.62); }
+  34% { opacity: 1; transform: translateY(-6px) rotateY(calc(10deg - var(--turn, 0) * 20deg)) rotateX(-4deg) scale(1.06); }
+  48% { transform: rotateY(calc(-3deg + var(--turn, 0) * 6deg)) scale(1); }
+  84% { opacity: 1; transform: rotateY(0) scale(1.02); }
+  100% { opacity: 0; transform: translateY(-24px) scale(0.9); }
+}
+@keyframes starshine { 0%, 38% { transform: translateX(-70%); opacity: 0; } 42% { opacity: 1; } 66% { transform: translateX(70%); opacity: 1; } 70%, 100% { transform: translateX(70%); opacity: 0; } }
+@keyframes starring { 0%, 26% { opacity: 0; transform: scale(0.3); } 34% { opacity: 1; } 62% { opacity: 0; transform: scale(1.25); border-width: 1px; } 100% { opacity: 0; } }
+@keyframes starname { 0%, 30% { opacity: 0; transform: translateY(10px); } 44% { opacity: 1; transform: none; } 84% { opacity: 1; } 100% { opacity: 0; } }
+
+/* A Double Damage hit or a broken Heart: a red flash over the table, a harder shake and a stamp. */
+.hit-flash { position: absolute; inset: 0; z-index: 22; display: flex; align-items: center; justify-content: center; pointer-events: none; animation: hitflash calc(900ms / var(--spd, 1)) ease-out both; }
+.hit-flash.mine { background: radial-gradient(ellipse at 50% 85%, rgba(220, 40, 30, 0.42), rgba(220, 40, 30, 0) 65%); }
+.hit-flash.theirs { background: radial-gradient(ellipse at 50% 15%, rgba(220, 40, 30, 0.42), rgba(220, 40, 30, 0) 65%); }
+.hit-flash strong { padding: 6px 18px; border: 2px solid #ff6a5e; color: #ffd6d1; background: rgba(40, 8, 6, 0.78); font: 700 clamp(22px, 3.4vw, 40px)/1 'Cinzel', var(--disp); letter-spacing: 0.12em; text-transform: uppercase; transform: rotate(-6deg); animation: stamp calc(900ms / var(--spd, 1)) cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes hitflash { 0% { opacity: 0; } 12% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes stamp { 0% { opacity: 0; transform: rotate(-6deg) scale(2.6); } 24% { opacity: 1; transform: rotate(-6deg) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: rotate(-6deg) scale(1.04); } }
+.mat.heavy.shake0, .mat.heavy.shake1 { animation: shakeHeavy calc(640ms / var(--spd, 1)) ease-out; }
+@keyframes shakeHeavy { 8% { transform: translate(-12px, 7px) rotate(-0.4deg); } 22% { transform: translate(11px, -7px) rotate(0.4deg); } 38% { transform: translate(-8px, 5px); } 54% { transform: translate(6px, -3px); } 70% { transform: translate(-3px, 2px); } 86% { transform: translate(1px, 0); } }
+.shards { position: absolute; left: 50%; top: 40%; width: 0; height: 0; pointer-events: none; z-index: 31; }
+.shards i { position: absolute; width: 9px; height: 13px; margin: -6px 0 0 -4px; background: linear-gradient(135deg, #ff8a7e, #a3150c); clip-path: polygon(50% 0, 100% 60%, 30% 100%, 0 40%); animation: shard calc(820ms / var(--spd, 1)) cubic-bezier(0.1, 0.7, 0.3, 1) both; }
+@keyframes shard { 0% { opacity: 1; transform: rotate(var(--a)) translateY(0) rotate(0); } 100% { opacity: 0; transform: rotate(var(--a)) translateY(-70px) rotate(220deg); } }
+
+/* ---------- online: clock and quick messages ---------- */
+.clock { display: inline-flex; align-items: baseline; gap: 6px; padding: 3px 9px; border: 1px solid #6d6556; color: var(--mute); font: 600 12px/1.4 var(--cond); letter-spacing: 0.04em; white-space: nowrap; }
+.clock b { font: 700 14px/1 var(--cond); font-variant-numeric: tabular-nums; color: var(--cream); }
+.clock.mine { border-color: #e9c877; color: #e9c877; }
+.clock.low b { color: #ff6a5e; }
+.clock.low.mine { animation: clockwarn 1s ease-in-out infinite; }
+@keyframes clockwarn { 50% { box-shadow: 0 0 0 3px rgba(255, 106, 94, 0.35); } }
+.emote-menu { position: relative; }
+.emote-list { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; display: grid; min-width: 140px; padding: 4px; background: #1d1813; border: 1px solid #6d6556; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6); }
+.emote-list button { padding: 8px 10px; border: 0; background: none; color: var(--cream); font: 500 13px/1.2 var(--body, inherit); text-align: left; }
+.emote-list button:hover, .emote-list button:focus-visible { background: rgba(233, 200, 119, 0.16); }
+.emote-bubble { position: absolute; left: 12%; z-index: 26; max-width: 60%; padding: 8px 14px; background: #f6efdd; color: #1b1509; font: 600 15px/1.2 var(--cond); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55); pointer-events: none; animation: bubble 3200ms ease-out both; }
+.emote-bubble::after { content: ''; position: absolute; left: 18px; width: 12px; height: 12px; background: inherit; transform: rotate(45deg); }
+.emote-bubble.theirs { top: 6%; }
+.emote-bubble.theirs::after { top: -6px; }
+.emote-bubble.mine { bottom: 6%; }
+.emote-bubble.mine::after { bottom: -6px; }
+@keyframes bubble { 0% { opacity: 0; transform: translateY(8px) scale(0.9); } 8% { opacity: 1; transform: none; } 85% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------- lobby: random match search and recent matches ---------- */
+.searching { display: flex; gap: 10px; margin: 18px 0 6px; }
+.searching i { width: 12px; height: 12px; border-radius: 50%; background: var(--crimson); animation: searching 1.2s ease-in-out infinite; }
+.searching i:nth-child(2) { animation-delay: 0.2s; }
+.searching i:nth-child(3) { animation-delay: 0.4s; }
+@keyframes searching { 0%, 100% { opacity: 0.25; transform: scale(0.8); } 50% { opacity: 1; transform: none; } }
+.friend-actions + .friend-actions { margin-top: 10px; }
+.recent { margin-top: 36px; }
+.recent ul { margin: 0; padding: 0; list-style: none; }
+.recent li { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line-2); }
+.recent-result { font: 700 12px/1 var(--cond); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.recent-result.won { color: #2f7d4a; }
+.recent-result.lost { color: var(--crimson); }
+.recent-vs { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-when { color: var(--ink-3); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  .star-card, .star-shine, .star-ring, .star-name, .hit-flash strong, .shards i, .searching i, .clock.low.mine { animation: none; }
+  .star-entry { animation-duration: 600ms; }
+}
+@media (max-width: 520px) {
+  .clock { padding: 2px 6px; }
+  .recent li { grid-template-columns: 44px minmax(0, 1fr) auto; }
+  .recent-when { display: none; }
+}
+
+/* Phones: the buttons above the table get a row of their own instead of covering the names. */
+@media (max-width: 640px) {
+  .cpu-row { flex-wrap: wrap; height: auto; overflow: visible; gap: 6px 10px; }
+  .cpu-row .controls { order: -1; flex: 1 0 100%; flex-wrap: wrap; justify-content: flex-end; margin-left: 0; }
+  .app-tip { margin-top: 10px; }
+}
+/* Opened from the home screen: keep clear of the phone's notch and home bar. */
+@media (display-mode: fullscreen), (display-mode: standalone) {
+  .play .top { padding-top: env(safe-area-inset-top, 0px); }
+  .play.in-match { padding-bottom: env(safe-area-inset-bottom, 0px); }
+}
