@@ -2,8 +2,6 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { cleanLabel, sql } from '../lib/server.js'
 import { DEFS, Match, type View } from '../src/sim/engine.js'
 import { DEFS as HQ_DEFS, HQ, type View as HQView } from '../src/sim/hq/engine.js'
-import { tutorChoice } from '../src/sim/ai.js'
-import { tutorChoice as hqTutorChoice } from '../src/sim/hq/ai.js'
 
 type Side = 0 | 1
 type Setup = { seed: number; decks: [string[], string[]]; names: [string, string]; manualPay?: [boolean, boolean] }
@@ -12,7 +10,7 @@ type Engine = {
   answer(i: number): void
   record: boolean
   events: AnyEv[]
-  req: { p: Side; show?: number[]; opts: { uid?: number }[] } | null
+  req: { p: Side; show?: number[]; opts: { uid?: number; t?: string; w?: number }[] } | null
   log: { round: number; text: string }[]
   s: { cards: string[]; phase: string; winner: Side | null; reason: string }
   snapshot(): unknown
@@ -53,6 +51,21 @@ const EMOTES = ['Hi!', 'Good luck!', 'Nice play!', 'Thinking…', 'Oops!', 'Good
 /** An open room counts as someone waiting for a random match only while they keep checking in. */
 const OPEN_FRESH = "45 seconds"
 const ms = (t: string | Date | null | undefined) => (t ? new Date(t).getTime() : 0)
+/**
+ * The move made for a player who ran out of time: the quiet choice (keep the hand, pay automatically, pass,
+ * end the phase, decline) when there is one, otherwise the choice the game marks as usual, otherwise the first.
+ */
+const QUIET = ['auto', 'keep', 'pass', 'end', 'skip', 'no']
+function safePick(m: Engine): number {
+  const opts = (m.req?.opts ?? []) as { t?: string; w?: number }[]
+  for (const t of QUIET) {
+    const i = opts.findIndex((o) => o.t === t)
+    if (i >= 0) return i
+  }
+  let best = 0
+  opts.forEach((o, i) => { if ((o.w ?? 0) > (opts[best].w ?? 0)) best = i })
+  return best
+}
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 const newCode = () => Array.from({ length: 5 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('')
 const isCode = (v: unknown): v is string => typeof v === 'string' && /^[A-Z0-9]{5}$/.test(v)
@@ -169,13 +182,13 @@ const GAMES: Record<string, Game> = {
     label: 'HORO-BEAT', deckRule: 'That deck is not a legal 50-card deck.', cleanDeck: hbDeck,
     start: (s) => new Match(s) as unknown as Engine,
     redact: (v, me) => hbRedact(v as View, me), seen: (v, into) => hbSeen(v as View, into),
-    autoPick: (m) => tutorChoice(m as unknown as Match),
+    autoPick: safePick,
   },
   haikyu: {
     label: 'Haikyu!! VOBACA!! BREAK', deckRule: 'That deck is not a legal deck. It needs exactly 40 cards with no more than 8 Events.', cleanDeck: hqDeck,
     start: (s) => new HQ(s) as unknown as Engine,
     redact: (v, me) => hqRedact(v as HQView, me), seen: (v, into) => hqSeen(v as HQView, into),
-    autoPick: (m) => hqTutorChoice(m as unknown as HQ),
+    autoPick: safePick,
   },
 }
 const gameOf = (row: Row) => GAMES[row.game] || GAMES.horobeat
