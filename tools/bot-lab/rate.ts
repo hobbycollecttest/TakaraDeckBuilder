@@ -6,6 +6,8 @@
 //   Boost    its Boost against the benchmark's Boost (2000 Boost counts as 1 point: it is only used from hand)
 //   Effect   what its text does, from the list of rules below (each rule is one line: what it matches, its points)
 //   Synergy  how many cards of the same color it works with (what it needs is available; other cards need it)
+// Synergy is NOT part of a card's rating: it only counts inside a deck that has the partner cards (Jeff, 2026-11-25).
+// It is still worked out here and saved beside the rating, for the deck builder to use.
 // The points in RULES and the shares in WHEN are Jeff's (HORO-BEAT Effect Scores sheet, 2026-11-25). The synergy weights are judgement calls, written down so they can be
 // argued with and changed. Nothing here is measured. For a measured score, see score.ts.
 import fs from 'node:fs'
@@ -189,14 +191,13 @@ function synergy(c: Card) {
 const rows = cards.map((c) => {
   const b = BENCH[c.type]?.[String(c.cost)]
   if (!b) throw new Error(`No benchmark for ${c.type} ${c.cost}`)
-  // Compared with the benchmark that matches: with Boost or without. The gap between the two is what Boost is worth.
-  const bench = c.boost > 0 && b.boosted != null ? b.boosted : b.plain
-  const stats = +((c.power - bench) / 1000).toFixed(2)
-  const boost = 0
+  // Power against the level's no-Boost benchmark. Boost is scored on its own: a flat +1 (Jeff, 2026-11-25).
+  const stats = +((c.power - b.plain) / 1000).toFixed(2)
+  const boost = c.boost > 0 ? 1 : 0
   const parts = effectParts(c)
   const effect = +parts.reduce((a, p) => a + p.pts, 0).toFixed(2)
   const syn = synergy(c)
-  return { c, stats, boost, effect, parts, syn, total: +(stats + boost + effect + syn.pts).toFixed(2) }
+  return { c, stats, boost, effect, parts, syn, total: +(stats + boost + effect).toFixed(2) }
 })
 const missed = rows.flatMap((r) => r.parts.filter((p) => p.what.startsWith('NOT RATED')).map((p) => `${r.c.name}: ${p.what}`))
 if (missed.length) { console.error(`${missed.length} effect sentence(s) have no rule yet:`); missed.forEach((m) => console.error('  ' + m)) }

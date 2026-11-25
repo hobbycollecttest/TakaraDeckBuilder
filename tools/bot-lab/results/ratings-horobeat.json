@@ -8,37 +8,14 @@
   "power": 3000,
   "boost": 2000,
   "tribe": "Justice Order",
-  "rating": 0.5,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 0.5,
   "partners": 1,
   "effectNotes": [],
   "synergyNotes": [
-   "Justice Waza: Rule the Heavens with Justice"
-  ]
- },
- {
-  "id": "hb01-067-c",
-  "name": "Kurobo-chan",
-  "color": "Blue",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2000,
-  "boost": 0,
-  "tribe": "Justice Order",
-  "rating": 0.25,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 0.75,
-  "synergy": 1.5,
-  "partners": 8,
-  "effectNotes": [
-   "Power bonus when using a Waza +0.8"
-  ],
-  "synergyNotes": [
-   "needs a Waza: 8 in Blue",
    "Justice Waza: Rule the Heavens with Justice"
   ]
  },
@@ -69,7 +46,7 @@
   "power": 2000,
   "boost": 0,
   "tribe": "Dokuro Gang",
-  "rating": -0.12,
+  "rating": -1,
   "stats": -2,
   "boostPts": 0,
   "effect": 1,
@@ -83,6 +60,29 @@
   ]
  },
  {
+  "id": "hb01-067-c",
+  "name": "Kurobo-chan",
+  "color": "Blue",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2000,
+  "boost": 0,
+  "tribe": "Justice Order",
+  "rating": -1.25,
+  "stats": -2,
+  "boostPts": 0,
+  "effect": 0.75,
+  "synergy": 1.5,
+  "partners": 8,
+  "effectNotes": [
+   "Power bonus when using a Waza +0.8"
+  ],
+  "synergyNotes": [
+   "needs a Waza: 8 in Blue",
+   "Justice Waza: Rule the Heavens with Justice"
+  ]
+ },
+ {
   "id": "hb01-070-c",
   "name": "Enforcer Tada and Sanbon-Datara",
   "color": "Blue",
@@ -91,7 +91,7 @@
   "power": 2000,
   "boost": 0,
   "tribe": "Uraroji Gang",
-  "rating": -1.25,
+  "rating": -1.5,
   "stats": -2,
   "boostPts": 0,
   "effect": 0.5,
@@ -105,28 +105,6 @@
   ]
  },
  {
-  "id": "hb01-087-r",
-  "name": "Tofu Nice Guy",
-  "color": "Blue",
-  "type": "Horobeat",
-  "level": 3,
-  "power": 4000,
-  "boost": 2000,
-  "tribe": "Guild Order",
-  "rating": 1,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 1,
-  "partners": 8,
-  "effectNotes": [
-   "Finds a Waza (Ena Reading 3) +1.0"
-  ],
-  "synergyNotes": [
-   "needs a Waza: 8 in Blue"
-  ]
- },
- {
   "id": "hb01-077-uc",
   "name": "Yamanba Yamahime",
   "color": "Blue",
@@ -135,7 +113,7 @@
   "power": 4500,
   "boost": 0,
   "tribe": "Chara Order",
-  "rating": 0.5,
+  "rating": 0,
   "stats": -1.5,
   "boostPts": 0,
   "effect": 1.5,
@@ -146,6 +124,28 @@
   ],
   "synergyNotes": [
    "needs a 1-cost Waza: 4 in Blue"
+  ]
+ },
+ {
+  "id": "hb01-087-r",
+  "name": "Tofu Nice Guy",
+  "color": "Blue",
+  "type": "Horobeat",
+  "level": 3,
+  "power": 4000,
+  "boost": 2000,
+  "tribe": "Guild Order",
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 1,
+  "synergy": 1,
+  "partners": 8,
+  "effectNotes": [
+   "Finds a Waza (Ena Reading 3) +1.0"
+  ],
+  "synergyNotes": [
+   "needs a Waza: 8 in Blue"
   ]
  },
  {
@@ -175,7 +175,7 @@
   "power": 3000,
   "boost": 0,
   "tribe": "Spider Gang",
-  "rating": -1.25,
+  "rating": -1.5,
   "stats": -3,
   "boostPts": 0,
   "effect": 1.5,
@@ -197,7 +197,7 @@
   "power": 3000,
   "boost": 0,
   "tribe": "Uraroji Gang",
-  "rating": -1.75,
+  "rating": -2.5,
   "stats": -3,
   "boostPts": 0,
   "effect": 0.5,
@@ -220,9 +220,9 @@
   "power": 5000,
   "boost": 2000,
   "tribe": "Justice Order",
-  "rating": 1.5,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 0.5,
   "partners": 1,
@@ -230,29 +230,6 @@
    "Double Damage +2.0"
   ],
   "synergyNotes": [
-   "Justice Waza: Rule the Heavens with Justice"
-  ]
- },
- {
-  "id": "hb01-079-uc",
-  "name": "Yoshihiko and Righteous Kurobou",
-  "color": "Blue",
-  "type": "Horobeat",
-  "level": 4,
-  "power": 4000,
-  "boost": 0,
-  "tribe": "Justice Order",
-  "rating": -0.25,
-  "stats": -3,
-  "boostPts": 0,
-  "effect": 1.25,
-  "synergy": 1.5,
-  "partners": 8,
-  "effectNotes": [
-   "Power bonus and Double Damage when using a Waza (Ena Reading 3) +1.3"
-  ],
-  "synergyNotes": [
-   "needs a Waza: 8 in Blue",
    "Justice Waza: Rule the Heavens with Justice"
   ]
  },
@@ -266,8 +243,8 @@
   "boost": 2000,
   "tribe": "Uraroji Gang",
   "rating": -0.5,
-  "stats": -2,
-  "boostPts": 0,
+  "stats": -3,
+  "boostPts": 1,
   "effect": 1.5,
   "synergy": 0,
   "partners": 0,
@@ -275,6 +252,29 @@
    "Power bonus while downed +1.5"
   ],
   "synergyNotes": []
+ },
+ {
+  "id": "hb01-079-uc",
+  "name": "Yoshihiko and Righteous Kurobou",
+  "color": "Blue",
+  "type": "Horobeat",
+  "level": 4,
+  "power": 4000,
+  "boost": 0,
+  "tribe": "Justice Order",
+  "rating": -1.75,
+  "stats": -3,
+  "boostPts": 0,
+  "effect": 1.25,
+  "synergy": 1.5,
+  "partners": 8,
+  "effectNotes": [
+   "Power bonus and Double Damage when using a Waza (Ena Reading 3) +1.3"
+  ],
+  "synergyNotes": [
+   "needs a Waza: 8 in Blue",
+   "Justice Waza: Rule the Heavens with Justice"
+  ]
  },
  {
   "id": "hb01-089-r",
@@ -307,7 +307,7 @@
   "power": 7000,
   "boost": 0,
   "tribe": "Justice Order",
-  "rating": 2,
+  "rating": 1,
   "stats": -1,
   "boostPts": 0,
   "effect": 2,
@@ -331,35 +331,13 @@
   "boost": 2000,
   "tribe": "Dokuro Gang",
   "rating": 0,
-  "stats": 0,
-  "boostPts": 0,
+  "stats": -1,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 0,
   "partners": 0,
   "effectNotes": [],
   "synergyNotes": []
- },
- {
-  "id": "hb01-090-r",
-  "name": "Captain Ikuchi",
-  "color": "Blue",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 7000,
-  "boost": 0,
-  "tribe": "Uraroji Gang",
-  "rating": -0.25,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 0.25,
-  "partners": 1,
-  "effectNotes": [
-   "Both players gain an Ena +0.5"
-  ],
-  "synergyNotes": [
-   "extra Ena for 1: Gashanosuke"
-  ]
  },
  {
   "id": "pr-033-uc",
@@ -382,6 +360,48 @@
   "synergyNotes": []
  },
  {
+  "id": "hb01-090-r",
+  "name": "Captain Ikuchi",
+  "color": "Blue",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 7000,
+  "boost": 0,
+  "tribe": "Uraroji Gang",
+  "rating": -0.5,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 0.5,
+  "synergy": 0.25,
+  "partners": 1,
+  "effectNotes": [
+   "Both players gain an Ena +0.5"
+  ],
+  "synergyNotes": [
+   "extra Ena for 1: Gashanosuke"
+  ]
+ },
+ {
+  "id": "hb01-081-uc",
+  "name": "Kappa Diver",
+  "color": "Blue",
+  "type": "Horobeat",
+  "level": 6,
+  "power": 7500,
+  "boost": 2000,
+  "tribe": "Uraroji Gang",
+  "rating": 0.5,
+  "stats": -2.5,
+  "boostPts": 1,
+  "effect": 2,
+  "synergy": 0,
+  "partners": 0,
+  "effectNotes": [
+   "Double Damage +2.0"
+  ],
+  "synergyNotes": []
+ },
+ {
   "id": "hb01-091-r",
   "name": "Horobeast Kurobou",
   "color": "Blue",
@@ -390,9 +410,9 @@
   "power": 7000,
   "boost": 2000,
   "tribe": "Justice Order",
-  "rating": 1.5,
-  "stats": -1.5,
-  "boostPts": 0,
+  "rating": 0.5,
+  "stats": -3,
+  "boostPts": 1,
   "effect": 2.5,
   "synergy": 0.5,
   "partners": 1,
@@ -413,7 +433,7 @@
   "power": 6000,
   "boost": 0,
   "tribe": "Justice Order",
-  "rating": 1.5,
+  "rating": 0,
   "stats": -4,
   "boostPts": 0,
   "effect": 4,
@@ -427,26 +447,6 @@
    "needs a Waza: 8 in Blue",
    "Justice Waza: Rule the Heavens with Justice"
   ]
- },
- {
-  "id": "hb01-081-uc",
-  "name": "Kappa Diver",
-  "color": "Blue",
-  "type": "Horobeat",
-  "level": 6,
-  "power": 7500,
-  "boost": 2000,
-  "tribe": "Uraroji Gang",
-  "rating": 1,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 2,
-  "synergy": 0,
-  "partners": 0,
-  "effectNotes": [
-   "Double Damage +2.0"
-  ],
-  "synergyNotes": []
  },
  {
   "id": "hb01-082-uc",
@@ -499,9 +499,9 @@
   "power": 9000,
   "boost": 2000,
   "tribe": "Dokuro Gang",
-  "rating": 2,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 0,
   "partners": 0,
@@ -540,9 +540,9 @@
   "power": 10000,
   "boost": 2000,
   "tribe": "Dokuro Gang",
-  "rating": 2,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -4,
+  "boostPts": 1,
   "effect": 3,
   "synergy": 1,
   "partners": 8,
@@ -563,9 +563,9 @@
   "power": 8000,
   "boost": 2000,
   "tribe": "Dokuro Gang",
-  "rating": -1.75,
-  "stats": -4,
-  "boostPts": 0,
+  "rating": -3,
+  "stats": -6,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 0.25,
   "partners": 1,
@@ -585,7 +585,7 @@
   "power": 2000,
   "boost": 0,
   "tribe": "",
-  "rating": 3.63,
+  "rating": 1.25,
   "stats": -1,
   "boostPts": 0,
   "effect": 2.25,
@@ -609,7 +609,7 @@
   "power": 2000,
   "boost": 0,
   "tribe": "",
-  "rating": 2.75,
+  "rating": 1,
   "stats": -1,
   "boostPts": 0,
   "effect": 2,
@@ -633,7 +633,7 @@
   "power": 3000,
   "boost": 0,
   "tribe": "",
-  "rating": 0.5,
+  "rating": -1,
   "stats": 0,
   "boostPts": 0,
   "effect": -1,
@@ -657,7 +657,7 @@
   "power": 0,
   "boost": 0,
   "tribe": "",
-  "rating": 0,
+  "rating": -1.5,
   "stats": -3,
   "boostPts": 0,
   "effect": 1.5,
@@ -680,7 +680,7 @@
   "power": 3000,
   "boost": 0,
   "tribe": "",
-  "rating": 1.25,
+  "rating": 0,
   "stats": -2,
   "boostPts": 0,
   "effect": 2,
@@ -703,7 +703,7 @@
   "power": 4000,
   "boost": 0,
   "tribe": "",
-  "rating": 1,
+  "rating": -0.5,
   "stats": -1,
   "boostPts": 0,
   "effect": 0.5,
@@ -727,7 +727,7 @@
   "power": 4000,
   "boost": 0,
   "tribe": "",
-  "rating": 0.75,
+  "rating": -0.5,
   "stats": -1,
   "boostPts": 0,
   "effect": 0.5,
@@ -751,7 +751,7 @@
   "power": 7000,
   "boost": 0,
   "tribe": "",
-  "rating": 1.25,
+  "rating": 0,
   "stats": 0,
   "boostPts": 0,
   "effect": 0,
@@ -764,30 +764,6 @@
   ]
  },
  {
-  "id": "pr-016-c",
-  "name": "Solo Camp Shinazui-sama",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2000,
-  "boost": 2000,
-  "tribe": "Suzaku Blood",
-  "rating": 1.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 2,
-  "partners": 28,
-  "effectNotes": [
-   "Power bonus when Boosted +0.5"
-  ],
-  "synergyNotes": [
-   "needs Boost: 26 in Green",
-   "Boost for 2: Strange Bird Hizama, Mana Beat Furarinte",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
   "id": "hb01-035-c",
   "name": "Undying Shinazui",
   "color": "Green",
@@ -796,9 +772,9 @@
   "power": 3000,
   "boost": 2000,
   "tribe": "Suzaku Blood",
-  "rating": 1.25,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 1.25,
   "partners": 4,
@@ -806,94 +782,6 @@
   "synergyNotes": [
    "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
    "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
-  "id": "hd02-009-uc",
-  "name": "Snoozing Jumbo",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2000,
-  "boost": 2000,
-  "tribe": "Yurufuwa Club",
-  "rating": 1.25,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 1.75,
-  "partners": 9,
-  "effectNotes": [
-   "Draws when downed +0.5"
-  ],
-  "synergyNotes": [
-   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…",
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
-  ]
- },
- {
-  "id": "hd02-002-c",
-  "name": "Keukegen",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2000,
-  "boost": 2000,
-  "tribe": "Rasha Blood",
-  "rating": 0.75,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 0.75,
-  "partners": 3,
-  "effectNotes": [
-   "Barrier +1.0"
-  ],
-  "synergyNotes": [
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
-  ]
- },
- {
-  "id": "hb01-034-c",
-  "name": "Shinazui-sama",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2000,
-  "boost": 0,
-  "tribe": "Suzaku Blood",
-  "rating": 0.5,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 1.5,
-  "partners": 7,
-  "effectNotes": [
-   "Counts as 1 cost higher in a line (cheaper to Overbeat onto) +1.0"
-  ],
-  "synergyNotes": [
-   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
-  "id": "pr-017-c",
-  "name": "Noodle Shop Chikara and Bishagatsuku",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2500,
-  "boost": 2000,
-  "tribe": "Rasha Blood",
-  "rating": 0.25,
-  "stats": -0.5,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 0.75,
-  "partners": 3,
-  "effectNotes": [],
-  "synergyNotes": [
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
   ]
  },
  {
@@ -913,6 +801,28 @@
   "partners": 0,
   "effectNotes": [],
   "synergyNotes": []
+ },
+ {
+  "id": "hd02-002-c",
+  "name": "Keukegen",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2000,
+  "boost": 2000,
+  "tribe": "Rasha Blood",
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 1,
+  "synergy": 0.75,
+  "partners": 3,
+  "effectNotes": [
+   "Barrier +1.0"
+  ],
+  "synergyNotes": [
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
+  ]
  },
  {
   "id": "hb01-037-c",
@@ -935,6 +845,96 @@
   "synergyNotes": []
  },
  {
+  "id": "hd02-009-uc",
+  "name": "Snoozing Jumbo",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2000,
+  "boost": 2000,
+  "tribe": "Yurufuwa Club",
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 0.5,
+  "synergy": 1.75,
+  "partners": 9,
+  "effectNotes": [
+   "Draws when downed +0.5"
+  ],
+  "synergyNotes": [
+   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…",
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
+  ]
+ },
+ {
+  "id": "pr-016-c",
+  "name": "Solo Camp Shinazui-sama",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2000,
+  "boost": 2000,
+  "tribe": "Suzaku Blood",
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 0.5,
+  "synergy": 2,
+  "partners": 28,
+  "effectNotes": [
+   "Power bonus when Boosted +0.5"
+  ],
+  "synergyNotes": [
+   "needs Boost: 26 in Green",
+   "Boost for 2: Strange Bird Hizama, Mana Beat Furarinte",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
+  "id": "pr-017-c",
+  "name": "Noodle Shop Chikara and Bishagatsuku",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2500,
+  "boost": 2000,
+  "tribe": "Rasha Blood",
+  "rating": -0.5,
+  "stats": -1.5,
+  "boostPts": 1,
+  "effect": 0,
+  "synergy": 0.75,
+  "partners": 3,
+  "effectNotes": [],
+  "synergyNotes": [
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
+  ]
+ },
+ {
+  "id": "hb01-034-c",
+  "name": "Shinazui-sama",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2000,
+  "boost": 0,
+  "tribe": "Suzaku Blood",
+  "rating": -1,
+  "stats": -2,
+  "boostPts": 0,
+  "effect": 1,
+  "synergy": 1.5,
+  "partners": 7,
+  "effectNotes": [
+   "Counts as 1 cost higher in a line (cheaper to Overbeat onto) +1.0"
+  ],
+  "synergyNotes": [
+   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
   "id": "pr-015-c",
   "name": "Shinazui of the Flame",
   "color": "Green",
@@ -943,7 +943,7 @@
   "power": 1000,
   "boost": 0,
   "tribe": "Suzaku Blood",
-  "rating": -1,
+  "rating": -2.5,
   "stats": -3,
   "boostPts": 0,
   "effect": 0.5,
@@ -966,9 +966,9 @@
   "power": 3000,
   "boost": 2000,
   "tribe": "Rasha Blood",
-  "rating": 0.75,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -3,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 0.75,
   "partners": 3,
@@ -988,9 +988,9 @@
   "power": 4000,
   "boost": 2000,
   "tribe": "Rasha Blood",
-  "rating": 0.75,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 1,
   "synergy": 0.75,
   "partners": 3,
@@ -1010,9 +1010,9 @@
   "power": 4000,
   "boost": 2000,
   "tribe": "Bikkuri Club",
-  "rating": 0.25,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 0.5,
   "synergy": 0.75,
   "partners": 3,
@@ -1021,26 +1021,6 @@
   ],
   "synergyNotes": [
    "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
-  ]
- },
- {
-  "id": "hd02-004-c",
-  "name": "Strange Bird Furari-hi and Science Inte",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 3,
-  "power": 5000,
-  "boost": 0,
-  "tribe": "Suzaku Blood",
-  "rating": -0.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 0.5,
-  "partners": 1,
-  "effectNotes": [],
-  "synergyNotes": [
-   "Suzaku Waza: We're Going for the Win...!"
   ]
  },
  {
@@ -1064,6 +1044,26 @@
   "synergyNotes": []
  },
  {
+  "id": "hd02-004-c",
+  "name": "Strange Bird Furari-hi and Science Inte",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 3,
+  "power": 5000,
+  "boost": 0,
+  "tribe": "Suzaku Blood",
+  "rating": -1,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 0,
+  "synergy": 0.5,
+  "partners": 1,
+  "effectNotes": [],
+  "synergyNotes": [
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
   "id": "pr-018-uc",
   "name": "Moss Boy",
   "color": "Green",
@@ -1084,55 +1084,6 @@
   "synergyNotes": []
  },
  {
-  "id": "hb01-056-r",
-  "name": "Strange Bird Shibiro",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 4,
-  "power": 5000,
-  "boost": 2000,
-  "tribe": "Suzaku Blood",
-  "rating": 1.63,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 2.13,
-  "partners": 10,
-  "effectNotes": [
-   "Cannot use Waza -1.5",
-   "Power bonus when the opponent uses a Waza +2.0"
-  ],
-  "synergyNotes": [
-   "needs a Waza: 7 in Green",
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
-  "id": "hb01-046-uc",
-  "name": "Strange Bird Hizama",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 4,
-  "power": 5000,
-  "boost": 2000,
-  "tribe": "Suzaku Blood",
-  "rating": 1.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 2,
-  "partners": 28,
-  "effectNotes": [
-   "Power bonus when Boosted +0.5"
-  ],
-  "synergyNotes": [
-   "needs Boost: 26 in Green",
-   "Boost for 2: Mana Beat Furarinte, Solo Camp Shinazui-sama",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
   "id": "hb01-038-c",
   "name": "Itsuki and the Strange Tree Furusoma",
   "color": "Green",
@@ -1141,9 +1092,9 @@
   "power": 6000,
   "boost": 2000,
   "tribe": "Taiju Blood",
-  "rating": 0.75,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 0.75,
   "partners": 3,
@@ -1161,9 +1112,9 @@
   "power": 5000,
   "boost": 2000,
   "tribe": "Rasha Blood",
-  "rating": 0.75,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 1,
   "synergy": 0.75,
   "partners": 3,
@@ -1175,26 +1126,52 @@
   ]
  },
  {
-  "id": "hb01-055-r",
-  "name": "Zoom Drone",
+  "id": "hb01-046-uc",
+  "name": "Strange Bird Hizama",
   "color": "Green",
   "type": "Horobeat",
   "level": 4,
-  "power": 6000,
-  "boost": 0,
-  "tribe": "Yurufuwa Club",
-  "rating": 0,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 1,
-  "partners": 6,
+  "power": 5000,
+  "boost": 2000,
+  "tribe": "Suzaku Blood",
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 0.5,
+  "synergy": 2,
+  "partners": 28,
   "effectNotes": [
-   "Counts as 1 cost lower in a line -1.0",
-   "Draws when Overbeat onto +1.0"
+   "Power bonus when Boosted +0.5"
   ],
   "synergyNotes": [
-   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…"
+   "needs Boost: 26 in Green",
+   "Boost for 2: Mana Beat Furarinte, Solo Camp Shinazui-sama",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
+  "id": "hb01-056-r",
+  "name": "Strange Bird Shibiro",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 4,
+  "power": 5000,
+  "boost": 2000,
+  "tribe": "Suzaku Blood",
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 0.5,
+  "synergy": 2.13,
+  "partners": 10,
+  "effectNotes": [
+   "Cannot use Waza -1.5",
+   "Power bonus when the opponent uses a Waza +2.0"
+  ],
+  "synergyNotes": [
+   "needs a Waza: 7 in Green",
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
+   "Suzaku Waza: We're Going for the Win...!"
   ]
  },
  {
@@ -1216,6 +1193,29 @@
    "Barrier +1.0"
   ],
   "synergyNotes": []
+ },
+ {
+  "id": "hb01-055-r",
+  "name": "Zoom Drone",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 4,
+  "power": 6000,
+  "boost": 0,
+  "tribe": "Yurufuwa Club",
+  "rating": -1,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 0,
+  "synergy": 1,
+  "partners": 6,
+  "effectNotes": [
+   "Counts as 1 cost lower in a line -1.0",
+   "Draws when Overbeat onto +1.0"
+  ],
+  "synergyNotes": [
+   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…"
+  ]
  },
  {
   "id": "pr-032-uc",
@@ -1247,9 +1247,9 @@
   "power": 7000,
   "boost": 2000,
   "tribe": "Suzaku Blood",
-  "rating": 2.25,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -1,
+  "boostPts": 1,
   "effect": 1,
   "synergy": 1.25,
   "partners": 4,
@@ -1262,29 +1262,6 @@
   ]
  },
  {
-  "id": "hb01-057-r",
-  "name": "Horobeast Shinazui",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 7000,
-  "boost": 0,
-  "tribe": "Suzaku Blood",
-  "rating": 1.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 1.5,
-  "partners": 7,
-  "effectNotes": [
-   "Counts as 1 cost higher in a line (cheaper to Overbeat onto) +1.0"
-  ],
-  "synergyNotes": [
-   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
   "id": "hb01-049-uc",
   "name": "Fluffy Iroha and Floaty Jumbo",
   "color": "Green",
@@ -1293,7 +1270,7 @@
   "power": 6000,
   "boost": 0,
   "tribe": "Yurufuwa Club",
-  "rating": 1.25,
+  "rating": 0.5,
   "stats": -2,
   "boostPts": 0,
   "effect": 2.5,
@@ -1304,114 +1281,6 @@
   ],
   "synergyNotes": [
    "needs a good Overbeat base: 6 in Green"
-  ]
- },
- {
-  "id": "hb01-047-uc",
-  "name": "Sho and Shinazui Soaring Through the Night",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 7000,
-  "boost": 0,
-  "tribe": "Suzaku Blood",
-  "rating": 1,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 1.5,
-  "partners": 14,
-  "effectNotes": [
-   "Draws on entering if you hold a 7+ cost (Ena Reading 3) +0.5"
-  ],
-  "synergyNotes": [
-   "needs a 7+ cost Horobeat: 13 in Green",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
-  "id": "hd02-012-uc",
-  "name": "Mana Beat Furarinte",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 6000,
-  "boost": 0,
-  "tribe": "Suzaku Blood",
-  "rating": 1,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 1.5,
-  "synergy": 1.5,
-  "partners": 28,
-  "effectNotes": [
-   "Power bonus when Boosted +0.5",
-   "Draws on a win +1.0"
-  ],
-  "synergyNotes": [
-   "needs Boost: 27 in Green",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
-  "id": "hb01-040-c",
-  "name": "Hitorima",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 7000,
-  "boost": 2000,
-  "tribe": "Nagaremono",
-  "rating": 0.75,
-  "stats": 0,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 0.75,
-  "partners": 3,
-  "effectNotes": [],
-  "synergyNotes": [
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
-  ]
- },
- {
-  "id": "pr-019-c",
-  "name": "Strange Bird Yogen",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 6000,
-  "boost": 2000,
-  "tribe": "Suzaku Blood",
-  "rating": 0.25,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 1.25,
-  "partners": 4,
-  "effectNotes": [],
-  "synergyNotes": [
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
-  "id": "pr-021-c",
-  "name": "Fukuromujina",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 6500,
-  "boost": 2000,
-  "tribe": "Nagaremono",
-  "rating": 0.25,
-  "stats": -0.5,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 0.75,
-  "partners": 3,
-  "effectNotes": [],
-  "synergyNotes": [
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
   ]
  },
  {
@@ -1435,6 +1304,116 @@
   "synergyNotes": []
  },
  {
+  "id": "hb01-040-c",
+  "name": "Hitorima",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 7000,
+  "boost": 2000,
+  "tribe": "Nagaremono",
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
+  "effect": 0,
+  "synergy": 0.75,
+  "partners": 3,
+  "effectNotes": [],
+  "synergyNotes": [
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
+  ]
+ },
+ {
+  "id": "hb01-057-r",
+  "name": "Horobeast Shinazui",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 7000,
+  "boost": 0,
+  "tribe": "Suzaku Blood",
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 1,
+  "synergy": 1.5,
+  "partners": 7,
+  "effectNotes": [
+   "Counts as 1 cost higher in a line (cheaper to Overbeat onto) +1.0"
+  ],
+  "synergyNotes": [
+   "a good Overbeat base for 6: Cut Down with Personal Grudge!, Fluffy Iroha and Floaty Jumbo, Iroha and Cruising Jumbo, Beat Burst: Undying Eternal Flame!…",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
+  "id": "hb01-047-uc",
+  "name": "Sho and Shinazui Soaring Through the Night",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 7000,
+  "boost": 0,
+  "tribe": "Suzaku Blood",
+  "rating": -0.5,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 0.5,
+  "synergy": 1.5,
+  "partners": 14,
+  "effectNotes": [
+   "Draws on entering if you hold a 7+ cost (Ena Reading 3) +0.5"
+  ],
+  "synergyNotes": [
+   "needs a 7+ cost Horobeat: 13 in Green",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
+  "id": "hd02-012-uc",
+  "name": "Mana Beat Furarinte",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 6000,
+  "boost": 0,
+  "tribe": "Suzaku Blood",
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 0,
+  "effect": 1.5,
+  "synergy": 1.5,
+  "partners": 28,
+  "effectNotes": [
+   "Power bonus when Boosted +0.5",
+   "Draws on a win +1.0"
+  ],
+  "synergyNotes": [
+   "needs Boost: 27 in Green",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
+  "id": "pr-021-c",
+  "name": "Fukuromujina",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 6500,
+  "boost": 2000,
+  "tribe": "Nagaremono",
+  "rating": -0.5,
+  "stats": -1.5,
+  "boostPts": 1,
+  "effect": 0,
+  "synergy": 0.75,
+  "partners": 3,
+  "effectNotes": [],
+  "synergyNotes": [
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
+  ]
+ },
+ {
   "id": "hb01-048-uc",
   "name": "Lonesome Old Man's House",
   "color": "Green",
@@ -1443,9 +1422,9 @@
   "power": 8000,
   "boost": 2000,
   "tribe": "Taiju Blood",
-  "rating": -0.25,
-  "stats": 1,
-  "boostPts": 0,
+  "rating": -1,
+  "stats": 0,
+  "boostPts": 1,
   "effect": -2,
   "synergy": 0.75,
   "partners": 3,
@@ -1457,6 +1436,27 @@
   ]
  },
  {
+  "id": "pr-019-c",
+  "name": "Strange Bird Yogen",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 6000,
+  "boost": 2000,
+  "tribe": "Suzaku Blood",
+  "rating": -1,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 0,
+  "synergy": 1.25,
+  "partners": 4,
+  "effectNotes": [],
+  "synergyNotes": [
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
   "id": "pr-020-c",
   "name": "Destined Meeting: Shinazui and Sho",
   "color": "Green",
@@ -1465,7 +1465,7 @@
   "power": 5000,
   "boost": 0,
   "tribe": "Suzaku Blood",
-  "rating": -1,
+  "rating": -2.5,
   "stats": -3,
   "boostPts": 0,
   "effect": 0.5,
@@ -1488,9 +1488,9 @@
   "power": 7500,
   "boost": 2000,
   "tribe": "Bikkuri Club",
-  "rating": 1.75,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": 0.5,
+  "stats": -2.5,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 0.75,
   "partners": 3,
@@ -1530,7 +1530,7 @@
   "power": 6000,
   "boost": 0,
   "tribe": "Yurufuwa Club",
-  "rating": 0,
+  "rating": -0.75,
   "stats": -4,
   "boostPts": 0,
   "effect": 3.25,
@@ -1573,9 +1573,9 @@
   "power": 9000,
   "boost": 2000,
   "tribe": "Suzaku Blood",
-  "rating": 3.5,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 1.5,
   "partners": 5,
@@ -1597,9 +1597,9 @@
   "power": 9000,
   "boost": 2000,
   "tribe": "Yurufuwa Club",
-  "rating": 2,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 1,
   "synergy": 1,
   "partners": 4,
@@ -1620,9 +1620,9 @@
   "power": 9000,
   "boost": 2000,
   "tribe": "Taiju Blood",
-  "rating": 1.5,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 0.5,
   "synergy": 1,
   "partners": 4,
@@ -1643,39 +1643,14 @@
   "power": 7000,
   "boost": 2000,
   "tribe": "Suzaku Blood",
-  "rating": 1.5,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": -1,
+  "stats": -4,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 1.5,
   "partners": 5,
   "effectNotes": [
    "Double Damage +2.0"
-  ],
-  "synergyNotes": [
-   "a 7+ cost Horobeat for 1: Sho and Shinazui Soaring Through the Night",
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
-   "Suzaku Waza: We're Going for the Win...!"
-  ]
- },
- {
-  "id": "hd02-016-r",
-  "name": "Never Give Up! Shinazui",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 8,
-  "power": 11000,
-  "boost": 2000,
-  "tribe": "Suzaku Blood",
-  "rating": 3.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 3,
-  "synergy": 1.5,
-  "partners": 5,
-  "effectNotes": [
-   "Double Damage +2.0",
-   "Draws when downed +1.0"
   ],
   "synergyNotes": [
    "a 7+ cost Horobeat for 1: Sho and Shinazui Soaring Through the Night",
@@ -1692,7 +1667,7 @@
   "power": 12000,
   "boost": 0,
   "tribe": "Yurufuwa Club",
-  "rating": 3.25,
+  "rating": 3,
   "stats": -2,
   "boostPts": 0,
   "effect": 5,
@@ -1707,6 +1682,31 @@
   ]
  },
  {
+  "id": "hd02-016-r",
+  "name": "Never Give Up! Shinazui",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 8,
+  "power": 11000,
+  "boost": 2000,
+  "tribe": "Suzaku Blood",
+  "rating": 1,
+  "stats": -3,
+  "boostPts": 1,
+  "effect": 3,
+  "synergy": 1.5,
+  "partners": 5,
+  "effectNotes": [
+   "Double Damage +2.0",
+   "Draws when downed +1.0"
+  ],
+  "synergyNotes": [
+   "a 7+ cost Horobeat for 1: Sho and Shinazui Soaring Through the Night",
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
   "id": "hb01-051-uc",
   "name": "Full Throttle Helicon",
   "color": "Green",
@@ -1715,9 +1715,9 @@
   "power": 10000,
   "boost": 2000,
   "tribe": "Yurufuwa Club",
-  "rating": 2,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -4,
+  "boostPts": 1,
   "effect": 3,
   "synergy": 1,
   "partners": 4,
@@ -1739,9 +1739,9 @@
   "power": 10000,
   "boost": 2000,
   "tribe": "Rasha Blood",
-  "rating": -1,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": -3,
+  "stats": -4,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 1,
   "partners": 4,
@@ -1749,32 +1749,6 @@
   "synergyNotes": [
    "a 7+ cost Horobeat for 1: Sho and Shinazui Soaring Through the Night",
    "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama"
-  ]
- },
- {
-  "id": "hd02-017-sr",
-  "name": "Raise Beat Shinazuisho",
-  "color": "Green",
-  "type": "Horobeat",
-  "level": 9,
-  "power": 12000,
-  "boost": 2000,
-  "tribe": "Suzaku Blood",
-  "rating": 3,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 2.75,
-  "synergy": 2.25,
-  "partners": 11,
-  "effectNotes": [
-   "Double Damage +2.0",
-   "Power bonus with 2+ cards under it +0.8"
-  ],
-  "synergyNotes": [
-   "needs a good Overbeat base: 6 in Green",
-   "a 7+ cost Horobeat for 1: Sho and Shinazui Soaring Through the Night",
-   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
-   "Suzaku Waza: We're Going for the Win...!"
   ]
  },
  {
@@ -1786,7 +1760,7 @@
   "power": 14000,
   "boost": 0,
   "tribe": "Suzaku Blood",
-  "rating": 2.75,
+  "rating": 2,
   "stats": -2,
   "boostPts": 0,
   "effect": 4,
@@ -1802,6 +1776,32 @@
   ]
  },
  {
+  "id": "hd02-017-sr",
+  "name": "Raise Beat Shinazuisho",
+  "color": "Green",
+  "type": "Horobeat",
+  "level": 9,
+  "power": 12000,
+  "boost": 2000,
+  "tribe": "Suzaku Blood",
+  "rating": -0.25,
+  "stats": -4,
+  "boostPts": 1,
+  "effect": 2.75,
+  "synergy": 2.25,
+  "partners": 11,
+  "effectNotes": [
+   "Double Damage +2.0",
+   "Power bonus with 2+ cards under it +0.8"
+  ],
+  "synergyNotes": [
+   "needs a good Overbeat base: 6 in Green",
+   "a 7+ cost Horobeat for 1: Sho and Shinazui Soaring Through the Night",
+   "Boost for 3: Strange Bird Hizama, Mana Beat Furarinte, Solo Camp Shinazui-sama",
+   "Suzaku Waza: We're Going for the Win...!"
+  ]
+ },
+ {
   "id": "hb01-066-sr",
   "name": "Don Dekakegen",
   "color": "Green",
@@ -1810,9 +1810,9 @@
   "power": 10000,
   "boost": 2000,
   "tribe": "Rasha Blood",
-  "rating": 0.5,
-  "stats": -4,
-  "boostPts": 0,
+  "rating": -1.5,
+  "stats": -6,
+  "boostPts": 1,
   "effect": 3.5,
   "synergy": 1,
   "partners": 4,
@@ -1834,7 +1834,7 @@
   "power": 10000,
   "boost": 0,
   "tribe": "Suzaku Blood",
-  "rating": -2,
+  "rating": -3.5,
   "stats": -6,
   "boostPts": 0,
   "effect": 2.5,
@@ -1859,7 +1859,7 @@
   "power": 18000,
   "boost": 0,
   "tribe": "Taiju Blood",
-  "rating": 0.25,
+  "rating": 0,
   "stats": 0,
   "boostPts": 0,
   "effect": 0,
@@ -1879,7 +1879,7 @@
   "power": 2000,
   "boost": 0,
   "tribe": "",
-  "rating": 2.5,
+  "rating": 1.25,
   "stats": -1,
   "boostPts": 0,
   "effect": 2.25,
@@ -1895,6 +1895,28 @@
   ]
  },
  {
+  "id": "hb01-053-uc",
+  "name": "Zoom, Here We Go, Jan!",
+  "color": "Green",
+  "type": "Waza",
+  "level": 1,
+  "power": 2000,
+  "boost": 0,
+  "tribe": "",
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 1,
+  "synergy": 0.25,
+  "partners": 1,
+  "effectNotes": [
+   "Power bonus when going first +1.0"
+  ],
+  "synergyNotes": [
+   "a Waza for 1: Strange Bird Shibiro"
+  ]
+ },
+ {
   "id": "hb01-042-c",
   "name": "Cut Down with Personal Grudge!",
   "color": "Green",
@@ -1903,7 +1925,7 @@
   "power": 2000,
   "boost": 0,
   "tribe": "",
-  "rating": 0.5,
+  "rating": -0.5,
   "stats": -1,
   "boostPts": 0,
   "effect": 0.5,
@@ -1918,28 +1940,6 @@
   ]
  },
  {
-  "id": "hb01-053-uc",
-  "name": "Zoom, Here We Go, Jan!",
-  "color": "Green",
-  "type": "Waza",
-  "level": 1,
-  "power": 2000,
-  "boost": 0,
-  "tribe": "",
-  "rating": 0.25,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 0.25,
-  "partners": 1,
-  "effectNotes": [
-   "Power bonus when going first +1.0"
-  ],
-  "synergyNotes": [
-   "a Waza for 1: Strange Bird Shibiro"
-  ]
- },
- {
   "id": "hb01-043-c",
   "name": "Is It 1?! Is It 2?! Which Is It?!",
   "color": "Green",
@@ -1948,7 +1948,7 @@
   "power": 3000,
   "boost": 0,
   "tribe": "",
-  "rating": -0.25,
+  "rating": -0.5,
   "stats": 0,
   "boostPts": 0,
   "effect": -0.5,
@@ -1962,6 +1962,26 @@
   ]
  },
  {
+  "id": "hd02-008-c",
+  "name": "Blaze Green, Burn Bright!",
+  "color": "Green",
+  "type": "Waza",
+  "level": 2,
+  "power": 5000,
+  "boost": 0,
+  "tribe": "",
+  "rating": 0,
+  "stats": 0,
+  "boostPts": 0,
+  "effect": 0,
+  "synergy": 0.25,
+  "partners": 1,
+  "effectNotes": [],
+  "synergyNotes": [
+   "a Waza for 1: Strange Bird Shibiro"
+  ]
+ },
+ {
   "id": "hb01-062-r",
   "name": "Beat Burst: Undying Eternal Flame!",
   "color": "Green",
@@ -1970,7 +1990,7 @@
   "power": 4000,
   "boost": 0,
   "tribe": "",
-  "rating": 0.5,
+  "rating": -0.5,
   "stats": -1,
   "boostPts": 0,
   "effect": 0.5,
@@ -1986,26 +2006,6 @@
   ]
  },
  {
-  "id": "hd02-008-c",
-  "name": "Blaze Green, Burn Bright!",
-  "color": "Green",
-  "type": "Waza",
-  "level": 2,
-  "power": 5000,
-  "boost": 0,
-  "tribe": "",
-  "rating": 0.25,
-  "stats": 0,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 0.25,
-  "partners": 1,
-  "effectNotes": [],
-  "synergyNotes": [
-   "a Waza for 1: Strange Bird Shibiro"
-  ]
- },
- {
   "id": "pr-027-uc",
   "name": "Long Distance, Buried!",
   "color": "Green",
@@ -2014,7 +2014,7 @@
   "power": 6000,
   "boost": 0,
   "tribe": "",
-  "rating": 0.75,
+  "rating": 0.5,
   "stats": -1,
   "boostPts": 0,
   "effect": 1.5,
@@ -2028,6 +2028,29 @@
   ]
  },
  {
+  "id": "hb01-012-uc",
+  "name": "Kamaitachi Kamaji",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2500,
+  "boost": 2000,
+  "tribe": "Fuga Family",
+  "rating": 1,
+  "stats": -1.5,
+  "boostPts": 1,
+  "effect": 1.5,
+  "synergy": 1.5,
+  "partners": 7,
+  "effectNotes": [
+   "Power bonus in lines 2 to 5 +1.5"
+  ],
+  "synergyNotes": [
+   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
   "id": "hb01-011-uc",
   "name": "Numbing Lantern",
   "color": "Red",
@@ -2036,9 +2059,9 @@
   "power": 5000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 2.5,
-  "stats": 2,
-  "boostPts": 0,
+  "rating": 0.5,
+  "stats": 1,
+  "boostPts": 1,
   "effect": -1.5,
   "synergy": 2,
   "partners": 8,
@@ -2052,99 +2075,6 @@
   ]
  },
  {
-  "id": "hb01-012-uc",
-  "name": "Kamaitachi Kamaji",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2500,
-  "boost": 2000,
-  "tribe": "Fuga Family",
-  "rating": 2.5,
-  "stats": -0.5,
-  "boostPts": 0,
-  "effect": 1.5,
-  "synergy": 1.5,
-  "partners": 7,
-  "effectNotes": [
-   "Power bonus in lines 2 to 5 +1.5"
-  ],
-  "synergyNotes": [
-   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
-  "id": "hb01-002-c",
-  "name": "Leomaru",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2000,
-  "boost": 2000,
-  "tribe": "Raiga Family",
-  "rating": 2,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 2,
-  "partners": 8,
-  "effectNotes": [
-   "Draws on entering +1.0"
-  ],
-  "synergyNotes": [
-   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
-   "Raiga Waza: Telepathy"
-  ]
- },
- {
-  "id": "hd01-003-c",
-  "name": "Thunder Rogue Kyuso and Uchino Jiro",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 3000,
-  "boost": 2000,
-  "tribe": "Raiga Family",
-  "rating": 2,
-  "stats": 0,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 2,
-  "partners": 8,
-  "effectNotes": [],
-  "synergyNotes": [
-   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
-   "Raiga Waza: Telepathy"
-  ]
- },
- {
-  "id": "pr-005-uc",
-  "name": "Fateful Meeting: Leo and Jin",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 3000,
-  "boost": 0,
-  "tribe": "Raiga Family",
-  "rating": 2,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 2.5,
-  "partners": 40,
-  "effectNotes": [
-   "Draws when Boosted +0.5"
-  ],
-  "synergyNotes": [
-   "needs Boost: 36 in Red",
-   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
-   "Raiga Waza: Telepathy"
-  ]
- },
- {
   "id": "hd01-009-uc",
   "name": "Strange Machine Sempujin",
   "color": "Red",
@@ -2153,9 +2083,9 @@
   "power": 2500,
   "boost": 2000,
   "tribe": "Fuga Family",
-  "rating": 1.75,
-  "stats": -0.5,
-  "boostPts": 0,
+  "rating": 0.25,
+  "stats": -1.5,
+  "boostPts": 1,
   "effect": 0.75,
   "synergy": 1.5,
   "partners": 7,
@@ -2176,7 +2106,7 @@
   "power": 4000,
   "boost": 0,
   "tribe": "Raiga Family",
-  "rating": 1.5,
+  "rating": 0,
   "stats": 0,
   "boostPts": 0,
   "effect": 0,
@@ -2189,6 +2119,30 @@
   ]
  },
  {
+  "id": "hb01-002-c",
+  "name": "Leomaru",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2000,
+  "boost": 2000,
+  "tribe": "Raiga Family",
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 1,
+  "synergy": 2,
+  "partners": 8,
+  "effectNotes": [
+   "Draws on entering +1.0"
+  ],
+  "synergyNotes": [
+   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
+   "Raiga Waza: Telepathy"
+  ]
+ },
+ {
   "id": "hb01-003-c",
   "name": "Kamaitachi Kamaichi",
   "color": "Red",
@@ -2197,9 +2151,9 @@
   "power": 3000,
   "boost": 2000,
   "tribe": "Fuga Family",
-  "rating": 1.5,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 1.5,
   "partners": 7,
@@ -2207,28 +2161,6 @@
   "synergyNotes": [
    "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
    "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
-  "id": "pr-003-c",
-  "name": "Temple Cat Leomaru",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 2,
-  "power": 2500,
-  "boost": 2000,
-  "tribe": "Raiga Family",
-  "rating": 1.5,
-  "stats": -0.5,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 2,
-  "partners": 8,
-  "effectNotes": [],
-  "synergyNotes": [
-   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
-   "Raiga Waza: Telepathy"
   ]
  },
  {
@@ -2240,7 +2172,7 @@
   "power": 4000,
   "boost": 0,
   "tribe": "Maboroshi Commune",
-  "rating": 1,
+  "rating": 0,
   "stats": 0,
   "boostPts": 0,
   "effect": 0,
@@ -2252,6 +2184,28 @@
   ]
  },
  {
+  "id": "hd01-003-c",
+  "name": "Thunder Rogue Kyuso and Uchino Jiro",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 3000,
+  "boost": 2000,
+  "tribe": "Raiga Family",
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
+  "effect": 0,
+  "synergy": 2,
+  "partners": 8,
+  "effectNotes": [],
+  "synergyNotes": [
+   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
+   "Raiga Waza: Telepathy"
+  ]
+ },
+ {
   "id": "hd01-004-c",
   "name": "Katakirauwa",
   "color": "Red",
@@ -2260,7 +2214,7 @@
   "power": 4000,
   "boost": 0,
   "tribe": "Nagaremono",
-  "rating": 1,
+  "rating": 0,
   "stats": 0,
   "boostPts": 0,
   "effect": 0,
@@ -2280,7 +2234,7 @@
   "power": 3500,
   "boost": 0,
   "tribe": "Raiga Family",
-  "rating": 1,
+  "rating": -0.5,
   "stats": -0.5,
   "boostPts": 0,
   "effect": 0,
@@ -2293,6 +2247,28 @@
   ]
  },
  {
+  "id": "pr-003-c",
+  "name": "Temple Cat Leomaru",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 2500,
+  "boost": 2000,
+  "tribe": "Raiga Family",
+  "rating": -0.5,
+  "stats": -1.5,
+  "boostPts": 1,
+  "effect": 0,
+  "synergy": 2,
+  "partners": 8,
+  "effectNotes": [],
+  "synergyNotes": [
+   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
+   "Raiga Waza: Telepathy"
+  ]
+ },
+ {
   "id": "pr-004-c",
   "name": "Danda Dunk and Bakezouri",
   "color": "Red",
@@ -2301,7 +2277,7 @@
   "power": 3000,
   "boost": 0,
   "tribe": "Fuga Family",
-  "rating": 0.5,
+  "rating": -0.5,
   "stats": -1,
   "boostPts": 0,
   "effect": 0.5,
@@ -2315,6 +2291,30 @@
   ]
  },
  {
+  "id": "pr-005-uc",
+  "name": "Fateful Meeting: Leo and Jin",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 2,
+  "power": 3000,
+  "boost": 0,
+  "tribe": "Raiga Family",
+  "rating": -0.5,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 0.5,
+  "synergy": 2.5,
+  "partners": 40,
+  "effectNotes": [
+   "Draws when Boosted +0.5"
+  ],
+  "synergyNotes": [
+   "needs Boost: 36 in Red",
+   "a cheap Horobeat for 5: Beat Burst: Thunder Cherry Blossom Lightning, Gather, Brethren! Leo & Jin, Raijin Overbeat Leojin, Ready for Battle! Leo…",
+   "Raiga Waza: Telepathy"
+  ]
+ },
+ {
   "id": "pr-001-c",
   "name": "First Beat Leojin",
   "color": "Red",
@@ -2323,9 +2323,9 @@
   "power": 1114,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 0.11,
-  "stats": -1.89,
-  "boostPts": 0,
+  "rating": -1.89,
+  "stats": -2.89,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 2,
   "partners": 8,
@@ -2345,9 +2345,9 @@
   "power": 4000,
   "boost": 2000,
   "tribe": "Yuki Commune",
-  "rating": 1.5,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 0.5,
   "partners": 2,
@@ -2359,53 +2359,6 @@
   ]
  },
  {
-  "id": "hb01-030-sr",
-  "name": "Gather, Brethren! Leo & Jin",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 3,
-  "power": 5500,
-  "boost": 0,
-  "tribe": "Raiga Family",
-  "rating": 1.5,
-  "stats": -0.5,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 1.5,
-  "partners": 15,
-  "effectNotes": [
-   "Cannot be Overbeat onto -1.5",
-   "Plays a 2-cost for free +2.0"
-  ],
-  "synergyNotes": [
-   "needs a cheap Horobeat: 14 in Red",
-   "Raiga Waza: Telepathy"
-  ]
- },
- {
-  "id": "hb01-006-c",
-  "name": "Illusion Healer Nanao",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 3,
-  "power": 4000,
-  "boost": 2000,
-  "tribe": "Maboroshi Commune",
-  "rating": 1.25,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 1.25,
-  "partners": 5,
-  "effectNotes": [
-   "Recovers a Horobeat on entering +1.0"
-  ],
-  "synergyNotes": [
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
-   "recovery for 3: Himeko and Mighty-Armed Hihi, Jin and Leo Thundering Together, Horobeast Leo"
-  ]
- },
- {
   "id": "hb01-005-c",
   "name": "Raiju Dad",
   "color": "Red",
@@ -2414,9 +2367,9 @@
   "power": 3000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 1,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -3,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 1,
   "partners": 3,
@@ -2429,48 +2382,26 @@
   ]
  },
  {
-  "id": "hd01-005-c",
-  "name": "Gale Kamaichi",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 3,
-  "power": 3000,
-  "boost": 2000,
-  "tribe": "Fuga Family",
-  "rating": 0.38,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 1.88,
-  "synergy": 0.5,
-  "partners": 2,
-  "effectNotes": [
-   "Power bonus in lines 2 to 5 +1.9"
-  ],
-  "synergyNotes": [
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
-  "id": "hd01-010-uc",
-  "name": "Lively Student Akana",
+  "id": "hb01-006-c",
+  "name": "Illusion Healer Nanao",
   "color": "Red",
   "type": "Horobeat",
   "level": 3,
   "power": 4000,
   "boost": 2000,
-  "tribe": "Konga Family",
-  "rating": 0.13,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 0.63,
-  "partners": 3,
+  "tribe": "Maboroshi Commune",
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 1,
+  "synergy": 1.25,
+  "partners": 5,
   "effectNotes": [
-   "Draws on entering with nothing under it +0.5"
+   "Recovers a Horobeat on entering +1.0"
   ],
   "synergyNotes": [
-   "needs a good Overbeat base: 1 in Red",
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
+   "recovery for 3: Himeko and Mighty-Armed Hihi, Jin and Leo Thundering Together, Horobeast Leo"
   ]
  },
  {
@@ -2494,6 +2425,52 @@
   "synergyNotes": []
  },
  {
+  "id": "hb01-030-sr",
+  "name": "Gather, Brethren! Leo & Jin",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 3,
+  "power": 5500,
+  "boost": 0,
+  "tribe": "Raiga Family",
+  "rating": 0,
+  "stats": -0.5,
+  "boostPts": 0,
+  "effect": 0.5,
+  "synergy": 1.5,
+  "partners": 15,
+  "effectNotes": [
+   "Cannot be Overbeat onto -1.5",
+   "Plays a 2-cost for free +2.0"
+  ],
+  "synergyNotes": [
+   "needs a cheap Horobeat: 14 in Red",
+   "Raiga Waza: Telepathy"
+  ]
+ },
+ {
+  "id": "hd01-005-c",
+  "name": "Gale Kamaichi",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 3,
+  "power": 3000,
+  "boost": 2000,
+  "tribe": "Fuga Family",
+  "rating": -0.12,
+  "stats": -3,
+  "boostPts": 1,
+  "effect": 1.88,
+  "synergy": 0.5,
+  "partners": 2,
+  "effectNotes": [
+   "Power bonus in lines 2 to 5 +1.9"
+  ],
+  "synergyNotes": [
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
   "id": "hb01-021-r",
   "name": "Yosuzume",
   "color": "Red",
@@ -2502,9 +2479,9 @@
   "power": 5500,
   "boost": 2000,
   "tribe": "Fuga Family",
-  "rating": 0,
-  "stats": 0.5,
-  "boostPts": 0,
+  "rating": -0.5,
+  "stats": -0.5,
+  "boostPts": 1,
   "effect": -1,
   "synergy": 0.5,
   "partners": 2,
@@ -2512,6 +2489,29 @@
    "Needs a 4000+ neighbor to be played -1.0"
   ],
   "synergyNotes": [
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
+  "id": "hd01-010-uc",
+  "name": "Lively Student Akana",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 3,
+  "power": 4000,
+  "boost": 2000,
+  "tribe": "Konga Family",
+  "rating": -0.5,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 0.5,
+  "synergy": 0.63,
+  "partners": 3,
+  "effectNotes": [
+   "Draws on entering with nothing under it +0.5"
+  ],
+  "synergyNotes": [
+   "needs a good Overbeat base: 1 in Red",
    "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
   ]
  },
@@ -2524,37 +2524,14 @@
   "power": 4500,
   "boost": 2000,
   "tribe": "Fuga Family",
-  "rating": 0,
-  "stats": -0.5,
-  "boostPts": 0,
+  "rating": -0.5,
+  "stats": -1.5,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 0.5,
   "partners": 2,
   "effectNotes": [],
   "synergyNotes": [
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
-  "id": "hb01-013-uc",
-  "name": "Himeko and Mighty-Armed Hihi",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 3,
-  "power": 3000,
-  "boost": 2000,
-  "tribe": "Konga Family",
-  "rating": -0.25,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 1,
-  "synergy": 0.75,
-  "partners": 4,
-  "effectNotes": [
-   "Power bonus while not downed +1.0"
-  ],
-  "synergyNotes": [
-   "needs recovery: 2 in Red",
    "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
   ]
  },
@@ -2577,6 +2554,29 @@
   "synergyNotes": []
  },
  {
+  "id": "hb01-013-uc",
+  "name": "Himeko and Mighty-Armed Hihi",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 3,
+  "power": 3000,
+  "boost": 2000,
+  "tribe": "Konga Family",
+  "rating": -1,
+  "stats": -3,
+  "boostPts": 1,
+  "effect": 1,
+  "synergy": 0.75,
+  "partners": 4,
+  "effectNotes": [
+   "Power bonus while not downed +1.0"
+  ],
+  "synergyNotes": [
+   "needs recovery: 2 in Red",
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
   "id": "pr-006-uc",
   "name": "Welcome Home: Nanao and Hinata",
   "color": "Red",
@@ -2585,9 +2585,9 @@
   "power": 2000,
   "boost": 2000,
   "tribe": "Maboroshi Commune",
-  "rating": -1.5,
-  "stats": -3,
-  "boostPts": 0,
+  "rating": -2,
+  "stats": -4,
+  "boostPts": 1,
   "effect": 1,
   "synergy": 0.5,
   "partners": 2,
@@ -2607,15 +2607,37 @@
   "power": 7000,
   "boost": 2000,
   "tribe": "Fuga Family",
-  "rating": 2.5,
-  "stats": 1,
-  "boostPts": 0,
+  "rating": 2,
+  "stats": 0,
+  "boostPts": 1,
   "effect": 1,
   "synergy": 0.5,
   "partners": 2,
   "effectNotes": [
    "Double Damage +2.0",
    "Cannot be played by Overbeat -1.0"
+  ],
+  "synergyNotes": [
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
+  "id": "hb01-031-sr",
+  "name": "Mystic Fox Nanao",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 4,
+  "power": 5000,
+  "boost": 2000,
+  "tribe": "Maboroshi Commune",
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 2,
+  "synergy": 0.5,
+  "partners": 2,
+  "effectNotes": [
+   "Recovers itself and an Ena after battle +2.0"
   ],
   "synergyNotes": [
    "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
@@ -2630,9 +2652,9 @@
   "power": 5000,
   "boost": 2000,
   "tribe": "Maboroshi Commune",
-  "rating": 1.75,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": 0.5,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 1.5,
   "synergy": 1.25,
   "partners": 5,
@@ -2645,28 +2667,6 @@
   ]
  },
  {
-  "id": "hb01-031-sr",
-  "name": "Mystic Fox Nanao",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 4,
-  "power": 5000,
-  "boost": 2000,
-  "tribe": "Maboroshi Commune",
-  "rating": 1.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 2,
-  "synergy": 0.5,
-  "partners": 2,
-  "effectNotes": [
-   "Recovers itself and an Ena after battle +2.0"
-  ],
-  "synergyNotes": [
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
   "id": "hb01-008-c",
   "name": "Enra Madame",
   "color": "Red",
@@ -2675,9 +2675,9 @@
   "power": 6000,
   "boost": 2000,
   "tribe": "Ouchi Commune",
-  "rating": 0.5,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 0.5,
   "partners": 2,
@@ -2695,9 +2695,9 @@
   "power": 4000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 0.5,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": -0.5,
+  "stats": -3,
+  "boostPts": 1,
   "effect": 1.5,
   "synergy": 1,
   "partners": 3,
@@ -2718,7 +2718,7 @@
   "power": 4500,
   "boost": 0,
   "tribe": "Raiga Family",
-  "rating": -0.25,
+  "rating": -1,
   "stats": -2.5,
   "boostPts": 0,
   "effect": 1.5,
@@ -2753,6 +2753,28 @@
   "synergyNotes": []
  },
  {
+  "id": "hb01-016-uc",
+  "name": "Soybean Azukichi",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 6000,
+  "boost": 2000,
+  "tribe": "Ouchi Commune",
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
+  "effect": 2,
+  "synergy": 0.5,
+  "partners": 2,
+  "effectNotes": [
+   "Double Damage +2.0"
+  ],
+  "synergyNotes": [
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
   "id": "hb01-023-r",
   "name": "Horobeast Leo",
   "color": "Red",
@@ -2761,9 +2783,9 @@
   "power": 4000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 2.25,
-  "stats": -3,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -4,
+  "boostPts": 1,
   "effect": 4,
   "synergy": 1.25,
   "partners": 5,
@@ -2778,6 +2800,49 @@
   ]
  },
  {
+  "id": "hb01-024-r",
+  "name": "Enra & Enra's Wedded Waltz",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 5000,
+  "boost": 2000,
+  "tribe": "Ouchi Commune",
+  "rating": 0.5,
+  "stats": -3,
+  "boostPts": 1,
+  "effect": 2.5,
+  "synergy": 0.5,
+  "partners": 2,
+  "effectNotes": [
+   "Double Damage +2.0",
+   "Swaps places with your own Horobeat +0.5"
+  ],
+  "synergyNotes": [
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
+  "id": "hb01-009-c",
+  "name": "Stray Inugami",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 7000,
+  "boost": 2000,
+  "tribe": "Nagaremono",
+  "rating": 0,
+  "stats": -1,
+  "boostPts": 1,
+  "effect": 0,
+  "synergy": 0.5,
+  "partners": 2,
+  "effectNotes": [],
+  "synergyNotes": [
+   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
+  ]
+ },
+ {
   "id": "hd01-015-r",
   "name": "Ready for Battle! Leo",
   "color": "Red",
@@ -2786,9 +2851,9 @@
   "power": 6000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 2,
-  "stats": -1,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 1,
   "synergy": 2,
   "partners": 16,
@@ -2802,51 +2867,6 @@
   ]
  },
  {
-  "id": "hb01-016-uc",
-  "name": "Soybean Azukichi",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 6000,
-  "boost": 2000,
-  "tribe": "Ouchi Commune",
-  "rating": 1.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 2,
-  "synergy": 0.5,
-  "partners": 2,
-  "effectNotes": [
-   "Double Damage +2.0"
-  ],
-  "synergyNotes": [
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
-  "id": "hb01-024-r",
-  "name": "Enra & Enra's Wedded Waltz",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 5000,
-  "boost": 2000,
-  "tribe": "Ouchi Commune",
-  "rating": 1,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 2.5,
-  "synergy": 0.5,
-  "partners": 2,
-  "effectNotes": [
-   "Double Damage +2.0",
-   "Swaps places with your own Horobeat +0.5"
-  ],
-  "synergyNotes": [
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
   "id": "pr-009-c",
   "name": "Rapid Strikes! Thunder Kid",
   "color": "Red",
@@ -2855,9 +2875,9 @@
   "power": 5000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 1,
-  "stats": -2,
-  "boostPts": 0,
+  "rating": 0,
+  "stats": -3,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 1,
   "partners": 3,
@@ -2866,49 +2886,6 @@
   ],
   "synergyNotes": [
    "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin",
-   "Raiga Waza: Telepathy"
-  ]
- },
- {
-  "id": "hb01-009-c",
-  "name": "Stray Inugami",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 7000,
-  "boost": 2000,
-  "tribe": "Nagaremono",
-  "rating": 0.5,
-  "stats": 0,
-  "boostPts": 0,
-  "effect": 0,
-  "synergy": 0.5,
-  "partners": 2,
-  "effectNotes": [],
-  "synergyNotes": [
-   "Boost for 2: Nezu Beat Kyujiro, Fateful Meeting: Leo and Jin"
-  ]
- },
- {
-  "id": "hd01-012-uc",
-  "name": "Nezu Beat Kyujiro",
-  "color": "Red",
-  "type": "Horobeat",
-  "level": 5,
-  "power": 6000,
-  "boost": 0,
-  "tribe": "Raiga Family",
-  "rating": 0.25,
-  "stats": -2,
-  "boostPts": 0,
-  "effect": 0.75,
-  "synergy": 1.5,
-  "partners": 37,
-  "effectNotes": [
-   "Power bonus when Boosted +0.8"
-  ],
-  "synergyNotes": [
-   "needs Boost: 36 in Red",
    "Raiga Waza: Telepathy"
   ]
  },
@@ -2934,6 +2911,29 @@
   "synergyNotes": []
  },
  {
+  "id": "hd01-012-uc",
+  "name": "Nezu Beat Kyujiro",
+  "color": "Red",
+  "type": "Horobeat",
+  "level": 5,
+  "power": 6000,
+  "boost": 0,
+  "tribe": "Raiga Family",
+  "rating": -1.25,
+  "stats": -2,
+  "boostPts": 0,
+  "effect": 0.75,
+  "synergy": 1.5,
+  "partners": 37,
+  "effectNotes": [
+   "Power bonus when Boosted +0.8"
+  ],
+  "synergyNotes": [
+   "needs Boost: 36 in Red",
+   "Raiga Waza: Telepathy"
+  ]
+ },
+ {
   "id": "hb01-025-r",
   "name": "Horobeast Nanao",
   "color": "Red",
@@ -2942,9 +2942,9 @@
   "power": 7000,
   "boost": 2000,
   "tribe": "Maboroshi Commune",
-  "rating": 2,
-  "stats": -1.5,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -3,
+  "boostPts": 1,
   "effect": 3,
   "synergy": 0.5,
   "partners": 2,
@@ -2965,9 +2965,9 @@
   "power": 12000,
   "boost": 2000,
   "tribe": "Yuki Commune",
-  "rating": 2,
-  "stats": 3.5,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": 2,
+  "boostPts": 1,
   "effect": -2,
   "synergy": 0.5,
   "partners": 2,
@@ -2987,7 +2987,7 @@
   "power": 7000,
   "boost": 0,
   "tribe": "Raiga Family",
-  "rating": 1.75,
+  "rating": 0.25,
   "stats": -3,
   "boostPts": 0,
   "effect": 3.25,
@@ -3011,9 +3011,9 @@
   "power": 8500,
   "boost": 2000,
   "tribe": "Ouchi Commune",
-  "rating": 0.5,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": -0.5,
+  "stats": -1.5,
+  "boostPts": 1,
   "effect": 0,
   "synergy": 0.5,
   "partners": 2,
@@ -3031,9 +3031,9 @@
   "power": 6000,
   "boost": 2000,
   "tribe": "Fuga Family",
-  "rating": -1,
-  "stats": -2.5,
-  "boostPts": 0,
+  "rating": -2.5,
+  "stats": -4,
+  "boostPts": 1,
   "effect": 0.5,
   "synergy": 1,
   "partners": 4,
@@ -3055,9 +3055,9 @@
   "power": 11000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 6.5,
-  "stats": 2,
-  "boostPts": 0,
+  "rating": 4.5,
+  "stats": 0,
+  "boostPts": 1,
   "effect": 3.5,
   "synergy": 1,
   "partners": 3,
@@ -3079,9 +3079,9 @@
   "power": 9000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 4.75,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 1.75,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 2.75,
   "synergy": 2,
   "partners": 16,
@@ -3104,9 +3104,9 @@
   "power": 9000,
   "boost": 2000,
   "tribe": "Konga Family",
-  "rating": 2.5,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 0.5,
   "partners": 2,
@@ -3126,9 +3126,9 @@
   "power": 12000,
   "boost": 2000,
   "tribe": "Raiga Family",
-  "rating": 3,
-  "stats": 0,
-  "boostPts": 0,
+  "rating": 1,
+  "stats": -2,
+  "boostPts": 1,
   "effect": 2,
   "synergy": 1,
   "partners": 3,
@@ -3149,7 +3149,7 @@
   "power": 2000,
   "boost": 0,
   "tribe": "",
-  "rating": 1.5,
+  "rating": 0.5,
   "stats": -1,
   "boostPts": 0,
   "effect": 1.5,
@@ -3161,28 +3161,6 @@
   ],
   "synergyNotes": [
    "needs Raiga Horobeat: 20 in Red"
-  ]
- },
- {
-  "id": "hb01-020-uc",
-  "name": "Harmony and Cheer",
-  "color": "Red",
-  "type": "Waza",
-  "level": 1,
-  "power": 3000,
-  "boost": 0,
-  "tribe": "",
-  "rating": -0.37,
-  "stats": 0,
-  "boostPts": 0,
-  "effect": -0.5,
-  "synergy": 0.13,
-  "partners": 1,
-  "effectNotes": [
-   "Needs a card under the Horobeat -0.5"
-  ],
-  "synergyNotes": [
-   "needs a good Overbeat base: 1 in Red"
   ]
  },
  {
@@ -3206,6 +3184,28 @@
   "synergyNotes": []
  },
  {
+  "id": "hb01-020-uc",
+  "name": "Harmony and Cheer",
+  "color": "Red",
+  "type": "Waza",
+  "level": 1,
+  "power": 3000,
+  "boost": 0,
+  "tribe": "",
+  "rating": -0.5,
+  "stats": 0,
+  "boostPts": 0,
+  "effect": -0.5,
+  "synergy": 0.13,
+  "partners": 1,
+  "effectNotes": [
+   "Needs a card under the Horobeat -0.5"
+  ],
+  "synergyNotes": [
+   "needs a good Overbeat base: 1 in Red"
+  ]
+ },
+ {
   "id": "pr-012-c",
   "name": "Prayer for Recovery",
   "color": "Red",
@@ -3226,29 +3226,6 @@
   "synergyNotes": []
  },
  {
-  "id": "hb01-028-r",
-  "name": "Beat Burst: Thunder Cherry Blossom Lightning",
-  "color": "Red",
-  "type": "Waza",
-  "level": 2,
-  "power": 4000,
-  "boost": 0,
-  "tribe": "",
-  "rating": 0.5,
-  "stats": -1,
-  "boostPts": 0,
-  "effect": 0.5,
-  "synergy": 1,
-  "partners": 14,
-  "effectNotes": [
-   "Needs 4+ Horobeats with 4+ Horobeats -1.0",
-   "+1 damage on a win +1.5"
-  ],
-  "synergyNotes": [
-   "needs a cheap Horobeat: 14 in Red"
-  ]
- },
- {
   "id": "hd01-008-c",
   "name": "Lightning Strike",
   "color": "Red",
@@ -3265,6 +3242,29 @@
   "partners": 0,
   "effectNotes": [],
   "synergyNotes": []
+ },
+ {
+  "id": "hb01-028-r",
+  "name": "Beat Burst: Thunder Cherry Blossom Lightning",
+  "color": "Red",
+  "type": "Waza",
+  "level": 2,
+  "power": 4000,
+  "boost": 0,
+  "tribe": "",
+  "rating": -0.5,
+  "stats": -1,
+  "boostPts": 0,
+  "effect": 0.5,
+  "synergy": 1,
+  "partners": 14,
+  "effectNotes": [
+   "Needs 4+ Horobeats with 4+ Horobeats -1.0",
+   "+1 damage on a win +1.5"
+  ],
+  "synergyNotes": [
+   "needs a cheap Horobeat: 14 in Red"
+  ]
  },
  {
   "id": "hb01-029-r",
