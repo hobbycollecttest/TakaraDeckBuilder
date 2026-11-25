@@ -1,0 +1,1107 @@
+[
+ {
+  "id": "pr-031-uc",
+  "name": "Okuri-Inu Kuroshiba",
+  "rule": "Opponent cannot Boost",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "pr-032-uc",
+  "name": "Winged Kegen",
+  "rule": "Barrier",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "pr-032-uc",
+  "name": "Winged Kegen",
+  "rule": "Can move to an open line",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "pr-033-uc",
+  "name": "Ippon-Datara",
+  "rule": "Both players recover Hearts",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "pr-034-uc",
+  "name": "Keep Away from Danger, Kid",
+  "rule": "Blanks the opposing Horobeat",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "pr-035-r",
+  "name": "Faceless Rider",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "pr-035-r",
+  "name": "Faceless Rider",
+  "rule": "Cannot be played by Overbeat",
+  "x": 0,
+  "pts": -1
+ },
+ {
+  "id": "pr-036-r",
+  "name": "Phantom Carriage",
+  "rule": "Chooses its opponent",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "pr-037-r",
+  "name": "Telepathy",
+  "rule": "Draws when used",
+  "x": 0,
+  "gate": "Resonance",
+  "pts": 0.75
+ },
+ {
+  "id": "pr-037-r",
+  "name": "Telepathy",
+  "rule": "Power bonus",
+  "x": 1000,
+  "gate": "Resonance",
+  "pts": 0.75
+ },
+ {
+  "id": "hb01-002-c",
+  "name": "Leomaru",
+  "rule": "Draws on entering",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hb01-005-c",
+  "name": "Raiju Dad",
+  "rule": "Power bonus",
+  "x": 2000,
+  "gate": "Ena Reading 3",
+  "pts": 2
+ },
+ {
+  "id": "hb01-006-c",
+  "name": "Illusion Healer Nanao",
+  "rule": "Recovers a Horobeat on entering",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "hb01-010-c",
+  "name": "Second Battle Line",
+  "rule": "Only usable in some lines",
+  "x": 0,
+  "cond": "in lines 2 to 5",
+  "pts": -0.5
+ },
+ {
+  "id": "hb01-011-uc",
+  "name": "Numbing Lantern",
+  "rule": "Cannot be Overbeat onto",
+  "x": 0,
+  "pts": -1.5
+ },
+ {
+  "id": "hb01-012-uc",
+  "name": "Kamaitachi Kamaji",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "in lines 2 to 5",
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-013-uc",
+  "name": "Himeko and Mighty-Armed Hihi",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "while not downed",
+  "pts": 1
+ },
+ {
+  "id": "hb01-014-uc",
+  "name": "Nanao Guiding Hinata",
+  "rule": "Recovers itself after battle",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "hb01-015-uc",
+  "name": "Jin and Leo Thundering Together",
+  "rule": "Power bonus",
+  "x": 3000,
+  "cond": "while not downed",
+  "gate": "Ena Reading 3",
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-016-uc",
+  "name": "Soybean Azukichi",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-018-uc",
+  "name": "Beast Beat Hihihime",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-020-uc",
+  "name": "Harmony and Cheer",
+  "rule": "Needs a card under the Horobeat",
+  "x": 0,
+  "pts": -0.5
+ },
+ {
+  "id": "hb01-021-r",
+  "name": "Yosuzume",
+  "rule": "Needs a 4000+ neighbor to be played",
+  "x": 0,
+  "pts": -1
+ },
+ {
+  "id": "hb01-023-r",
+  "name": "Horobeast Leo",
+  "rule": "Cannot be destroyed",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-023-r",
+  "name": "Horobeast Leo",
+  "rule": "Power bonus and Double Damage",
+  "x": 3000,
+  "cond": "while not downed",
+  "pts": 2.5
+ },
+ {
+  "id": "hb01-024-r",
+  "name": "Enra & Enra's Wedded Waltz",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-024-r",
+  "name": "Enra & Enra's Wedded Waltz",
+  "rule": "Swaps places with your own Horobeat",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-025-r",
+  "name": "Horobeast Nanao",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-025-r",
+  "name": "Horobeast Nanao",
+  "rule": "Recovers itself after battle",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "hb01-026-r",
+  "name": "Oni Beat Yuki",
+  "rule": "Costs an Ena for good",
+  "x": 0,
+  "pts": -2
+ },
+ {
+  "id": "hb01-027-r",
+  "name": "Raiju Mom",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-028-r",
+  "name": "Beat Burst: Thunder Cherry Blossom Lightning",
+  "rule": "Needs 4+ Horobeats",
+  "x": 0,
+  "cond": "with 4+ Horobeats",
+  "pts": -1
+ },
+ {
+  "id": "hb01-028-r",
+  "name": "Beat Burst: Thunder Cherry Blossom Lightning",
+  "rule": "+1 damage on a win",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-029-r",
+  "name": "Change of Heart",
+  "rule": "Deals 1 damage outright",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-030-sr",
+  "name": "Gather, Brethren! Leo & Jin",
+  "rule": "Cannot be Overbeat onto",
+  "x": 0,
+  "pts": -1.5
+ },
+ {
+  "id": "hb01-030-sr",
+  "name": "Gather, Brethren! Leo & Jin",
+  "rule": "Plays a 2-cost for free",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-031-sr",
+  "name": "Mystic Fox Nanao",
+  "rule": "Recovers itself and an Ena after battle",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-032-sr",
+  "name": "Welcome! Kamabuki Trading Co.",
+  "rule": "Double Damage",
+  "x": 0,
+  "cond": "in lines 2 to 5",
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-032-sr",
+  "name": "Welcome! Kamabuki Trading Co.",
+  "rule": "Draws but recovers the opponent",
+  "x": 0,
+  "cond": "in lines 3 to 5",
+  "pts": 0
+ },
+ {
+  "id": "hb01-033-sr",
+  "name": "Raijin Overbeat Leojin",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-033-sr",
+  "name": "Raijin Overbeat Leojin",
+  "rule": "Power bonus",
+  "x": 5000,
+  "cond": "with 4+ Horobeats",
+  "pts": 1.25
+ },
+ {
+  "id": "hb01-034-c",
+  "name": "Shinazui-sama",
+  "rule": "Counts as 1 cost higher in a line (cheaper to Overbeat onto)",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "hb01-037-c",
+  "name": "Balloon Jump",
+  "rule": "Looks at the top card",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-039-c",
+  "name": "Forest Spirit Kegen",
+  "rule": "Barrier",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hb01-041-c",
+  "name": "Phantom Taxi",
+  "rule": "Power bonus",
+  "x": 3000,
+  "gate": "Ena Reading 3",
+  "pts": 3
+ },
+ {
+  "id": "hb01-042-c",
+  "name": "Cut Down with Personal Grudge!",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "with the taller stack",
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-043-c",
+  "name": "Is It 1?! Is It 2?! Which Is It?!",
+  "rule": "Only usable in some lines",
+  "x": 0,
+  "cond": "in lines 1 to 2",
+  "pts": -0.5
+ },
+ {
+  "id": "hb01-044-uc",
+  "name": "Clunker Car",
+  "rule": "Damages itself after battle",
+  "x": 0,
+  "pts": -2
+ },
+ {
+  "id": "hb01-045-uc",
+  "name": "Taverna and Futakuchi Girl",
+  "rule": "Tucks a card under a Horobeat and draws",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-046-uc",
+  "name": "Strange Bird Hizama",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "when Boosted",
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-047-uc",
+  "name": "Sho and Shinazui Soaring Through the Night",
+  "rule": "Draws on entering if you hold a 7+ cost",
+  "x": 0,
+  "gate": "Ena Reading 3",
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-048-uc",
+  "name": "Lonesome Old Man's House",
+  "rule": "Cannot be powered up",
+  "x": 0,
+  "pts": -2
+ },
+ {
+  "id": "hb01-049-uc",
+  "name": "Fluffy Iroha and Floaty Jumbo",
+  "rule": "Power bonus and Double Damage",
+  "x": 3000,
+  "cond": "3+ cards under lines 1 and 2",
+  "pts": 2.5
+ },
+ {
+  "id": "hb01-050-uc",
+  "name": "Kui Beat Tavelle",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-051-uc",
+  "name": "Full Throttle Helicon",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-051-uc",
+  "name": "Full Throttle Helicon",
+  "rule": "Draws on a win",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hb01-052-uc",
+  "name": "We're Going for the Win...!",
+  "rule": "Opponent discards",
+  "x": 0,
+  "gate": "Resonance",
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-052-uc",
+  "name": "We're Going for the Win...!",
+  "rule": "Draws if the battle is won",
+  "x": 0,
+  "gate": "Resonance",
+  "pts": 0.75
+ },
+ {
+  "id": "hb01-053-uc",
+  "name": "Zoom, Here We Go, Jan!",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "when going first",
+  "pts": 1
+ },
+ {
+  "id": "hb01-054-r",
+  "name": "Rare Kegen",
+  "rule": "Barrier",
+  "x": 2,
+  "pts": 2
+ },
+ {
+  "id": "hb01-055-r",
+  "name": "Zoom Drone",
+  "rule": "Counts as 1 cost lower in a line",
+  "x": 0,
+  "pts": -1
+ },
+ {
+  "id": "hb01-055-r",
+  "name": "Zoom Drone",
+  "rule": "Draws when Overbeat onto",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "hb01-056-r",
+  "name": "Strange Bird Shibiro",
+  "rule": "Cannot use Waza",
+  "x": 0,
+  "pts": -1.5
+ },
+ {
+  "id": "hb01-056-r",
+  "name": "Strange Bird Shibiro",
+  "rule": "Power bonus",
+  "x": 4000,
+  "cond": "when the opponent uses a Waza",
+  "pts": 2
+ },
+ {
+  "id": "hb01-057-r",
+  "name": "Horobeast Shinazui",
+  "rule": "Counts as 1 cost higher in a line (cheaper to Overbeat onto)",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "hb01-059-r",
+  "name": "Iroha and Cruising Jumbo",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-059-r",
+  "name": "Iroha and Cruising Jumbo",
+  "rule": "Power bonus",
+  "x": 5000,
+  "cond": "5+ cards under lines 1 and 2",
+  "pts": 1.25
+ },
+ {
+  "id": "hb01-060-r",
+  "name": "Mori Beat Furutsuki",
+  "rule": "No Waza or Boost for either side",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-062-r",
+  "name": "Beat Burst: Undying Eternal Flame!",
+  "rule": "Needs 2+ cards under the Horobeat",
+  "x": 0,
+  "pts": -1
+ },
+ {
+  "id": "hb01-062-r",
+  "name": "Beat Burst: Undying Eternal Flame!",
+  "rule": "+1 damage on a win",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-063-sr",
+  "name": "Strike First! Shinazui & Sho",
+  "rule": "Opponent discards",
+  "x": 0,
+  "cond": "in lines 1 to 2",
+  "gate": "Ena Reading 3",
+  "pts": 1
+ },
+ {
+  "id": "hb01-064-sr",
+  "name": "Horobeast Jumbo",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-064-sr",
+  "name": "Horobeast Jumbo",
+  "rule": "Draws on a win",
+  "x": 3,
+  "gate": "Ena Reading 3",
+  "pts": 3
+ },
+ {
+  "id": "hb01-065-sr",
+  "name": "Blaze Overbeat Shinazuisho",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-065-sr",
+  "name": "Blaze Overbeat Shinazuisho",
+  "rule": "Destroys what it beats by double",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-066-sr",
+  "name": "Don Dekakegen",
+  "rule": "Barrier",
+  "x": 2,
+  "pts": 2
+ },
+ {
+  "id": "hb01-066-sr",
+  "name": "Don Dekakegen",
+  "rule": "Returns blocked damage",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-067-c",
+  "name": "Kurobo-chan",
+  "rule": "Power bonus",
+  "x": 3000,
+  "cond": "when using a Waza",
+  "pts": 0.75
+ },
+ {
+  "id": "hb01-070-c",
+  "name": "Enforcer Tada and Sanbon-Datara",
+  "rule": "Frees an Ena when downed",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-071-c",
+  "name": "Gashanosuke",
+  "rule": "Power bonus",
+  "x": 4000,
+  "cond": "with 8+ Ena",
+  "pts": 1
+ },
+ {
+  "id": "hb01-073-c",
+  "name": "Valiant Beniten",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-075-c",
+  "name": "Three Years of Patience",
+  "rule": "Pays for itself after battle",
+  "x": 0,
+  "gate": "Ena Reading 3",
+  "pts": 2
+ },
+ {
+  "id": "hb01-076-c",
+  "name": "Ignorant Gaze",
+  "rule": "Not usable on tall stacks",
+  "x": 0,
+  "pts": -1
+ },
+ {
+  "id": "hb01-077-uc",
+  "name": "Yamanba Yamahime",
+  "rule": "Reuses a 1-cost Waza in the next line",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-078-uc",
+  "name": "Nagure and Bodyguard Headbull",
+  "rule": "Trades a Waza for an Ena",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-079-uc",
+  "name": "Yoshihiko and Righteous Kurobou",
+  "rule": "Power bonus and Double Damage",
+  "x": 3000,
+  "cond": "when using a Waza",
+  "gate": "Ena Reading 3",
+  "pts": 1.25
+ },
+ {
+  "id": "hb01-080-uc",
+  "name": "Kawaero",
+  "rule": "Power bonus",
+  "x": 3000,
+  "cond": "while downed",
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-081-uc",
+  "name": "Kappa Diver",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-082-uc",
+  "name": "Bull Beat Headnaguru",
+  "rule": "Both players turn a Waza into Ena",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-083-uc",
+  "name": "Shamisen Hozuki and MC Gasha",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-084-uc",
+  "name": "Rule the Heavens with Justice",
+  "rule": "Power bonus",
+  "x": 3000,
+  "gate": "Resonance",
+  "pts": 2.25
+ },
+ {
+  "id": "hb01-085-uc",
+  "name": "At the Soul's Mercy",
+  "rule": "Both players gain an Ena",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-087-r",
+  "name": "Tofu Nice Guy",
+  "rule": "Finds a Waza",
+  "x": 0,
+  "gate": "Ena Reading 3",
+  "pts": 1
+ },
+ {
+  "id": "hb01-088-r",
+  "name": "It Comes! The Dreaded Spider",
+  "rule": "Becomes Ena when destroyed",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-089-r",
+  "name": "Giri Mukuro",
+  "rule": "Power bonus",
+  "x": 6000,
+  "cond": "with 6+ cards in hand",
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-090-r",
+  "name": "Captain Ikuchi",
+  "rule": "Both players gain an Ena",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-091-r",
+  "name": "Horobeast Kurobou",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-091-r",
+  "name": "Horobeast Kurobou",
+  "rule": "Swaps places with your own Horobeat",
+  "x": null,
+  "pts": 0.5
+ },
+ {
+  "id": "hb01-092-r",
+  "name": "Odosu Beat Sanbon-Tadatara",
+  "rule": "Returns to hand when downed",
+  "x": 0,
+  "pts": -2
+ },
+ {
+  "id": "hb01-093-r",
+  "name": "8 Mile: Hozuki & Gasha",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-093-r",
+  "name": "8 Mile: Hozuki & Gasha",
+  "rule": "Uses a Waza from Ena for free",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "hb01-094-r",
+  "name": "Beat Burst: Strike of the Living Body",
+  "rule": "Needs another Waza used first",
+  "x": 0,
+  "pts": -1
+ },
+ {
+  "id": "hb01-094-r",
+  "name": "Beat Burst: Strike of the Living Body",
+  "rule": "+1 damage on a win",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hb01-095-r",
+  "name": "The Going Loop",
+  "rule": "Returns to hand after battle",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-096-sr",
+  "name": "Guardian of Order: Kurobou & Yoshihiko",
+  "rule": "Gets a 1-cost Waza back every turn",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-097-sr",
+  "name": "Seigi Overbeat Girobou",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-097-sr",
+  "name": "Seigi Overbeat Girobou",
+  "rule": "Bounces the opposing Horobeat",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hb01-098-sr",
+  "name": "Great Kappa Gatara",
+  "rule": "Power bonus",
+  "x": 4000,
+  "cond": "with a downed Heart",
+  "pts": 2
+ },
+ {
+  "id": "hb01-098-sr",
+  "name": "Great Kappa Gatara",
+  "rule": "Heals a Heart on a win",
+  "x": 0,
+  "cond": "with a downed Heart",
+  "pts": 0.75
+ },
+ {
+  "id": "hb01-099-sr",
+  "name": "Horobeast Gashadokuro",
+  "rule": "Refreshes Ena after battle",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hd01-005-c",
+  "name": "Gale Kamaichi",
+  "rule": "Power bonus",
+  "x": 2500,
+  "cond": "in lines 2 to 5",
+  "pts": 1.88
+ },
+ {
+  "id": "hd01-007-c",
+  "name": "Jr. Red Ray",
+  "rule": "Cannot be destroyed",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hd01-009-uc",
+  "name": "Strange Machine Sempujin",
+  "rule": "Draws on a win",
+  "x": 1,
+  "cond": "in lines 2 to 5",
+  "pts": 0.75
+ },
+ {
+  "id": "hd01-010-uc",
+  "name": "Lively Student Akana",
+  "rule": "Draws on entering",
+  "x": 1,
+  "cond": "with nothing under it",
+  "pts": 0.5
+ },
+ {
+  "id": "hd01-012-uc",
+  "name": "Nezu Beat Kyujiro",
+  "rule": "Power bonus",
+  "x": 3000,
+  "cond": "when Boosted",
+  "pts": 0.75
+ },
+ {
+  "id": "hd01-014-r",
+  "name": "Hinata and Nanao",
+  "rule": "Recovers any Horobeat after battle",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hd01-015-r",
+  "name": "Ready for Battle! Leo",
+  "rule": "Power bonus",
+  "x": 4000,
+  "cond": "with 4+ Horobeats",
+  "pts": 1
+ },
+ {
+  "id": "hd01-017-sr",
+  "name": "Rai Beat Leojin",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hd01-017-sr",
+  "name": "Rai Beat Leojin",
+  "rule": "Cannot be destroyed",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "hd02-002-c",
+  "name": "Keukegen",
+  "rule": "Barrier",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hd02-005-c",
+  "name": "Hitodama Morun",
+  "rule": "Barrier",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hd02-006-c",
+  "name": "Hammer Ranbo",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hd02-009-uc",
+  "name": "Snoozing Jumbo",
+  "rule": "Draws when downed",
+  "x": 1,
+  "pts": 0.5
+ },
+ {
+  "id": "hd02-010-uc",
+  "name": "Kesaran-Pasaran",
+  "rule": "Barrier",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hd02-012-uc",
+  "name": "Mana Beat Furarinte",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "when Boosted",
+  "pts": 0.5
+ },
+ {
+  "id": "hd02-012-uc",
+  "name": "Mana Beat Furarinte",
+  "rule": "Draws on a win",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hd02-015-r",
+  "name": "Iroha and Jumbo",
+  "rule": "Draws on a win",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "hd02-016-r",
+  "name": "Never Give Up! Shinazui",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hd02-016-r",
+  "name": "Never Give Up! Shinazui",
+  "rule": "Draws when downed",
+  "x": 2,
+  "pts": 1
+ },
+ {
+  "id": "hd02-017-sr",
+  "name": "Raise Beat Shinazuisho",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "hd02-017-sr",
+  "name": "Raise Beat Shinazuisho",
+  "rule": "Power bonus",
+  "x": 3000,
+  "cond": "with 2+ cards under it",
+  "pts": 0.75
+ },
+ {
+  "id": "pr-004-c",
+  "name": "Danda Dunk and Bakezouri",
+  "rule": "Draws when destroyed",
+  "x": 1,
+  "pts": 0.5
+ },
+ {
+  "id": "pr-005-uc",
+  "name": "Fateful Meeting: Leo and Jin",
+  "rule": "Draws when Boosted",
+  "x": 0,
+  "pts": 0.5
+ },
+ {
+  "id": "pr-006-uc",
+  "name": "Welcome Home: Nanao and Hinata",
+  "rule": "Takes no damage when it loses",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "pr-008-c",
+  "name": "Betobeto-kun",
+  "rule": "Draws on a win",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "pr-009-c",
+  "name": "Rapid Strikes! Thunder Kid",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "pr-010-uc",
+  "name": "Dunk Beat Danzo",
+  "rule": "Cannot be Overbeat onto",
+  "x": 0,
+  "pts": -1.5
+ },
+ {
+  "id": "pr-010-uc",
+  "name": "Dunk Beat Danzo",
+  "rule": "Draws on entering",
+  "x": 2,
+  "pts": 2
+ },
+ {
+  "id": "pr-011-r",
+  "name": "Overbeat Leojin",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "pr-011-r",
+  "name": "Overbeat Leojin",
+  "rule": "Power bonus",
+  "x": 3000,
+  "cond": "with 4+ Horobeats",
+  "pts": 0.75
+ },
+ {
+  "id": "pr-012-c",
+  "name": "Prayer for Recovery",
+  "rule": "Recovers the Horobeat",
+  "x": 0,
+  "pts": 1
+ },
+ {
+  "id": "pr-014-uc",
+  "name": "Thunder and Wind Raging Surge",
+  "rule": "+1 damage on a win",
+  "x": 0,
+  "pts": 1.5
+ },
+ {
+  "id": "pr-015-c",
+  "name": "Shinazui of the Flame",
+  "rule": "Draws when downed",
+  "x": 1,
+  "pts": 0.5
+ },
+ {
+  "id": "pr-016-c",
+  "name": "Solo Camp Shinazui-sama",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "when Boosted",
+  "pts": 0.5
+ },
+ {
+  "id": "pr-018-uc",
+  "name": "Moss Boy",
+  "rule": "Barrier",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "pr-020-c",
+  "name": "Destined Meeting: Shinazui and Sho",
+  "rule": "Draws when downed",
+  "x": 1,
+  "pts": 0.5
+ },
+ {
+  "id": "pr-022-uc",
+  "name": "Yoohoo! Iroha and Jumbo",
+  "rule": "Draws on a win",
+  "x": 1,
+  "pts": 1
+ },
+ {
+  "id": "pr-023-uc",
+  "name": "Strange Bird Kamigiri",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "pr-025-r",
+  "name": "Overbeat Shinazuisho",
+  "rule": "Double Damage",
+  "x": 0,
+  "pts": 2
+ },
+ {
+  "id": "pr-025-r",
+  "name": "Overbeat Shinazuisho",
+  "rule": "Power bonus",
+  "x": 2000,
+  "cond": "with 2+ cards under it",
+  "pts": 0.5
+ },
+ {
+  "id": "pr-027-uc",
+  "name": "Long Distance, Buried!",
+  "rule": "+1 damage on a win",
+  "x": 0,
+  "pts": 1.5
+ }
+]

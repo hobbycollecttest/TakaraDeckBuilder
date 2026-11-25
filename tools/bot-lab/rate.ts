@@ -104,7 +104,7 @@ const RULES: Rule[] = [
   { re: /gets \+(\d+) Power/, what: 'Power bonus', pts: (x) => x / 1000 },
 ]
 
-type Part = { what: string; pts: number }
+type Part = { what: string; pts: number; rule?: string; x?: number; cond?: string; gate?: string }
 function effectParts(c: Card): Part[] {
   const out: Part[] = []
   for (const sentence of c.effect.split('●').map((s) => s.trim()).filter(Boolean)) {
@@ -119,7 +119,7 @@ function effectParts(c: Card): Part[] {
       const x = +(rule.re.exec(text)?.[1] ?? 0)
       const cond = when(text)
       const share = (gate?.share ?? 1) * (cond && rule.pts(x, text) > 0 ? cond[1] : 1)
-      out.push({ what: `${rule.what}${cond ? ' ' + cond[2] : ''}${gate?.note ?? ''}`, pts: +(rule.pts(x, text) * share).toFixed(2) })
+      out.push({ what: `${rule.what}${cond ? ' ' + cond[2] : ''}${gate?.note ?? ''}`, pts: +(rule.pts(x, text) * share).toFixed(2), rule: rule.what, x, cond: cond?.[2], gate: gate ? (gate.share === 1 || /Ena Reading/.test(gate.note) ? 'Ena Reading 3' : 'Resonance') : undefined })
     }
   }
   return out
@@ -199,6 +199,8 @@ const rows = cards.map((c) => {
   const syn = synergy(c)
   return { c, stats, boost, effect, parts, syn, total: +(stats + boost + effect).toFixed(2) }
 })
+// Every effect piece of every card, for the spreadsheet that works the ratings out with formulas.
+fs.writeFileSync(path.join(HERE, 'results', 'effect-parts-horobeat.json'), JSON.stringify(rows.flatMap((r) => r.parts.map((p) => ({ id: r.c.id, name: r.c.name, rule: p.rule, x: p.x, cond: p.cond, gate: p.gate, pts: p.pts }))), null, 1))
 const missed = rows.flatMap((r) => r.parts.filter((p) => p.what.startsWith('NOT RATED')).map((p) => `${r.c.name}: ${p.what}`))
 if (missed.length) { console.error(`${missed.length} effect sentence(s) have no rule yet:`); missed.forEach((m) => console.error('  ' + m)) }
 
