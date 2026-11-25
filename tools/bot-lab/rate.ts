@@ -6,7 +6,7 @@
 //   Boost    its Boost against the benchmark's Boost (2000 Boost counts as 1 point: it is only used from hand)
 //   Effect   what its text does, from the list of rules below (each rule is one line: what it matches, its points)
 //   Synergy  how many cards of the same color it works with (what it needs is available; other cards need it)
-// The points in RULES and the weights in the synergy part are judgement calls, written down so they can be
+// The points in RULES and the shares in WHEN are Jeff's (HORO-BEAT Effect Scores sheet, 2026-11-25). The synergy weights are judgement calls, written down so they can be
 // argued with and changed. Nothing here is measured. For a measured score, see score.ts.
 import fs from 'node:fs'
 import path from 'node:path'
@@ -14,7 +14,7 @@ import raw from '../../src/horobeat.json' with { type: 'json' }
 import { HERE } from './lab'
 
 type Card = { id: string; name: string; jp?: string; type: 'Horobeat' | 'Waza'; color: string; cost: number; power: number; boost: number; trigger: string; tribe: string; effect: string }
-const BENCH = JSON.parse(fs.readFileSync(path.join(HERE, 'benchmarks', 'horobeat.json'), 'utf8')) as Record<string, Record<string, { power: number; boost: number }>>
+const BENCH = JSON.parse(fs.readFileSync(path.join(HERE, 'benchmarks', 'horobeat.json'), 'utf8')) as Record<string, Record<string, { plain: number; boosted: number | null }>>
 const seen = new Set<string>()
 const cards: Card[] = (raw as unknown as (Card & { cost: number | null; power: number | null; boost: number | null })[])
   .filter((c) => { const k = c.jp || c.name; if (seen.has(k)) return false; seen.add(k); return true })
@@ -24,10 +24,10 @@ const cards: Card[] = (raw as unknown as (Card & { cost: number | null; power: n
 type Rule = { re: RegExp; what: string; pts: (x: number, text: string) => number; on?: 'Horobeat' | 'Waza' }
 /** How often a condition is met, as a share of the full value. */
 const WHEN: [RegExp, number, string][] = [
-  [/lines 2–5/, 0.8, 'in lines 2 to 5'], [/lines 3–5/, 0.6, 'in lines 3 to 5'], [/lines 1–2 is 5 or more/, 0.25, '5+ cards under lines 1 and 2'], [/lines 1–2 is 3 or more/, 0.4, '3+ cards under lines 1 and 2'], [/in lines 1–2/, 0.6, 'in lines 1 to 2'],
-  [/is not downed/, 0.7, 'while not downed'], [/4 or more (of your |red )?Horobeats/, 0.5, 'with 4+ Horobeats'], [/Boost has been used/, 0.5, 'when Boosted'], [/If this Horobeat is downed/, 0.4, 'while downed'],
-  [/opposing Horobeat is using a Waza/, 0.3, 'when the opponent uses a Waza'], [/is using a Waza/, 0.5, 'when using a Waza'], [/8 or more cards in your Ena/, 0.3, 'with 8+ Ena'], [/6 or more cards in your hand/, 0.3, 'with 6+ cards in hand'],
-  [/2 or more cards under this/, 0.6, 'with 2+ cards under it'], [/downed Heart/, 0.5, 'with a downed Heart'], [/If you go first/, 0.5, 'when going first'], [/greater than the number of cards under/, 0.5, 'with the taller stack'], [/no cards beneath/, 0.7, 'with nothing under it'],
+  [/lines 2–5/, 0.75, 'in lines 2 to 5'], [/lines 3–5/, 0.25, 'in lines 3 to 5'], [/lines 1–2 is 5 or more/, 0.25, '5+ cards under lines 1 and 2'], [/lines 1–2 is 3 or more/, 0.5, '3+ cards under lines 1 and 2'], [/in lines 1–2/, 0.5, 'in lines 1 to 2'],
+  [/is not downed/, 0.5, 'while not downed'], [/4 or more (of your |red )?Horobeats/, 0.25, 'with 4+ Horobeats'], [/Boost has been used/, 0.25, 'when Boosted'], [/If this Horobeat is downed/, 0.5, 'while downed'],
+  [/opposing Horobeat is using a Waza/, 0.5, 'when the opponent uses a Waza'], [/is using a Waza/, 0.25, 'when using a Waza'], [/8 or more cards in your Ena/, 0.25, 'with 8+ Ena'], [/6 or more cards in your hand/, 0.25, 'with 6+ cards in hand'],
+  [/2 or more cards under this/, 0.25, 'with 2+ cards under it'], [/downed Heart/, 0.5, 'with a downed Heart'], [/If you go first/, 0.5, 'when going first'], [/greater than the number of cards under/, 0.25, 'with the taller stack'], [/no cards beneath/, 0.5, 'with nothing under it'],
 ]
 const when = (t: string) => WHEN.find(([re]) => re.test(t))
 const RULES: Rule[] = [
@@ -37,68 +37,68 @@ const RULES: Rule[] = [
   { re: /^(\d) Barrier/, what: 'Barrier', pts: (x) => x },
   { re: /deal the amount of damage reduced/, what: 'Returns blocked damage', pts: () => 1.5 },
   { re: /cannot be destroyed/, what: 'Cannot be destroyed', pts: () => 1.5 },
-  { re: /You cannot Overbeat onto this/, what: 'Cannot be Overbeat onto', pts: () => -0.3 },
-  { re: /cannot be played from your hand via Overbeat/, what: 'Cannot be played by Overbeat', pts: () => -0.3 },
-  { re: /cannot be played unless/, what: 'Needs a 4000+ neighbor to be played', pts: () => -0.8 },
-  { re: /its cost is 1 higher/, what: 'Counts as 1 cost higher in a line (cheaper to Overbeat onto)', pts: () => 0.7 },
-  { re: /its cost is 1 lower/, what: 'Counts as 1 cost lower in a line', pts: () => -0.4 },
-  { re: /This Horobeat cannot use Waza/, what: 'Cannot use Waza', pts: () => -0.7 },
-  { re: /neither can have their Power increased/, what: 'No Waza or Boost for either side', pts: () => 0.3 },
-  { re: /its Power cannot be increased by Waza or Boost/, what: 'Cannot be powered up', pts: () => -1 },
-  { re: /opposing Horobeat cannot use Boost/, what: 'Opponent cannot Boost', pts: () => 0.7 },
+  { re: /You cannot Overbeat onto this/, what: 'Cannot be Overbeat onto', pts: () => -1.5 },
+  { re: /cannot be played from your hand via Overbeat/, what: 'Cannot be played by Overbeat', pts: () => -1 },
+  { re: /cannot be played unless/, what: 'Needs a 4000+ neighbor to be played', pts: () => -1 },
+  { re: /its cost is 1 higher/, what: 'Counts as 1 cost higher in a line (cheaper to Overbeat onto)', pts: () => 1 },
+  { re: /its cost is 1 lower/, what: 'Counts as 1 cost lower in a line', pts: () => -1 },
+  { re: /This Horobeat cannot use Waza/, what: 'Cannot use Waza', pts: () => -1.5 },
+  { re: /neither can have their Power increased/, what: 'No Waza or Boost for either side', pts: () => 0.5 },
+  { re: /its Power cannot be increased by Waza or Boost/, what: 'Cannot be powered up', pts: () => -2 },
+  { re: /opposing Horobeat cannot use Boost/, what: 'Opponent cannot Boost', pts: () => 2 },
   { re: /you may play 1 red Horobeat with a cost of 2 or less/, what: 'Plays a 2-cost for free', pts: () => 2 },
-  { re: /reveal a Horobeat with a cost of 7 or more from your hand\. If you do, draw 1/, what: 'Draws on entering if you hold a 7+ cost', pts: () => 0.7 },
+  { re: /reveal a Horobeat with a cost of 7 or more from your hand\. If you do, draw 1/, what: 'Draws on entering if you hold a 7+ cost', pts: () => 0.5 },
   { re: /enters play, draw (\d)/, what: 'Draws on entering', pts: (x) => x },
   { re: /enters play, if there are no cards beneath it, draw (\d)/, what: 'Draws on entering', pts: (x) => x },
-  { re: /recover the opposing Horobeat and draw 1/, what: 'Draws but recovers the opponent', pts: () => 0.5 },
-  { re: /wins a battle, draw (\d)/, what: 'Draws on a win', pts: (x) => 0.7 * x },
-  { re: /wins a battle, if it is in lines 2–5, draw (\d)/, what: 'Draws on a win', pts: (x) => 0.7 * x },
+  { re: /recover the opposing Horobeat and draw 1/, what: 'Draws but recovers the opponent', pts: () => 0 },
+  { re: /wins a battle, draw (\d)/, what: 'Draws on a win', pts: (x) => x },
+  { re: /wins a battle, if it is in lines 2–5, draw (\d)/, what: 'Draws on a win', pts: (x) => x },
   { re: /is destroyed, draw (\d)/, what: 'Draws when destroyed', pts: (x) => 0.5 * x },
   { re: /is downed, draw (\d)/, what: 'Draws when downed', pts: (x) => 0.5 * x },
-  { re: /use Boost on this Horobeat, draw 1/, what: 'Draws when Boosted', pts: () => 0.4 },
-  { re: /Overbeat onto this Horobeat.*draw 1/, what: 'Draws when Overbeat onto', pts: () => 0.6 },
-  { re: /Return it to unused, then recover this/, what: 'Recovers itself and an Ena after battle', pts: () => 1.8 },
+  { re: /use Boost on this Horobeat, draw 1/, what: 'Draws when Boosted', pts: () => 0.5 },
+  { re: /Overbeat onto this Horobeat.*draw 1/, what: 'Draws when Overbeat onto', pts: () => 1 },
+  { re: /Return it to unused, then recover this/, what: 'Recovers itself and an Ena after battle', pts: () => 2 },
   { re: /battle ends, recover this Horobeat/, what: 'Recovers itself after battle', pts: () => 1 },
-  { re: /battle ends, choose 1 of your Horobeats and recover/, what: 'Recovers any Horobeat after battle', pts: () => 1.2 },
-  { re: /enters play, choose 1 of your Horobeats and recover/, what: 'Recovers a Horobeat on entering', pts: () => 0.8 },
+  { re: /battle ends, choose 1 of your Horobeats and recover/, what: 'Recovers any Horobeat after battle', pts: () => 1.5 },
+  { re: /enters play, choose 1 of your Horobeats and recover/, what: 'Recovers a Horobeat on entering', pts: () => 1 },
   { re: /loses a battle, it takes no damage/, what: 'Takes no damage when it loses', pts: () => 1 },
-  { re: /swap it with the Horobeat directly opposing/, what: 'Chooses its opponent', pts: () => 1 },
+  { re: /swap it with the Horobeat directly opposing/, what: 'Chooses its opponent', pts: () => 2 },
   { re: /swap (their )?positions/, what: 'Swaps places with your own Horobeat', pts: () => 0.5 },
   { re: /move to that line/, what: 'Can move to an open line', pts: () => 0.5 },
   { re: /choose one of your Ena and place it in the graveyard/, what: 'Costs an Ena for good', pts: () => -2 },
   { re: /deal 1 damage to this Horobeat/, what: 'Damages itself after battle', pts: () => -2 },
-  { re: /is downed, choose 1 of your Ena and return it to unused/, what: 'Frees an Ena when downed', pts: () => 0.6 },
-  { re: /look at the top 5 cards/, what: 'Finds a Waza', pts: () => 0.8 },
-  { re: /place this card in your Ena unused/, what: 'Becomes Ena when destroyed', pts: () => 0.8 },
-  { re: /each player recovers Hearts/, what: 'Both players recover Hearts', pts: () => 0 },
-  { re: /each player places the top card of their deck into their Ena/, what: 'Both players gain an Ena', pts: () => 0.3 },
+  { re: /is downed, choose 1 of your Ena and return it to unused/, what: 'Frees an Ena when downed', pts: () => 0.5 },
+  { re: /look at the top 5 cards/, what: 'Finds a Waza', pts: () => 1 },
+  { re: /place this card in your Ena unused/, what: 'Becomes Ena when destroyed', pts: () => 1.5 },
+  { re: /each player recovers Hearts/, what: 'Both players recover Hearts', pts: () => 0.5 },
+  { re: /each player places the top card of their deck into their Ena/, what: 'Both players gain an Ena', pts: () => 0.5 },
   { re: /Waza with a cost of 1 in the graveyard and return it to your hand/, what: 'Gets a 1-cost Waza back every turn', pts: () => 2 },
-  { re: /each player may choose 1 Waza from their graveyard/, what: 'Both players turn a Waza into Ena', pts: () => 0.2 },
-  { re: /is downed, return this card to your hand/, what: 'Returns to hand when downed', pts: () => 0.8 },
-  { re: /second Waza.*return the top card/, what: 'Bounces the opposing Horobeat', pts: () => 1 },
+  { re: /each player may choose 1 Waza from their graveyard/, what: 'Both players turn a Waza into Ena', pts: () => 0.5 },
+  { re: /is downed, return this card to your hand/, what: 'Returns to hand when downed', pts: () => -2 },
+  { re: /second Waza.*return the top card/, what: 'Bounces the opposing Horobeat', pts: () => 2 },
   { re: /down the top card of your deck and add it to your Hearts/, what: 'Heals a Heart on a win', pts: () => 1.5 },
-  { re: /Blue Waza with a cost of 3 or less in your Ena and use it/, what: 'Uses a Waza from Ena for free', pts: () => 2 },
-  { re: /turn all your Ena unused/, what: 'Refreshes Ena after battle', pts: () => 1.5 },
-  { re: /discard it\. If you do, choose 1 of your Ena/, what: 'Trades a Waza for an Ena', pts: () => 0.3 },
-  { re: /use that card in the next line/, what: 'Reuses a 1-cost Waza in the next line', pts: () => 1.2 },
-  { re: /look at the top card of your deck/, what: 'Looks at the top card', pts: () => 0.2 },
-  { re: /place it under the bottom of that Horobeat/, what: 'Tucks a card under a Horobeat and draws', pts: () => 0.6 },
-  { re: /destroy the opposing Horobeat/, what: 'Destroys what it beats by double', pts: () => 1.5 },
-  { re: /your opponent chooses 1 card from their hand and discards it/, what: 'Opponent discards', pts: () => 1 },
-  { re: /When this battle is won, you draw 1/, what: 'Draws if the battle is won', pts: () => 0.6 },
+  { re: /Blue Waza with a cost of 3 or less in your Ena and use it/, what: 'Uses a Waza from Ena for free', pts: () => 1 },
+  { re: /turn all your Ena unused/, what: 'Refreshes Ena after battle', pts: () => 2 },
+  { re: /discard it\. If you do, choose 1 of your Ena/, what: 'Trades a Waza for an Ena', pts: () => 0.5 },
+  { re: /use that card in the next line/, what: 'Reuses a 1-cost Waza in the next line', pts: () => 1.5 },
+  { re: /look at the top card of your deck/, what: 'Looks at the top card', pts: () => 0.5 },
+  { re: /place it under the bottom of that Horobeat/, what: 'Tucks a card under a Horobeat and draws', pts: () => 0.5 },
+  { re: /destroy the opposing Horobeat/, what: 'Destroys what it beats by double', pts: () => 2 },
+  { re: /your opponent chooses 1 card from their hand and discards it/, what: 'Opponent discards', pts: () => 2 },
+  { re: /When this battle is won, you draw 1/, what: 'Draws if the battle is won', pts: () => 1 },
   { re: /deals \+1 damage/, what: '+1 damage on a win', pts: () => 1.5 },
   { re: /deal 1 damage to the opposing player/, what: 'Deals 1 damage outright', pts: () => 2 },
   { re: /When this Waza is used, draw 1/, what: 'Draws when used', pts: () => 1 },
   { re: /recover this Horobeat/, what: 'Recovers the Horobeat', pts: () => 1, on: 'Waza' },
   { re: /Only a Horobeat in lines/, what: 'Only usable in some lines', pts: () => -0.5 },
   { re: /Only a Horobeat with 2 or more cards underneath/, what: 'Needs 2+ cards under the Horobeat', pts: () => -1 },
-  { re: /Only a Horobeat with 1 or more cards underneath/, what: 'Needs a card under the Horobeat', pts: () => -0.7 },
-  { re: /Only a Horobeat with 1 or fewer cards underneath/, what: 'Not usable on tall stacks', pts: () => -0.2 },
+  { re: /Only a Horobeat with 1 or more cards underneath/, what: 'Needs a card under the Horobeat', pts: () => -0.5 },
+  { re: /Only a Horobeat with 1 or fewer cards underneath/, what: 'Not usable on tall stacks', pts: () => -1 },
   { re: /can only be used when you have 4 or more/, what: 'Needs 4+ Horobeats', pts: () => -1 },
   { re: /already used another Waza/, what: 'Needs another Waza used first', pts: () => -1 },
-  { re: /loses its effects/, what: 'Blanks the opposing Horobeat', pts: () => 0.7 },
-  { re: /return this card to your hand/, what: 'Returns to hand after battle', pts: () => 1.5 },
-  { re: /battle ends, choose 1 of your Ena and return it to unused/, what: 'Pays for itself after battle', pts: () => 1 },
+  { re: /loses its effects/, what: 'Blanks the opposing Horobeat', pts: () => 1.5 },
+  { re: /return this card to your hand/, what: 'Returns to hand after battle', pts: () => 2 },
+  { re: /battle ends, choose 1 of your Ena and return it to unused/, what: 'Pays for itself after battle', pts: () => 2 },
   { re: /gets \+(\d+) Power/, what: 'Power bonus', pts: (x) => x / 1000 },
 ]
 
@@ -107,7 +107,7 @@ function effectParts(c: Card): Part[] {
   const out: Part[] = []
   for (const sentence of c.effect.split('●').map((s) => s.trim()).filter(Boolean)) {
     // "Ena Reading Red 3 (...) • effect" and "Resonance: Raiga (...) • effect • effect": the inner effects, discounted.
-    const gate = /^Ena Reading \w+ 3/.test(sentence) ? { share: 0.75, note: ' (Ena Reading 3)' } : /^Resonance: (\w+)/.test(sentence) ? { share: 0.7, note: ` (Resonance: ${/^Resonance: (\w+)/.exec(sentence)![1]})` } : null
+    const gate = /^Ena Reading \w+ 3/.test(sentence) ? { share: 1, note: ' (Ena Reading 3)' } : /^Resonance: (\w+)/.test(sentence) ? { share: 0.75, note: ` (Resonance: ${/^Resonance: (\w+)/.exec(sentence)![1]})` } : null
     const pieces = gate ? sentence.split('•').slice(1).map((s) => s.trim()) : [sentence]
     for (const piece of pieces) {
       // Reminder text in brackets explains a keyword; it is not a second effect.
@@ -189,8 +189,10 @@ function synergy(c: Card) {
 const rows = cards.map((c) => {
   const b = BENCH[c.type]?.[String(c.cost)]
   if (!b) throw new Error(`No benchmark for ${c.type} ${c.cost}`)
-  const stats = +((c.power - b.power) / 1000).toFixed(2)
-  const boost = +((c.boost - b.boost) / 2000).toFixed(2)
+  // Compared with the benchmark that matches: with Boost or without. The gap between the two is what Boost is worth.
+  const bench = c.boost > 0 && b.boosted != null ? b.boosted : b.plain
+  const stats = +((c.power - bench) / 1000).toFixed(2)
+  const boost = 0
   const parts = effectParts(c)
   const effect = +parts.reduce((a, p) => a + p.pts, 0).toFixed(2)
   const syn = synergy(c)
@@ -204,7 +206,7 @@ const sign = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}`
 let head = ''
 for (const r of rows) {
   const h = `${r.c.color} ${r.c.type} level ${r.c.cost}`
-  if (h !== head) { head = h; console.log(`\n${h}  (benchmark ${BENCH[r.c.type][String(r.c.cost)].power}${BENCH[r.c.type][String(r.c.cost)].boost ? ' / Boost ' + BENCH[r.c.type][String(r.c.cost)].boost : ''})`) }
+  if (h !== head) { head = h; console.log(`\n${h}  (benchmark ${BENCH[r.c.type][String(r.c.cost)].plain}${BENCH[r.c.type][String(r.c.cost)].boosted ? ', with Boost ' + BENCH[r.c.type][String(r.c.cost)].boosted : ''})`) }
   console.log(`  ${sign(r.total).padStart(5)}  ${r.c.name.slice(0, 40).padEnd(40)} stats ${sign(r.stats).padStart(5)}  boost ${sign(r.boost).padStart(5)}  effect ${sign(r.effect).padStart(5)}  synergy ${sign(r.syn.pts).padStart(5)} (${r.syn.partners} cards)`)
 }
 const outJson = path.join(HERE, 'results', 'ratings-horobeat.json')

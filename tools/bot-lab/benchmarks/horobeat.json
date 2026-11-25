@@ -1,19 +1,55 @@
 {
- "note": "The benchmark card for each level: a card of that cost with no effect. Card scores compare every card with the benchmark of its own type, level and color. Stats come from the real no-effect cards where one exists (real: true); the gaps are filled in along the same curve (real: false). Edit freely.",
+ "note": "Jeff's benchmark Power for each level (2026-11-25): what a card with no effect should have, without Boost and with Boost. A card is compared with the one that matches it, so Boost is already counted in the gap between the two.",
  "Horobeat": {
-  "2": { "power": 4000, "boost": 0, "trigger": "Entry Trigger", "real": true },
-  "3": { "power": 5000, "boost": 0, "trigger": "Entry Trigger", "real": true },
-  "4": { "power": 6000, "boost": 2000, "trigger": "Over Trigger", "real": true },
-  "5": { "power": 7000, "boost": 2000, "trigger": "Over Trigger", "real": true },
-  "6": { "power": 8500, "boost": 2000, "trigger": "Over Trigger", "real": true },
-  "7": { "power": 9500, "boost": 2000, "trigger": "Last Over Trigger", "real": false },
-  "8": { "power": 10000, "boost": 2000, "trigger": "Last Over Trigger", "real": true },
-  "9": { "power": 12000, "boost": 2000, "trigger": "Last Over Trigger", "real": false },
-  "10": { "power": 18000, "boost": 0, "trigger": "Last Over Trigger", "real": true }
+  "2": {
+   "plain": 4000,
+   "boosted": 3000
+  },
+  "3": {
+   "plain": 6000,
+   "boosted": 5000
+  },
+  "4": {
+   "plain": 7000,
+   "boosted": 6000
+  },
+  "5": {
+   "plain": 8000,
+   "boosted": 7000
+  },
+  "6": {
+   "plain": 10000,
+   "boosted": 8500
+  },
+  "7": {
+   "plain": 11000,
+   "boosted": 9000
+  },
+  "8": {
+   "plain": 14000,
+   "boosted": 12000
+  },
+  "9": {
+   "plain": 16000,
+   "boosted": 14000
+  },
+  "10": {
+   "plain": 18000,
+   "boosted": null
+  }
  },
  "Waza": {
-  "1": { "power": 3000, "boost": 0, "trigger": "Draw Trigger", "real": false },
-  "2": { "power": 5000, "boost": 0, "trigger": "Draw Trigger", "real": true },
-  "3": { "power": 7000, "boost": 0, "trigger": "Draw Trigger", "real": true }
+  "1": {
+   "plain": 3000,
+   "boosted": null
+  },
+  "2": {
+   "plain": 5000,
+   "boosted": null
+  },
+  "3": {
+   "plain": 7000,
+   "boosted": null
+  }
  }
 }
