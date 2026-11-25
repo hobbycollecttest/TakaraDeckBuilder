@@ -8,6 +8,7 @@ export type Payload = {
   rev: number; status: 'waiting' | 'playing' | 'over'; code: string; game?: string; side: Side; names: [string, string]
   events?: Ev[]; view?: View; req?: Req | null; turn?: Side | null
   log?: { round: number; text: string }[]; cards?: Record<number, string>; phase?: string; winner?: Side | null; reason?: string
+  manualPay?: boolean
 }
 
 /** A secret kept in this browser that proves which seat in the room is yours. */
@@ -33,6 +34,7 @@ const post = (body: Record<string, unknown>) =>
 export const createRoom = (name: string, deck: string[], game = 'horobeat', manualPay = false) => post({ op: 'create', name, deck, game, manualPay })
 export const joinRoom = (code: string, name: string, deck?: string[], game = 'horobeat', manualPay = false) => post({ op: 'join', code, name, deck, game, manualPay })
 export const sendChoice = (code: string, rev: number, i: number) => post({ op: 'act', code, rev, i })
+export const setRoomPay = (code: string, rev: number, manual: boolean) => post({ op: 'pay', code, rev, manual })
 export const leaveRoom = (code: string, rev: number) => post({ op: 'leave', code, rev })
 export const checkRoom = (code: string, rev: number) => fetch(`/api/match?code=${code}&seat=${seat()}&rev=${rev}`).then(read)
 
@@ -109,6 +111,8 @@ export class RemoteMatch {
   status: Payload['status'] = 'waiting'
   names: [string, string] = ['', '']
   turn: Side | null = null
+  /** Whether this player picks their own Ena to pay with. */
+  manualPay = false
   private view: View = EMPTY
 
   constructor(first: Payload) { this.apply(first) }
@@ -126,6 +130,7 @@ export class RemoteMatch {
     this.view = p.view
     this.req = p.req ?? null
     this.turn = p.turn ?? null
+    this.manualPay = !!p.manualPay
     this.log = p.log || []
     Object.assign(this.s.cards, p.cards)
     this.s.phase = p.phase || 'summon'

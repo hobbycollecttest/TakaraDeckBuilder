@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEFS, Match, type Def, type Ev, type Opt, type Req, type Setup, type Side } from '../sim/engine'
 import { play, setSound, unlockSound } from './sound'
 import { PowerNum, useGlide } from './motion'
-import { RemoteMatch, createRoom, joinRoom, leaveRoom, sendChoice, watchRoom, type Payload } from './online'
+import { RemoteMatch, createRoom, joinRoom, leaveRoom, sendChoice, setRoomPay, watchRoom, type Payload } from './online'
 import { authReady, currentAccount } from '../auth'
 import { listDecks, type CloudDeck } from '../cloud'
 import { cpuChoice, LEVELS, tutorChoice, type Level } from '../sim/ai'
@@ -48,6 +48,9 @@ function deckChoices(account: CloudDeck[]): Choice[] {
   return out
 }
 
+/** The player's last choice between paying Ena by hand and letting the game pay. */
+const savedPay = () => store.get<boolean>('hb.manualPay', false) === true
+
 export default function Play() {
   const [save, setSave] = useState<Save | null>(() => {
     const s = store.get<Save | null>(SAVE_KEY, null)
@@ -59,7 +62,8 @@ export default function Play() {
   const [room, setRoom] = useState<Payload | null>(null)
   useEffect(() => store.set('hb.view', view), [view])
 
-  const start = (ids: string[], cpuIds: string[], level: Level, manualPay: boolean) => begin({ v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'], manualPay: [manualPay, false] }, answers: [], level })
+  // A new match starts with the Ena payment setting the player used last time.
+  const start = (ids: string[], cpuIds: string[], level: Level) => begin({ v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'], manualPay: [savedPay(), false] }, answers: [], level })
   const tutorial = (color: Tutor['color']) => {
     const { mine, theirs } = tutorialDecks(color)
     begin({ v: SAVE_VERSION, setup: { seed: TUTORIAL_SEED[color], decks: [mine.ids, theirs.ids], names: ['You', 'CPU'] }, answers: [], level: 'easy', tutorial: { color, seen: [] } })
@@ -93,7 +97,7 @@ export default function Play() {
       {room ? (
         <Room key={room.code} first={room} view={view} onExit={() => { store.set('hb.room', ''); setRoom(null) }} />
       ) : playing && save ? (
-        <LocalTable key={matchId} save={save} view={view} onAgain={() => (save.tutorial ? tutorial(save.tutorial.color) : start(save.setup.decks[0], save.setup.decks[1], save.level, !!save.setup.manualPay?.[0]))}
+        <LocalTable key={matchId} save={save} view={view} onAgain={() => (save.tutorial ? tutorial(save.tutorial.color) : start(save.setup.decks[0], save.setup.decks[1], save.level))}
           onSwap={save.tutorial ? () => tutorial(save.tutorial!.color === 'Red' ? 'Green' : 'Red') : undefined} onMenu={drop} />
       ) : (
         <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onTutorial={tutorial} onRoom={(p) => { store.set('hb.room', p.code); setRoom(p) }} />
@@ -102,7 +106,7 @@ export default function Play() {
   )
 }
 
-function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level, manualPay: boolean) => void; onTutorial: (color: Tutor['color']) => void; onRoom: (p: Payload) => void }) {
+function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onTutorial: (color: Tutor['color']) => void; onRoom: (p: Payload) => void }) {
   // Decks saved to the account load after the page opens, for players who are signed in.
   const [account, setAccount] = useState<CloudDeck[]>([])
   const [signedIn, setSignedIn] = useState<boolean | null>(null)
@@ -131,7 +135,7 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
     store.set('hb.pname', name.trim())
     try {
       const who = name.trim() || 'Player'
-      onRoom(what === 'create' ? await createRoom(who, picked.ids, 'horobeat', manualPay) : what === 'join' ? await joinRoom(code, who, picked.ids, 'horobeat', manualPay) : await joinRoom(lastRoom, who))
+      onRoom(what === 'create' ? await createRoom(who, picked.ids, 'horobeat', savedPay()) : what === 'join' ? await joinRoom(code, who, picked.ids, 'horobeat', savedPay()) : await joinRoom(lastRoom, who))
     } catch (e) {
       setProblem(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
       if (what === 'rejoin') store.set('hb.room', '')
@@ -140,9 +144,6 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
   }
   const [theirs, setTheirs] = useState('random')
   const [level, setLevel] = useState<Level>('normal')
-  // Paying Ena by hand or letting the game pay. Remembered for next time.
-  const [manualPay, setManualPay] = useState(() => store.get<boolean>('hb.manualPay', false) === true)
-  const pickPay = (v: boolean) => { setManualPay(v); store.set('hb.manualPay', v) }
   const picked = choices.find((c) => c.key === mine) || choices[choices.length - 1]
   const canResume = useMemo(() => {
     if (!save) return false
@@ -161,7 +162,7 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
   const own = choices.filter((c) => !c.key.startsWith('practice:') && !c.error)
   const go = () => {
     const cpu = own.find((c) => c.key === theirs) || PRACTICE.find((p) => p.color === theirs) || PRACTICE[Math.floor(Math.random() * PRACTICE.length)]
-    onStart(picked.ids, cpu.ids, level, manualPay)
+    onStart(picked.ids, cpu.ids, level)
   }
 
   return (
@@ -233,14 +234,6 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
               ))}
             </div>
           </div>
-          <div className="field-row">
-            <span>Ena payment</span>
-            <div className="seg small">
-              <button className={!manualPay ? 'on' : ''} onClick={() => pickPay(false)}>Auto</button>
-              <button className={manualPay ? 'on' : ''} onClick={() => pickPay(true)}>Manual</button>
-            </div>
-          </div>
-          <p className="fine">Auto pays Ena for you. Manual lets you tap the Ena you want to use each time you pay. This also applies when you play a friend.</p>
           <button className="btn start" onClick={go} disabled={!!picked.error}>Start match</button>
           <p className="fine">The CPU follows the same rules you do. It never sees your hand or the order of either deck. On Hard and Expert it thinks ahead by imagining the cards you might be holding and playing each choice out, so it takes a moment longer.</p>
           <p className="fine">New to the game? Read <a href="/how-to-play">How to play</a> first. It takes about five minutes.</p>
@@ -294,6 +287,12 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
     setVersion((n) => n + 1)
     kick.current()
   }
+  const pay = async (manual: boolean) => {
+    store.set('hb.manualPay', manual)
+    m.apply(await setRoomPay(m.code, m.rev, manual))
+    setVersion((n) => n + 1)
+    kick.current()
+  }
   const leave = async () => {
     try {
       const p = await leaveRoom(m.code, m.rev)
@@ -319,7 +318,7 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
   }
   const foe = (1 - m.side) as Side
   return (
-    <Table m={m} me={m.side} view={view} version={version} onAct={act} waitText={paused ? 'Paused. Tap anywhere to check again.' : `Waiting for ${m.nm(foe)}…`}
+    <Table m={m} me={m.side} view={view} version={version} onAct={act} manualPay={m.manualPay} onPay={pay} waitText={paused ? 'Paused. Tap anywhere to check again.' : `Waiting for ${m.nm(foe)}…`}
       after={<button className="btn" onClick={onExit}>Back to menu</button>}
       extra={m.status === 'over' ? null : <button className="ctl" onClick={() => (sure ? leave() : setSure(true))} onBlur={() => setSure(false)}>{sure ? 'Leave and lose?' : `Room ${m.code}`}</button>} />
   )
@@ -354,6 +353,13 @@ function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view:
     m.answer(i)
     keep()
   }
+  const [manual, setManual] = useState(m.manualPay[0])
+  const pay = (on: boolean) => {
+    store.set('hb.manualPay', on)
+    m.setManualPay(0, on)
+    setManual(on)
+    keep()
+  }
   const tutor: Tutor | undefined = save.tutorial && {
     seen,
     color: save.tutorial.color,
@@ -367,7 +373,7 @@ function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view:
     cpuPick: () => cpuChoice(m, 'easy', steadyRandom(save.setup.seed, m.answers.length)),
   }
   return (
-    <Table m={m} me={0} view={view} version={0} onAct={send} cpu={save.level} waitText="The computer is thinking…" tutor={tutor}
+    <Table m={m} me={0} view={view} version={0} onAct={send} manualPay={manual} onPay={save.tutorial ? undefined : pay} cpu={save.level} waitText="The computer is thinking…" tutor={tutor}
       after={onSwap
         ? <><button className="btn" onClick={onSwap}>Try the {save.tutorial!.color === 'Red' ? 'Green' : 'Red'} deck</button><button className="ghost" onClick={onMenu}>Back to menu</button></>
         : <><button className="btn" onClick={onAgain}>Play again</button><button className="ghost" onClick={onMenu}>Change decks</button></>} />
@@ -386,8 +392,10 @@ export type TableMatch = {
   snapshot(): View2
 }
 
-export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra, tutor }: {
+export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, waitText, after, extra, tutor }: {
   m: TableMatch; me: Side; view: View; version: number; onAct: (i: number) => void | Promise<void>
+  /** Paying Ena by hand or automatically, and the switch for it. No switch is shown without `onPay`. */
+  manualPay?: boolean; onPay?: (manual: boolean) => void | Promise<void>
   cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode; tutor?: Tutor
 }) {
   const foe = (1 - me) as Side
@@ -437,6 +445,18 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
   useEffect(() => { store.set('hb.speed', speed) }, [speed])
   useEffect(() => { store.set('hb.sound', sound); setSound(sound) }, [sound])
 
+  const togglePay = async () => {
+    if (busy || !onPay) return
+    setProblem('')
+    setBusy(true)
+    try {
+      await onPay(!manualPay)
+    } catch (e) {
+      setProblem(e instanceof Error ? e.message : 'That did not go through. Please try again.')
+    }
+    setBusy(false)
+    setTick((n) => n + 1)
+  }
   const act = async (i: number) => {
     if (busy) return
     if (lesson && !lesson.pause) tutor!.onSeen(lesson.key)
@@ -716,6 +736,7 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
             <div className="seg" role="group" aria-label="Animation speed">
               {[1, 2, 3].map((n) => <button key={n} className={speed === n ? 'on' : ''} onClick={() => setSpeed(n)}>{n}×</button>)}
             </div>
+            {onPay ? <button className="ctl" disabled={busy} onClick={togglePay} aria-pressed={!!manualPay} title="Auto pays Ena for you. Manual lets you tap the Ena you want to use.">Ena pay: {manualPay ? 'Manual' : 'Auto'}</button> : null}
             <button className="ctl" onClick={() => { unlockSound(); setSoundOn(!sound) }} aria-pressed={sound}>Sound {sound ? 'on' : 'off'}</button>
           </div>
         </div>

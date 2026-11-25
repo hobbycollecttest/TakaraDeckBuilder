@@ -144,7 +144,21 @@ export class Match {
     return m
   }
 
+  /**
+   * Switch a seat between paying Ena by hand and letting the game pay. The switch is kept in the
+   * list of choices as a negative number, so a saved or replayed match switches at the same moment.
+   */
+  setManualPay(p: Side, on: boolean) {
+    this.answer(-(1 + p * 2 + (on ? 1 : 0)))
+  }
+
   answer(i: number) {
+    if (Number.isInteger(i) && i <= -1 && i >= -4) {
+      const code = -i - 1
+      this.manualPay[(code >> 1) as Side] = (code & 1) === 1
+      this.answers.push(i)
+      return
+    }
     if (!this.req || !Number.isInteger(i) || i < 0 || i >= this.req.opts.length) throw new Error('That is not a legal choice.')
     this.answers.push(i)
     this.step(i)

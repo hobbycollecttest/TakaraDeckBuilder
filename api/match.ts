@@ -14,6 +14,7 @@ type Engine = {
   log: { round: number; text: string }[]
   s: { cards: string[]; phase: string; winner: Side | null; reason: string }
   snapshot(): unknown
+  manualPay?: [boolean, boolean]
 }
 /** What the room server needs to know about each game. */
 type Game = {
@@ -196,7 +197,7 @@ function stateFor(row: Row, side: Side, clientRev: number) {
   return {
     rev: row.rev, status: phase === 'over' ? 'over' : 'playing', code: row.code, game: row.game, side, names,
     events, view, req: phase === 'over' ? null : req, turn: m.req ? m.req.p : null,
-    log: m.log, cards, phase, winner, reason,
+    log: m.log, cards, phase, winner, reason, manualPay: !!m.manualPay?.[side],
   }
 }
 
@@ -281,6 +282,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (rows.length) return res.status(200).json(stateFor(rows[0] as Row, side, clientRev))
       }
       return res.status(200).json(stateFor((await load(code))!, side, clientRev))
+    }
+
+    // Switching between paying Ena by hand and automatically. It is stored with the choices so the
+    // match replays the same way. It works at any time, even when it is not this player's turn.
+    if (body.op === 'pay') {
+      if (row.status !== 'playing' || !row.deck1 || gameOf(row) !== GAMES.horobeat) return res.status(409).json({ error: 'This match is not in progress.' })
+      const mark = -(1 + side * 2 + (body.manual === true ? 1 : 0))
+      const rows = await sql!`
+        UPDATE takaradecks_matches SET answers = answers || ${JSON.stringify([mark])}::jsonb, rev = rev + 1, updated_at = now()
+        WHERE code = ${code} AND rev = ${row.rev} AND status = 'playing' RETURNING *`
+      return res.status(200).json(stateFor((rows[0] as Row) || (await load(code))!, side, clientRev))
     }
 
     if (body.op === 'act') {
