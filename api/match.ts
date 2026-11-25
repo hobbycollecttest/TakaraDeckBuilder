@@ -4,7 +4,7 @@ import { DEFS, Match, type View } from '../src/sim/engine.js'
 import { DEFS as HQ_DEFS, HQ, type View as HQView } from '../src/sim/hq/engine.js'
 
 type Side = 0 | 1
-type Setup = { seed: number; decks: [string[], string[]]; names: [string, string] }
+type Setup = { seed: number; decks: [string[], string[]]; names: [string, string]; manualPay?: [boolean, boolean] }
 type AnyEv = { uid?: number; view: unknown; [k: string]: unknown }
 type Engine = {
   answer(i: number): void
@@ -14,6 +14,7 @@ type Engine = {
   log: { round: number; text: string }[]
   s: { cards: string[]; phase: string; winner: Side | null; reason: string }
   snapshot(): unknown
+  manualPay?: [boolean, boolean]
 }
 /** What the room server needs to know about each game. */
 type Game = {
@@ -35,6 +36,7 @@ type Game = {
 type Row = {
   game: string; code: string; seed: number; seat0: string; seat1: string | null; name0: string; name1: string | null
   deck0: string[]; deck1: string[] | null; answers: number[]; rev: number; status: string; quit: number | null
+  manual0?: boolean | null; manual1?: boolean | null
 }
 const ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
 const newCode = () => Array.from({ length: 5 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('')
@@ -57,6 +59,9 @@ async function setup() {
       updated_at timestamptz NOT NULL DEFAULT now()
     )`
   await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS game text NOT NULL DEFAULT 'horobeat'`
+  // Whether each player picks their own Ena to pay with (HORO-BEAT).
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS manual0 boolean NOT NULL DEFAULT false`
+  await sql!`ALTER TABLE takaradecks_matches ADD COLUMN IF NOT EXISTS manual1 boolean NOT NULL DEFAULT false`
 }
 // The table is brought up to date once per server start, so an older table from before
 // a new column was added can never block a request.
@@ -148,7 +153,7 @@ const GAMES: Record<string, Game> = {
 }
 const gameOf = (row: Row) => GAMES[row.game] || GAMES.horobeat
 const replay = (row: Row, names: [string, string], upTo: number, record: boolean) => {
-  const m = gameOf(row).start({ seed: row.seed, decks: [row.deck0, row.deck1!], names })
+  const m = gameOf(row).start({ seed: row.seed, decks: [row.deck0, row.deck1!], names, manualPay: [!!row.manual0, !!row.manual1] })
   for (let i = 0; i < upTo; i++) m.answer(row.answers[i])
   m.record = record
   return m
@@ -192,7 +197,7 @@ function stateFor(row: Row, side: Side, clientRev: number) {
   return {
     rev: row.rev, status: phase === 'over' ? 'over' : 'playing', code: row.code, game: row.game, side, names,
     events, view, req: phase === 'over' ? null : req, turn: m.req ? m.req.p : null,
-    log: m.log, cards, phase, winner, reason,
+    log: m.log, cards, phase, winner, reason, manualPay: !!m.manualPay?.[side],
   }
 }
 
@@ -227,6 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const name = cleanLabel(body.name, 16) || 'Player'
 
     const game = typeof body.game === 'string' && GAMES[body.game] ? body.game : 'horobeat'
+    const manual = body.manualPay === true
     if (body.op === 'create') {
       const deck = GAMES[game].cleanDeck(body.deck)
       if (!deck) return res.status(400).json({ error: GAMES[game].deckRule })
@@ -235,7 +241,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       for (let tries = 0; tries < 5; tries++) {
         const code = newCode()
         const rows = await withTable(() => sql!`
-          INSERT INTO takaradecks_matches (code, seat0, name0, deck0, game) VALUES (${code}, ${seat}, ${name}, ${JSON.stringify(deck)}::jsonb, ${game})
+          INSERT INTO takaradecks_matches (code, seat0, name0, deck0, game, manual0) VALUES (${code}, ${seat}, ${name}, ${JSON.stringify(deck)}::jsonb, ${game}, ${manual})
           ON CONFLICT (code) DO NOTHING RETURNING *`)
         if (rows.length) return res.status(200).json(stateFor(rows[0] as Row, 0, -1))
       }
@@ -256,7 +262,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!deck) return res.status(400).json({ error: gameOf(row).deckRule })
       const seed = Math.floor(Math.random() * 2 ** 31)
       const rows = await sql!`
-        UPDATE takaradecks_matches SET seat1 = ${seat}, name1 = ${name}, deck1 = ${JSON.stringify(deck)}::jsonb, seed = ${seed}, status = 'playing', updated_at = now()
+        UPDATE takaradecks_matches SET seat1 = ${seat}, name1 = ${name}, deck1 = ${JSON.stringify(deck)}::jsonb, seed = ${seed}, manual1 = ${manual}, status = 'playing', updated_at = now()
         WHERE code = ${code} AND status = 'waiting' RETURNING *`
       if (!rows.length) return res.status(409).json({ error: 'That room already has two players.' })
       return res.status(200).json(stateFor(rows[0] as Row, 1, -1))
@@ -276,6 +282,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (rows.length) return res.status(200).json(stateFor(rows[0] as Row, side, clientRev))
       }
       return res.status(200).json(stateFor((await load(code))!, side, clientRev))
+    }
+
+    // Switching between paying Ena by hand and automatically. It is stored with the choices so the
+    // match replays the same way. It works at any time, even when it is not this player's turn.
+    if (body.op === 'pay') {
+      if (row.status !== 'playing' || !row.deck1 || gameOf(row) !== GAMES.horobeat) return res.status(409).json({ error: 'This match is not in progress.' })
+      const mark = -(1 + side * 2 + (body.manual === true ? 1 : 0))
+      const rows = await sql!`
+        UPDATE takaradecks_matches SET answers = answers || ${JSON.stringify([mark])}::jsonb, rev = rev + 1, updated_at = now()
+        WHERE code = ${code} AND rev = ${row.rev} AND status = 'playing' RETURNING *`
+      return res.status(200).json(stateFor((rows[0] as Row) || (await load(code))!, side, clientRev))
     }
 
     if (body.op === 'act') {

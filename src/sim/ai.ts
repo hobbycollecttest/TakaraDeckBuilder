@@ -244,6 +244,14 @@ type Step = { uid: number; via: Opt['via']; line?: number }
 const MAX_PLANS = 5
 const MAX_NODES = 40
 
+/** A copy of the match for thinking ahead. Imagined games always pay Ena automatically, even if the player pays by hand. */
+function imagined(real: Match, path: number[] = []) {
+  const m = Match.replay(real.setup, real.answers)
+  m.manualPay = [false, false]
+  for (const a of path) m.answer(a)
+  return m
+}
+
 /**
  * Every sensible way to spend this Summon Phase with the cards in hand right now, as whole plans.
  * The first plan is always what the Normal habits would do. Plans that end with the same board,
@@ -253,7 +261,7 @@ function turnPlans(real: Match, rnd: () => number): Step[][] {
   const me = real.req!.p
   const stamp = real.turnStamp()
   const inHand = new Set(real.P(me).hand)
-  const at = (path: number[]) => Match.replay(real.setup, [...real.answers, ...path])
+  const at = (path: number[]) => imagined(real, path)
   const mine = (m: Match) => !!m.req && m.req.p === me && m.turnStamp() === stamp
   // Answer the small questions a play raises (targets, "use this effect?") the way the habits would.
   const settle = (m: Match, path: number[]) => {
@@ -387,7 +395,7 @@ export function searchGame(real: Match, flat = true): SearchGame<Match> {
   const me = real.req!.p
   const shown = new Set<number>([...(real.req!.show ?? []), ...real.req!.opts.map((x) => x.uid).filter((u): u is number => u != null)])
   return {
-    copy: () => Match.replay(real.setup, real.answers),
+    copy: () => imagined(real),
     hide: (m, rnd) => {
       ;(m as unknown as { rand: () => number }).rand = rnd
       for (const side of [0, 1] as Side[]) {

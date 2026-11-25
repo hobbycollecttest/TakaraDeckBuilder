@@ -50,7 +50,8 @@ export type View = { ps: [PlayerState, PlayerState]; first: Side; round: number;
 /** Something that just happened, with the table as it stood right after. The play screen animates these one by one. */
 export type Ev = { t: string; text: string; p?: Side; line?: number; uid?: number; n?: number; broken?: number; winner?: Side | null; boost?: boolean; view: View }
 type Fx = Omit<Ev, 'text' | 'view'>
-export type Setup = { seed: number; decks: [string[], string[]]; names: [string, string] }
+/** `manualPay` marks the seats that choose their own Ena to pay with. Left out, the game pays for them. */
+export type Setup = { seed: number; decks: [string[], string[]]; names: [string, string]; manualPay?: [boolean, boolean] }
 export type Gen<T = void> = Generator<Req, T, number>
 type From = 'hand' | 'check' | 'effect'
 
@@ -114,12 +115,15 @@ export class Match {
   /** Turn on to keep a step-by-step record for animation. Off for tests and replays. */
   record = false
   events: Ev[] = []
+  /** Seats that pick their own Ena to pay with. The computer's thinking turns this off in its sample games. */
+  manualPay: [boolean, boolean] = [false, false]
   private gen: Gen
   private rand: () => number
   private line1: Side | null = null
 
   constructor(public setup: Setup) {
     this.rand = mulberry32(setup.seed)
+    if (setup.manualPay) this.manualPay = [!!setup.manualPay[0], !!setup.manualPay[1]]
     const cards: string[] = []
     const mk = (ids: string[]): PlayerState => ({
       deck: ids.map((id) => cards.push(id) - 1),
@@ -140,7 +144,21 @@ export class Match {
     return m
   }
 
+  /**
+   * Switch a seat between paying Ena by hand and letting the game pay. The switch is kept in the
+   * list of choices as a negative number, so a saved or replayed match switches at the same moment.
+   */
+  setManualPay(p: Side, on: boolean) {
+    this.answer(-(1 + p * 2 + (on ? 1 : 0)))
+  }
+
   answer(i: number) {
+    if (Number.isInteger(i) && i <= -1 && i >= -4) {
+      const code = -i - 1
+      this.manualPay[(code >> 1) as Side] = (code & 1) === 1
+      this.answers.push(i)
+      return
+    }
     if (!this.req || !Number.isInteger(i) || i < 0 || i >= this.req.opts.length) throw new Error('That is not a legal choice.')
     this.answers.push(i)
     this.step(i)
@@ -338,10 +356,28 @@ export class Match {
     // The card's color must be among the Ena paid, unless the Overbeat base already covers it.
     return colorCovered || (n > 0 && free.some((e) => this.def(e.uid).color === color))
   }
-  private pay(p: Side, n: number, color: Color, colorCovered: boolean) {
+  private *pay(p: Side, n: number, color: Color, colorCovered: boolean): Gen {
     const free = this.P(p).ena.filter((e) => !e.used)
     const chosen: typeof free = []
-    if (!colorCovered && n > 0) chosen.push(free.find((e) => this.def(e.uid).color === color)!)
+    const isColor = (e: (typeof free)[number]) => this.def(e.uid).color === color
+    // A player who pays by hand picks each Ena, or hands the rest back to the game. There is nothing
+    // to choose when every unused Ena is needed.
+    if (this.manualPay[p] && n > 0 && free.length > n) {
+      while (chosen.length < n) {
+        const left = n - chosen.length
+        const needColor = !colorCovered && !chosen.some(isColor)
+        // The last Ena paid must be the card's color if none of the others were.
+        const can = free.filter((e) => !chosen.includes(e) && (!needColor || left > 1 || isColor(e)))
+        const opts: Opt[] = can.map((e) => ({ t: 'ena', uid: e.uid, label: `Pay with ${this.name(e.uid)}`, w: 0 }))
+        opts.push({ t: 'auto', label: left === n ? 'Pay automatically' : 'Pay the rest automatically', w: 1 })
+        const o = yield* this.ask(p, 'pay', `Pay ${n} Ena: tap the Ena to use (${chosen.length} of ${n} chosen).`, opts)
+        if (o.t === 'auto') break
+        const e = free.find((x) => x.uid === o.uid)!
+        e.used = true
+        chosen.push(e)
+      }
+    }
+    if (!colorCovered && n > 0 && chosen.length < n && !chosen.some(isColor)) chosen.push(free.find((e) => !chosen.includes(e) && isColor(e))!)
     // Spend the color you have the most of first, so the rarer colors stay open.
     const count = (c: Color) => free.filter((e) => this.def(e.uid).color === c && !chosen.includes(e)).length
     while (chosen.length < n) {
@@ -625,10 +661,10 @@ export class Match {
         if (o.t === 'end') break
         const d = this.def(o.uid!)
         P.hand.splice(P.hand.indexOf(o.uid!), 1)
-        if (o.via === 'new') this.pay(p, d.cost, d.color, false)
+        if (o.via === 'new') yield* this.pay(p, d.cost, d.color, false)
         else {
           const base = this.top(p, o.line!)!
-          this.pay(p, Math.max(0, d.cost - this.costInLine(base)), d.color, this.def(base).color === d.color)
+          yield* this.pay(p, Math.max(0, d.cost - this.costInLine(base)), d.color, this.def(base).color === d.color)
         }
         yield* this.enter(p, o.uid!, o.via!, o.line!)
       }
@@ -678,10 +714,10 @@ export class Match {
           const d = this.def(o.uid!)
           P.hand.splice(P.hand.indexOf(o.uid!), 1)
           if (o.t === 'waza') {
-            this.pay(turn, d.cost, d.color, false)
+            yield* this.pay(turn, d.cost, d.color, false)
             yield* this.useWaza(turn, o.uid!, line)
           } else {
-            this.pay(turn, 1, d.color, false)
+            yield* this.pay(turn, 1, d.color, false)
             P.waza[line].push({ uid: o.uid!, boost: true })
             this.say(`${this.nm(turn)} Boosts with ${d.name} on Line ${line + 1}.`, { t: 'waza', p: turn, line, uid: o.uid!, boost: true })
             const t = this.top(turn, line)
