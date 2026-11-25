@@ -59,7 +59,7 @@ export default function Play() {
   const [room, setRoom] = useState<Payload | null>(null)
   useEffect(() => store.set('hb.view', view), [view])
 
-  const start = (ids: string[], cpuIds: string[], level: Level) => begin({ v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'] }, answers: [], level })
+  const start = (ids: string[], cpuIds: string[], level: Level, manualPay: boolean) => begin({ v: SAVE_VERSION, setup: { seed: Math.floor(Math.random() * 2 ** 31), decks: [ids, cpuIds], names: ['You', 'CPU'], manualPay: [manualPay, false] }, answers: [], level })
   const tutorial = (color: Tutor['color']) => {
     const { mine, theirs } = tutorialDecks(color)
     begin({ v: SAVE_VERSION, setup: { seed: TUTORIAL_SEED[color], decks: [mine.ids, theirs.ids], names: ['You', 'CPU'] }, answers: [], level: 'easy', tutorial: { color, seen: [] } })
@@ -93,7 +93,7 @@ export default function Play() {
       {room ? (
         <Room key={room.code} first={room} view={view} onExit={() => { store.set('hb.room', ''); setRoom(null) }} />
       ) : playing && save ? (
-        <LocalTable key={matchId} save={save} view={view} onAgain={() => (save.tutorial ? tutorial(save.tutorial.color) : start(save.setup.decks[0], save.setup.decks[1], save.level))}
+        <LocalTable key={matchId} save={save} view={view} onAgain={() => (save.tutorial ? tutorial(save.tutorial.color) : start(save.setup.decks[0], save.setup.decks[1], save.level, !!save.setup.manualPay?.[0]))}
           onSwap={save.tutorial ? () => tutorial(save.tutorial!.color === 'Red' ? 'Green' : 'Red') : undefined} onMenu={drop} />
       ) : (
         <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onTutorial={tutorial} onRoom={(p) => { store.set('hb.room', p.code); setRoom(p) }} />
@@ -102,7 +102,7 @@ export default function Play() {
   )
 }
 
-function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onTutorial: (color: Tutor['color']) => void; onRoom: (p: Payload) => void }) {
+function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level, manualPay: boolean) => void; onTutorial: (color: Tutor['color']) => void; onRoom: (p: Payload) => void }) {
   // Decks saved to the account load after the page opens, for players who are signed in.
   const [account, setAccount] = useState<CloudDeck[]>([])
   const [signedIn, setSignedIn] = useState<boolean | null>(null)
@@ -131,7 +131,7 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
     store.set('hb.pname', name.trim())
     try {
       const who = name.trim() || 'Player'
-      onRoom(what === 'create' ? await createRoom(who, picked.ids) : what === 'join' ? await joinRoom(code, who, picked.ids) : await joinRoom(lastRoom, who))
+      onRoom(what === 'create' ? await createRoom(who, picked.ids, 'horobeat', manualPay) : what === 'join' ? await joinRoom(code, who, picked.ids, 'horobeat', manualPay) : await joinRoom(lastRoom, who))
     } catch (e) {
       setProblem(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
       if (what === 'rejoin') store.set('hb.room', '')
@@ -140,6 +140,9 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
   }
   const [theirs, setTheirs] = useState('random')
   const [level, setLevel] = useState<Level>('normal')
+  // Paying Ena by hand or letting the game pay. Remembered for next time.
+  const [manualPay, setManualPay] = useState(() => store.get<boolean>('hb.manualPay', false) === true)
+  const pickPay = (v: boolean) => { setManualPay(v); store.set('hb.manualPay', v) }
   const picked = choices.find((c) => c.key === mine) || choices[choices.length - 1]
   const canResume = useMemo(() => {
     if (!save) return false
@@ -158,7 +161,7 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
   const own = choices.filter((c) => !c.key.startsWith('practice:') && !c.error)
   const go = () => {
     const cpu = own.find((c) => c.key === theirs) || PRACTICE.find((p) => p.color === theirs) || PRACTICE[Math.floor(Math.random() * PRACTICE.length)]
-    onStart(picked.ids, cpu.ids, level)
+    onStart(picked.ids, cpu.ids, level, manualPay)
   }
 
   return (
@@ -230,6 +233,14 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
               ))}
             </div>
           </div>
+          <div className="field-row">
+            <span>Ena payment</span>
+            <div className="seg small">
+              <button className={!manualPay ? 'on' : ''} onClick={() => pickPay(false)}>Auto</button>
+              <button className={manualPay ? 'on' : ''} onClick={() => pickPay(true)}>Manual</button>
+            </div>
+          </div>
+          <p className="fine">Auto pays Ena for you. Manual lets you tap the Ena you want to use each time you pay. This also applies when you play a friend.</p>
           <button className="btn start" onClick={go} disabled={!!picked.error}>Start match</button>
           <p className="fine">The CPU follows the same rules you do. It never sees your hand or the order of either deck. On Hard and Expert it thinks ahead by imagining the cards you might be holding and playing each choice out, so it takes a moment longer.</p>
           <p className="fine">New to the game? Read <a href="/how-to-play">How to play</a> first. It takes about five minutes.</p>
@@ -485,6 +496,8 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
   const bigOpt = trayKinds ? undefined : opts.find((o) => o.uid == null && (o.t === 'end' || o.t === 'skip'))
   const plain = opts.filter((o) => o.uid == null && o.t !== 'stack' && o !== bigOpt)
   const stackOpts = opts.filter((o) => o.t === 'stack')
+  // Paying by hand: the Ena that can be tapped right now.
+  const payOpt = (uid: number) => (mine && mine.kind === 'pay' ? opts.find((o) => o.t === 'ena' && o.uid === uid) : undefined)
   const targetAt = (side: Side, line: number) =>
     stackOpts.find((o) => o.side === side && o.line === line) || (side === me ? chosenOpts.find((o) => o.line === line && o.via) : undefined)
 
@@ -637,9 +650,9 @@ export function Table({ m, me, view, version, onAct, cpu, waitText, after, extra
           <span className="zlabel">Ena <b>{unused}/{P.ena.length}</b></span>
           <div className="ena-cards">
             {P.ena.map((e) => (
-              <span key={e.uid} className="eslot" data-uid={e.uid} data-side={side}>
+              <span key={e.uid} className={`eslot ${side === me && payOpt(e.uid) ? 'can-pay' : ''}`} data-uid={e.uid} data-side={side}>
                 <img className={e.used ? 'used' : ''} src={img(m.s.cards[e.uid], view)} alt={m.name(e.uid)} title={`${m.name(e.uid)}${e.used ? ' (used)' : ''}`} draggable={false}
-                  onMouseEnter={() => show(e.uid)} onClick={(c) => { c.stopPropagation(); peek(e.uid) }} />
+                  onMouseEnter={() => show(e.uid)} onClick={(c) => { c.stopPropagation(); const o = side === me ? payOpt(e.uid) : undefined; if (o) void act(o.i); else peek(e.uid) }} />
               </span>
             ))}
           </div>

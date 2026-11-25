@@ -88,6 +88,9 @@ button.pile-slot:not(:disabled):hover img { filter: none; }
 .ena-cards { display: flex; flex: 1; min-width: 0; gap: 3px; }
 .eslot { position: relative; flex: 0 1 calc(var(--cw) * 0.42); min-width: 0; width: calc(var(--cw) * 0.42); line-height: 0; }
 .ena-cards img { width: 100%; aspect-ratio: 63 / 88; object-fit: cover; border-radius: 5%; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.6); cursor: pointer; transition: transform 0.18s ease, filter 0.18s ease; }
+.eslot.can-pay img { outline: 2px solid #e9c877; outline-offset: 1px; animation: paypulse 1.1s ease-in-out infinite; }
+@keyframes paypulse { 50% { outline-color: rgba(233, 200, 119, 0.35); } }
+@media (prefers-reduced-motion: reduce) { .eslot.can-pay img { animation: none; } }
 .ena-cards img.used { transform: rotate(90deg) scale(0.716); filter: brightness(0.62) saturate(0.7); }
 
 .lines { grid-area: lines; display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; justify-items: center; }

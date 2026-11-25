@@ -30,8 +30,8 @@ async function read(res: Response): Promise<Payload> {
 const post = (body: Record<string, unknown>) =>
   fetch('/api/match', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, seat: seat() }) }).then(read)
 
-export const createRoom = (name: string, deck: string[], game = 'horobeat') => post({ op: 'create', name, deck, game })
-export const joinRoom = (code: string, name: string, deck?: string[], game = 'horobeat') => post({ op: 'join', code, name, deck, game })
+export const createRoom = (name: string, deck: string[], game = 'horobeat', manualPay = false) => post({ op: 'create', name, deck, game, manualPay })
+export const joinRoom = (code: string, name: string, deck?: string[], game = 'horobeat', manualPay = false) => post({ op: 'join', code, name, deck, game, manualPay })
 export const sendChoice = (code: string, rev: number, i: number) => post({ op: 'act', code, rev, i })
 export const leaveRoom = (code: string, rev: number) => post({ op: 'leave', code, rev })
 export const checkRoom = (code: string, rev: number) => fetch(`/api/match?code=${code}&seat=${seat()}&rev=${rev}`).then(read)
