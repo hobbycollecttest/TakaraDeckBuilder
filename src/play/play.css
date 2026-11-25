@@ -117,14 +117,14 @@ button.pile-slot:not(:disabled):hover img { filter: none; }
 
 .plate.mine { margin-top: 8px; }
 .table { --hw: calc(var(--cw) * 0.92); }
-.hand { display: flex; justify-content: center; align-items: flex-end; min-height: calc(var(--hw) / 0.716 + 26px); padding: 22px 12px 6px; }
-.hslot { position: relative; flex: none; width: var(--hw); }
-.hslot + .hslot { margin-left: calc(var(--hw) * -0.16); }
-.hand.snug .hslot + .hslot { margin-left: calc(var(--hw) * -0.34); }
-.hand.packed .hslot + .hslot { margin-left: calc(var(--hw) * -0.5); }
+.hand { display: flex; justify-content: center; align-items: flex-end; min-width: 0; min-height: calc(var(--hw) / 0.716 + 26px); padding: 22px 12px 6px; }
+/* The hand is one straight row. Each card's slot may shrink, so a big hand overlaps just enough to
+   stay inside the screen; the last slot keeps its full width so the last card is never cut off. */
+.hslot { position: relative; flex: 0 1 calc(var(--hw) + 6px); min-width: 0; height: calc(var(--hw) / 0.716); }
+.hslot:last-child { flex: none; width: var(--hw); }
 .hslot:hover, .hslot:has(.sel) { z-index: 30; }
 .hand-card { flex: none; width: calc(var(--cw) * 0.86); padding: 0; border: 0; background: none; line-height: 0; transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.hand .hand-card { width: 100%; touch-action: none; transform-origin: 50% 130%; transform: rotate(var(--rot, 0deg)) translateY(var(--dy, 0px)); cursor: grab; }
+.hand .hand-card { position: absolute; left: 0; top: 0; width: var(--hw); touch-action: none; cursor: grab; }
 .hand .hand-card.lifted { opacity: 0.25; }
 .hand-card img { width: 100%; border-radius: 5px; box-shadow: 0 3px 9px rgba(0, 0, 0, 0.6); }
 .hand .hand-card:hover { transform: translateY(-22px) scale(1.16); }
@@ -379,7 +379,7 @@ button.pile-slot:not(:disabled):hover img { filter: none; }
   .table { --hw: 68px; }
   .hand-card { width: 66px; }
   .hand { min-height: 0; padding: 16px 6px 6px; }
-  .hand .hand-card:hover { transform: rotate(var(--rot, 0deg)) translateY(var(--dy, 0px)); }
+  .hand .hand-card:hover { transform: none; }
   .cpu-hand .cb { width: 30px; margin-left: -12px; }
   .cpu-row { height: 34px; }
   .cpu-hand { margin-top: -14px; padding-left: 12px; }
@@ -434,7 +434,7 @@ button.pile-slot:not(:disabled):hover img { filter: none; }
 .bp-tip { margin: 10px 0 0; color: #f6dfa4; font-size: 13px; }
 .result-note { position: relative; margin-top: 10px; color: var(--cream); font-size: 14px; }
 .hand-card.hint img { outline: 3px solid #fff3c4; box-shadow: 0 0 0 5px rgba(240, 183, 50, 0.45), 0 0 24px rgba(255, 220, 120, 0.8); animation: hint-glow 1.3s ease-in-out infinite; }
-.hand .hand-card.hint { transform: rotate(var(--rot, 0deg)) translateY(calc(var(--dy, 0px) - 10px)); }
+.hand .hand-card.hint { transform: translateY(-10px); }
 .cell.hint, .zone-ena.hint { outline: 3px solid #fff3c4; outline-offset: 2px; animation: hint-glow 1.3s ease-in-out infinite; }
 .btn.hint, .ghost.hint, .endbtn.hint { box-shadow: 0 0 0 3px #fff3c4, 0 0 22px rgba(255, 220, 120, 0.85); }
 @keyframes hint-glow { 50% { filter: brightness(1.18); } }
