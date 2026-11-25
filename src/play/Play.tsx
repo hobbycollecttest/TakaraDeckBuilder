@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DEFS, Match, type Def, type Ev, type Opt, type Req, type Setup, type Side } from '../sim/engine'
 import { play, setSound, unlockSound } from './sound'
 import { PowerNum, useGlide } from './motion'
-import { RemoteMatch, createRoom, joinRoom, leaveRoom, sendChoice, setRoomPay, watchRoom, type Payload } from './online'
+import { EMOTES, RemoteMatch, claimTimeout, createRoom, findMatch, joinRoom, leaveRoom, sendChoice, sendEmote, setRoomPay, watchRoom, type Payload } from './online'
+import { keepReplay, readReplayLink, recentReplays, replayLink, type Replay } from './replay'
 import { authReady, currentAccount } from '../auth'
 import { listDecks, type CloudDeck } from '../cloud'
 import { cpuChoice, LEVELS, tutorChoice, type Level } from '../sim/ai'
@@ -60,6 +61,20 @@ export default function Play() {
   const [view, setView] = useState<View>(() => store.get<View>('hb.view', 'en'))
   const [matchId, setMatchId] = useState(0)
   const [room, setRoom] = useState<Payload | null>(null)
+  // A replay opened from a shared link, or from the list of recent matches.
+  const [watch, setWatch] = useState<Pick<Replay, 'setup' | 'answers'> | null>(null)
+  const [watchId, setWatchId] = useState(0)
+  const openReplay = (r: Pick<Replay, 'setup' | 'answers'>) => { setWatch(r); setWatchId((n) => n + 1) }
+  useEffect(() => {
+    const check = () => { if (location.hash.includes('replay=')) void readReplayLink(location.hash).then((r) => r && openReplay(r)) }
+    check()
+    window.addEventListener('hashchange', check)
+    return () => window.removeEventListener('hashchange', check)
+  }, [])
+  const closeReplay = () => {
+    setWatch(null)
+    if (location.hash.includes('replay=')) history.replaceState(null, '', location.pathname)
+  }
   useEffect(() => store.set('hb.view', view), [view])
 
   // A new match starts with the Ena payment setting the player used last time.
@@ -82,7 +97,7 @@ export default function Play() {
   }
 
   return (
-    <div className={`app play ${(playing && save) || (room && room.status !== 'waiting') ? 'in-match' : ''}`} onPointerDown={unlockSound}>
+    <div className={`app play ${(playing && save) || watch || (room && room.status !== 'waiting') ? 'in-match' : ''}`} onPointerDown={unlockSound}>
       <header className="top">
         <a className="brand" href="/">
           <span className="brand-game">HORO-BEAT</span>
@@ -92,21 +107,23 @@ export default function Play() {
           <button className={view === 'en' ? 'on' : ''} onClick={() => setView('en')}>English</button>
           <button className={view === 'jp' ? 'on' : ''} onClick={() => setView('jp')}>日本語</button>
         </div>
-        {room ? null : playing ? <button className="signin" onClick={leave}>Menu</button> : <a className="signin" href="/">Deck builder</a>}
+        {watch ? <button className="signin" onClick={closeReplay}>Close replay</button> : room ? null : playing ? <button className="signin" onClick={leave}>Menu</button> : <a className="signin" href="/">Deck builder</a>}
       </header>
-      {room ? (
-        <Room key={room.code} first={room} view={view} onExit={() => { store.set('hb.room', ''); setRoom(null) }} />
+      {watch ? (
+        <ReplayTable key={watchId} replay={watch} view={view} onExit={closeReplay} />
+      ) : room ? (
+        <Room key={room.code} first={room} view={view} onWatch={openReplay} onExit={() => { store.set('hb.room', ''); setRoom(null) }} />
       ) : playing && save ? (
         <LocalTable key={matchId} save={save} view={view} onAgain={() => (save.tutorial ? tutorial(save.tutorial.color) : start(save.setup.decks[0], save.setup.decks[1], save.level))}
-          onSwap={save.tutorial ? () => tutorial(save.tutorial!.color === 'Red' ? 'Green' : 'Red') : undefined} onMenu={drop} />
+          onSwap={save.tutorial ? () => tutorial(save.tutorial!.color === 'Red' ? 'Green' : 'Red') : undefined} onMenu={drop} onWatch={openReplay} />
       ) : (
-        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onTutorial={tutorial} onRoom={(p) => { store.set('hb.room', p.code); setRoom(p) }} />
+        <Lobby save={save} view={view} onResume={() => setPlaying(true)} onStart={start} onTutorial={tutorial} onWatch={openReplay} onRoom={(p) => { store.set('hb.room', p.code); setRoom(p) }} />
       )}
     </div>
   )
 }
 
-function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onTutorial: (color: Tutor['color']) => void; onRoom: (p: Payload) => void }) {
+function Lobby({ save, view, onResume, onStart, onTutorial, onRoom, onWatch }: { save: Save | null; view: View; onResume: () => void; onStart: (ids: string[], cpuIds: string[], level: Level) => void; onTutorial: (color: Tutor['color']) => void; onRoom: (p: Payload) => void; onWatch: (r: Replay) => void }) {
   // Decks saved to the account load after the page opens, for players who are signed in.
   const [account, setAccount] = useState<CloudDeck[]>([])
   const [signedIn, setSignedIn] = useState<boolean | null>(null)
@@ -129,13 +146,15 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
   const [busy, setBusy] = useState('')
   const [problem, setProblem] = useState('')
   const lastRoom = store.get('hb.room', '')
-  const online = async (what: 'create' | 'join' | 'rejoin') => {
+  const recent = useMemo(() => recentReplays(), [])
+  const phoneTip = useMemo(() => matchMedia('(pointer: coarse)').matches && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches, [])
+  const online = async (what: 'create' | 'join' | 'rejoin' | 'find') => {
     setProblem('')
     setBusy(what)
     store.set('hb.pname', name.trim())
     try {
       const who = name.trim() || 'Player'
-      onRoom(what === 'create' ? await createRoom(who, picked.ids, 'horobeat', savedPay()) : what === 'join' ? await joinRoom(code, who, picked.ids, 'horobeat', savedPay()) : await joinRoom(lastRoom, who))
+      onRoom(what === 'find' ? await findMatch(who, picked.ids, 'horobeat', savedPay()) : what === 'create' ? await createRoom(who, picked.ids, 'horobeat', savedPay()) : what === 'join' ? await joinRoom(code, who, picked.ids, 'horobeat', savedPay()) : await joinRoom(lastRoom, who))
     } catch (e) {
       setProblem(e instanceof Error ? e.message : 'Something went wrong. Please try again.')
       if (what === 'rejoin') store.set('hb.room', '')
@@ -168,7 +187,8 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
   return (
     <main className="lobby">
       <h1>Play HORO-BEAT</h1>
-      <p className="lede">A full match with the official rules, right in your browser. Practice against the computer, or play a friend with a room code.</p>
+      <p className="lede">A full match with the official rules, right in your browser. Practice against the computer, find a match online, or play a friend with a room code.</p>
+      {phoneTip ? <p className="fine app-tip">On your phone? Add this page to your home screen to play full screen like an app: on iPhone tap Share, then Add to Home Screen. On Android tap the menu, then Install app.</p> : null}
       {canResume ? (
         <div className="resume">
           <span>{save?.tutorial ? 'You have a tutorial in progress.' : 'You have a match in progress.'}</span>
@@ -238,10 +258,14 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
           <p className="fine">The CPU follows the same rules you do. It never sees your hand or the order of either deck. On Hard and Expert it thinks ahead by imagining the cards you might be holding and playing each choice out, so it takes a moment longer.</p>
           <p className="fine">New to the game? Read <a href="/how-to-play">How to play</a> first. It takes about five minutes.</p>
 
-          <h2 className="friend-title">Play a friend</h2>
+          <h2 className="friend-title">Play online</h2>
           <div className="field-row">
             <label htmlFor="pname">Your name</label>
             <input id="pname" className="text" value={name} maxLength={16} placeholder="Player" onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="friend-actions">
+            <button className="btn" onClick={() => online('find')} disabled={!!picked.error || !!busy}>{busy === 'find' ? 'Starting…' : 'Find a match'}</button>
+            <span className="fine">Play whoever else is looking right now.</span>
           </div>
           <div className="friend-actions">
             <button className="btn" onClick={() => online('create')} disabled={!!picked.error || !!busy}>{busy === 'create' ? 'Making room…' : 'Create a room'}</button>
@@ -251,9 +275,24 @@ function Lobby({ save, view, onResume, onStart, onTutorial, onRoom }: { save: Sa
           </div>
           {lastRoom ? <p className="fine">You were in room {lastRoom}. <button className="linkish" onClick={() => online('rejoin')} disabled={!!busy}>Go back to it</button></p> : null}
           {problem ? <p className="fine problem">{problem}</p> : null}
-          <p className="fine">Create a room and send the code to your friend. They pick a deck, type the code and join. Both of you use the deck selected on the left.</p>
+          <p className="fine">Or create a room and send the code to a friend. They pick a deck, type the code and join. You play with the deck selected on the left. Each choice has a 90 second clock.</p>
         </section>
       </div>
+      {recent.length ? (
+        <section className="recent">
+          <h2>Recent matches</h2>
+          <ul>
+            {recent.map((r, i) => (
+              <li key={i}>
+                <span className={`recent-result ${r.winner === 0 ? 'won' : r.winner === 1 ? 'lost' : ''}`}>{r.winner === 0 ? 'Won' : r.winner === 1 ? 'Lost' : 'Ended'}</span>
+                <span className="recent-vs">vs {r.vs}</span>
+                <span className="recent-when">{new Date(r.when).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                <button className="ghost" onClick={() => onWatch(r)}>Watch</button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </main>
   )
 }
@@ -265,7 +304,7 @@ function deckColors(ids: string[]) {
 }
 
 /** A match against a friend. The server runs it; this screen checks in for news. */
-function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () => void }) {
+function Room({ first, view, onExit, onWatch }: { first: Payload; view: View; onExit: () => void; onWatch: (r: Replay) => void }) {
   const ref = useRef<RemoteMatch | null>(null)
   if (!ref.current) ref.current = new RemoteMatch(first)
   const m = ref.current
@@ -281,6 +320,41 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
     kick.current = w.kick
     return w.stop
   }, [])
+
+  // The turn clock: whoever has to move has 90 seconds. When the other player runs out, this player's
+  // screen asks the server to move for them (it checks the time itself).
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const claimed = useRef(0)
+  const deadline = m.clock && m.status === 'playing' && m.turn != null ? m.clock.moveAt + m.clock.limit - m.skew : 0
+  useEffect(() => {
+    if (!deadline || m.turn === m.side || now < deadline + 2500 || claimed.current === deadline) return
+    claimed.current = deadline
+    void claimTimeout(m.code, m.rev).then((p) => { m.apply(p); setVersion((n) => n + 1) }).catch(() => { claimed.current = 0 })
+  }, [now, deadline])
+  // Quick messages. A new one from the other player shows for a few seconds.
+  const lastSeq = useRef(m.eseq)
+  const [bubble, setBubble] = useState<{ side: Side; text: string; key: number } | null>(null)
+  useEffect(() => {
+    const e = m.emote
+    if (!e || e.seq === lastSeq.current) return
+    lastSeq.current = e.seq
+    if (e.by != null && e.by !== m.side && e.text) setBubble({ side: e.by as Side, text: e.text, key: e.seq })
+  }, [version])
+  const emote = (text: string) => {
+    setBubble({ side: m.side, text, key: Date.now() })
+    void sendEmote(m.code, text).then((r) => { if (r.ok) { lastSeq.current = r.seq; m.eseq = r.seq } }).catch(() => {})
+  }
+  // A finished match is kept for watching back.
+  useEffect(() => {
+    const r = m.replay
+    if (!r) return
+    const setup: Setup = { seed: r.seed, decks: r.decks, names: r.names, manualPay: r.manualPay }
+    keepReplay({ setup, answers: r.answers, when: Date.now(), winner: m.s.winner == null ? null : m.s.winner === m.side ? 0 : 1, vs: m.nm((1 - m.side) as Side) || 'Opponent' })
+  }, [!!m.replay])
 
   const act = async (i: number) => {
     m.apply(await sendChoice(m.code, m.rev, i))
@@ -302,6 +376,19 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
   }
   const link = `${location.origin}/play#room=${m.code}`
 
+  if (m.status === 'waiting' && m.open) {
+    return (
+      <main className="lobby waiting">
+        <h1>Finding a match</h1>
+        <p className="searching" aria-hidden="true"><i /><i /><i /></p>
+        <p className="lede">Looking for someone else who wants to play right now. Keep this page open.</p>
+        <div className="friend-actions">
+          <button className="ghost" onClick={leave}>Stop looking</button>
+        </div>
+        <p className="fine">{paused ? 'Paused to save power. Tap anywhere to keep looking.' : 'You will be matched with the next player who taps Find a match.'}</p>
+      </main>
+    )
+  }
   if (m.status === 'waiting') {
     return (
       <main className="lobby waiting">
@@ -319,6 +406,10 @@ function Room({ first, view, onExit }: { first: Payload; view: View; onExit: () 
   const foe = (1 - m.side) as Side
   return (
     <Table m={m} me={m.side} view={view} version={version} onAct={act} manualPay={m.manualPay} onPay={pay} waitText={paused ? 'Paused. Tap anywhere to check again.' : `Waiting for ${m.nm(foe)}…`}
+      clock={deadline ? { left: Math.max(0, Math.ceil((deadline - now) / 1000)), mine: m.turn === m.side, strikes: m.clock!.strikes[m.side], max: m.clock!.max } : undefined}
+      emotes={m.status === 'playing' ? { send: emote, bubble } : undefined}
+      replay={m.replay ? { setup: { seed: m.replay.seed, decks: m.replay.decks, names: m.replay.names, manualPay: m.replay.manualPay }, answers: m.replay.answers } : undefined}
+      onWatch={onWatch}
       after={<button className="btn" onClick={onExit}>Back to menu</button>}
       extra={m.status === 'over' ? null : <button className="ctl" onClick={() => (sure ? leave() : setSure(true))} onBlur={() => setSure(false)}>{sure ? 'Leave and lose?' : `Room ${m.code}`}</button>} />
   )
@@ -333,13 +424,15 @@ const SOUND: Record<string, string> = {
   round: 'drum', phase: 'drum', line: 'line', first: 'drum', draw: 'draw', charge: 'charge', summon: 'summon', waza: 'waza', clash: 'clash',
   down: 'down', destroy: 'destroy', damage: 'damage', trigger: 'trigger', recover: 'recover', ena: 'charge', refresh: 'draw',
 }
+/** Rare cards and bosses get a short entrance of their own when they are played. */
+const isStar = (id: string) => /-(sr|dr|sec)$/.test(id) || (DEFS.get(id)?.cost ?? 0) >= 7
 // Everything runs at this fraction of the original pace, so 1× is unhurried and 3× is brisk.
 const CALM = 0.55
 const PHASES: [View2['phase'], string][] = [['summon', 'Summon'], ['battle', 'Battle'], ['end', 'End']]
 type View2 = ReturnType<Match['snapshot']>
 
 /** A match against the computer. It lives entirely in this browser. */
-function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view: View; onAgain: () => void; onSwap?: () => void; onMenu: () => void }) {
+function LocalTable({ save, view, onAgain, onSwap, onMenu, onWatch }: { save: Save; view: View; onAgain: () => void; onSwap?: () => void; onMenu: () => void; onWatch: (r: Replay) => void }) {
   const ref = useRef<Match | null>(null)
   if (!ref.current) {
     ref.current = Match.replay(save.setup, save.answers)
@@ -352,6 +445,8 @@ function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view:
   const send = (i: number) => {
     m.answer(i)
     keep()
+    // A finished match (not a tutorial) is kept for watching back.
+    if (m.s.phase === 'over' && !save.tutorial) keepReplay({ setup: save.setup, answers: [...m.answers], when: Date.now(), winner: m.s.winner, vs: `CPU (${save.level})` })
   }
   const [manual, setManual] = useState(m.manualPay[0])
   const pay = (on: boolean) => {
@@ -374,9 +469,43 @@ function LocalTable({ save, view, onAgain, onSwap, onMenu }: { save: Save; view:
   }
   return (
     <Table m={m} me={0} view={view} version={0} onAct={send} manualPay={manual} onPay={save.tutorial ? undefined : pay} cpu={save.level} waitText="The computer is thinking…" tutor={tutor}
+      replay={save.tutorial ? undefined : { setup: save.setup, answers: m.answers }} onWatch={onWatch}
       after={onSwap
         ? <><button className="btn" onClick={onSwap}>Try the {save.tutorial!.color === 'Red' ? 'Green' : 'Red'} deck</button><button className="ghost" onClick={onMenu}>Back to menu</button></>
         : <><button className="btn" onClick={onAgain}>Play again</button><button className="ghost" onClick={onMenu}>Change decks</button></>} />
+  )
+}
+
+/** Watching a finished match back. The match is played again from its setup, one recorded choice at a time. */
+function ReplayTable({ replay, view, onExit }: { replay: Pick<Replay, 'setup' | 'answers'>; view: View; onExit: () => void }) {
+  const ref = useRef<Match | null>(null)
+  if (!ref.current) {
+    ref.current = new Match(replay.setup)
+    ref.current.record = true
+  }
+  const m = ref.current
+  const next = useRef(0)
+  const [paused, setPaused] = useState(false)
+  const [nudge, setNudge] = useState(0)
+  const pick = () => (paused || next.current >= replay.answers.length ? null : replay.answers[next.current++])
+  const [copied, setCopied] = useState('')
+  const share = async () => {
+    try {
+      await navigator.clipboard.writeText(await replayLink(replay))
+      setCopied('Link copied')
+    } catch {
+      setCopied('Could not copy')
+    }
+  }
+  return (
+    <Table m={m} me={0} view={view} version={nudge} spectate autoPick={pick}
+      onAct={(i) => { m.answer(i) }}
+      waitText={paused ? 'Replay paused.' : next.current >= replay.answers.length ? 'End of the recording.' : 'Replay'}
+      extra={<>
+        <button className="ctl" onClick={() => { setPaused(!paused); setNudge((n) => n + 1) }}>{paused ? 'Play' : 'Pause'}</button>
+        <button className="ctl" onClick={share}>{copied || 'Share replay'}</button>
+      </>}
+      after={<><button className="btn" onClick={onExit}>Close replay</button><button className="ghost" onClick={share}>{copied || 'Copy replay link'}</button></>} />
   )
 }
 
@@ -392,8 +521,16 @@ export type TableMatch = {
   snapshot(): View2
 }
 
-export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, waitText, after, extra, tutor }: {
+export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, waitText, after, extra, tutor, spectate, autoPick, clock, emotes, replay, onWatch }: {
   m: TableMatch; me: Side; view: View; version: number; onAct: (i: number) => void | Promise<void>
+  /** Watching only: no choices are offered, and `autoPick` supplies every move. */
+  spectate?: boolean; autoPick?: () => number | null
+  /** Online: seconds left for whoever has to move. */
+  clock?: { left: number; mine: boolean; strikes: number; max: number }
+  /** Online: quick messages, and the one showing now. */
+  emotes?: { send: (text: string) => void; bubble: { side: Side; text: string; key: number } | null }
+  /** A finished match that can be watched back or shared. */
+  replay?: Pick<Replay, 'setup' | 'answers'>; onWatch?: (r: Replay) => void
   /** Paying Ena by hand or automatically, and the switch for it. No switch is shown without `onPay`. */
   manualPay?: boolean; onPay?: (manual: boolean) => void | Promise<void>
   cpu?: Level; waitText: string; after: React.ReactNode; extra?: React.ReactNode; tutor?: Tutor
@@ -421,13 +558,39 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
   // A new match opens with a short face-off before the first hand is shown.
   const [intro, setIntro] = useState(() => m.log.length <= 6 && m.s.phase !== 'over')
   const [resultOpen, setResultOpen] = useState(true)
+  const [emoteOpen, setEmoteOpen] = useState(false)
+  // Full screen, for phones and tablets that allow it (not when already opened from the home screen).
+  const canFull = typeof document !== 'undefined' && !!document.fullscreenEnabled && matchMedia('(pointer: coarse)').matches && !matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches
+  const [isFull, setIsFull] = useState(false)
+  useEffect(() => {
+    const on = () => setIsFull(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', on)
+    return () => document.removeEventListener('fullscreenchange', on)
+  }, [])
+  const toggleFull = () => {
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+    else void document.documentElement.requestFullscreen().catch(() => {})
+  }
+  const [copied, setCopied] = useState('')
+  const shareReplay = async () => {
+    if (!replay) return
+    try {
+      await navigator.clipboard.writeText(await replayLink(replay))
+      setCopied('Link copied')
+    } catch {
+      setCopied('Could not copy')
+    }
+  }
 
   const spd = speed * CALM
   const ev: Ev | null = cursor < m.events.length ? m.events[cursor] : null
   const playing = !!ev
+  // The moment a rare card or a boss is played, it takes the stage for a beat.
+  const star = ev && ev.t === 'summon' && ev.uid != null && m.s.cards[ev.uid] && isStar(m.s.cards[ev.uid]) ? m.s.cards[ev.uid] : null
+  const heavy = ev && ev.t === 'damage' && ((ev.n ?? 0) >= 2 || (ev.broken ?? 0) > 0)
   const v = useMemo(() => (ev ? ev.view : m.snapshot()), [ev, tick, version])
   const req = m.req
-  const mine = !playing && req && req.p === me ? req : null
+  const mine = !spectate && !playing && req && req.p === me ? req : null
   const over = !playing && m.s.phase === 'over'
   // The tutorial's lesson for this moment, and the move it suggests.
   const hint = useMemo(() => (tutor && mine && !busy ? tutor.suggest() : null), [mine, busy, tick, version, cursor])
@@ -479,11 +642,21 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
     if (!ev || intro || lesson?.pause) return
     const sfx = ev.t === 'damage' && ev.broken ? 'heartbreak' : ev.t === 'victory' ? (ev.p === me ? 'win' : 'lose') : SOUND[ev.t]
     if (sfx) play(sfx)
+    if (star) play('trigger')
     const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    const base = (PACE[ev.t] ?? PACE.note) + (ev.t === 'damage' && ev.broken ? 300 : 0)
+    const base = (PACE[ev.t] ?? PACE.note) + (ev.t === 'damage' && ev.broken ? 300 : 0) + (heavy ? 250 : 0) + (star ? 1100 : 0)
     const t = setTimeout(() => setCursor((c) => c + 1), calm ? Math.min(base, 260) : base / spd)
     return () => clearTimeout(t)
   }, [cursor, ev, speed, intro, lesson?.key])
+  // A replay: once the table has caught up, the next recorded choice is made.
+  useEffect(() => {
+    if (playing || intro || !autoPick || !m.req) return
+    const t = setTimeout(() => {
+      const i = autoPick()
+      if (i != null) void act(i)
+    }, 420 / spd)
+    return () => clearTimeout(t)
+  }, [tick, version, playing, speed, intro])
   // Once the table has caught up, the computer makes its next choice.
   useEffect(() => {
     if (playing || intro || !cpu || !m.req || m.req.p !== foe) return
@@ -659,6 +832,7 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
             {!P.hearts.length ? <span className="no-hearts">No Hearts left</span> : null}
           </div>
           {sideFx(side, ['damage']) && ev ? <b className="float hit">−{ev.n}</b> : null}
+          {sideFx(side, ['damage']) && ev && ev.broken ? <span className="shards" aria-hidden="true">{Array.from({ length: 8 }, (_, i) => <i key={i} style={{ '--a': `${i * 45 + 10}deg` } as React.CSSProperties} />)}</span> : null}
         </div>
         {row(side)}
         <div
@@ -708,6 +882,21 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
     else rounds.push({ round: l.round, lines: [l.text] })
   }
 
+  // Damage each side dealt over the match, read from the log, for the result screen.
+  const stats = useMemo(() => {
+    const out = { dealt: 0, taken: 0, biggest: 0 }
+    if (!over) return out
+    for (const l of m.log) {
+      const hit = /^(.+) takes (\d+) damage\./.exec(l.text)
+      if (!hit) continue
+      const n = Number(hit[2])
+      if (hit[1] === nm(foe)) out.dealt += n
+      else out.taken += n
+      out.biggest = Math.max(out.biggest, n)
+    }
+    return out
+  }, [over])
+
   // What is happening right now, in words.
   const who = v.active === me ? 'Your' : `${nm(foe)}'s`
   const step = v.round === 0 ? 'Getting ready'
@@ -715,10 +904,10 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
     : v.phase === 'battle' ? (v.line >= 0 ? `Battle Phase · Line ${v.line + 1}` : 'Battle Phase')
     : v.phase === 'end' ? 'End Phase' : 'Match over'
   const banner = ev && ['round', 'phase', 'line', 'victory', 'trigger', 'first'].includes(ev.t)
-    ? ev.t === 'round' ? { big: `Round ${v.round}`, small: `${nm(v.first)} ${v.first === me ? 'go' : 'goes'} first` }
+    ? ev.t === 'round' ? { big: `Round ${v.round}`, small: `${nm(v.first)} ${nm(v.first) === 'You' ? 'go' : 'goes'} first` }
     : ev.t === 'phase' ? { big: step.replace(/ · .*/, ''), small: '' }
     : ev.t === 'line' ? { big: `Line ${ev.line! + 1}`, small: 'Battle' }
-    : ev.t === 'victory' ? { big: ev.p === me ? 'You win' : 'You lose', small: 'Finishing Blow' }
+    : ev.t === 'victory' ? { big: spectate ? `${nm(ev.p!)} wins` : ev.p === me ? 'You win' : 'You lose', small: 'Finishing Blow' }
     : ev.t === 'trigger' ? { big: DEFS.get(m.s.cards[ev.uid!])!.trigger, small: m.name(ev.uid!) }
     : { big: ev.text.replace(/\.$/, ''), small: '' }
     : null
@@ -732,12 +921,24 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
             {v.ps[foe].hand.map((u) => <i key={u} className="cb" data-uid={u} data-side={foe} />)}
           </div>
           <div className="controls">
+            {clock ? <span className={`clock ${clock.mine ? 'mine' : ''} ${clock.left <= 15 ? 'low' : ''}`} role="timer" aria-label={clock.mine ? 'Your time to choose' : 'Their time to choose'}>{clock.mine ? 'Your move' : 'Their move'} <b>{Math.floor(clock.left / 60)}:{String(clock.left % 60).padStart(2, '0')}</b></span> : null}
+            {emotes ? (
+              <div className="emote-menu">
+                <button className="ctl" aria-expanded={emoteOpen} onClick={() => setEmoteOpen(!emoteOpen)}>Say</button>
+                {emoteOpen ? (
+                  <div className="emote-list" role="menu">
+                    {EMOTES.map((t) => <button key={t} role="menuitem" onClick={() => { emotes.send(t); setEmoteOpen(false) }}>{t}</button>)}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {extra}
             <div className="seg" role="group" aria-label="Animation speed">
               {[1, 2, 3].map((n) => <button key={n} className={speed === n ? 'on' : ''} onClick={() => setSpeed(n)}>{n}×</button>)}
             </div>
             {onPay ? <button className="ctl" disabled={busy} onClick={togglePay} aria-pressed={!!manualPay} title="Auto pays Ena for you. Manual lets you tap the Ena you want to use.">Ena pay: {manualPay ? 'Manual' : 'Auto'}</button> : null}
             <button className="ctl" onClick={() => { unlockSound(); setSoundOn(!sound) }} aria-pressed={sound}>Sound {sound ? 'on' : 'off'}</button>
+            {canFull ? <button className="ctl" onClick={toggleFull}>{isFull ? 'Exit full screen' : 'Full screen'}</button> : null}
           </div>
         </div>
         <div className="phasebar" aria-live="polite">
@@ -747,7 +948,7 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
           </ol>
           <span className="phase-step">{step}</span>
         </div>
-        <div className={`mat ${ev && ev.t === 'damage' ? `shake${cursor % 2}` : ''}`}>
+        <div className={`mat ${ev && ev.t === 'damage' ? `shake${cursor % 2}${heavy ? ' heavy' : ''}` : ''}`}>
           <div className="embers" aria-hidden="true">{Array.from({ length: 14 }, (_, i) => <i key={i} />)}</div>
           {half(foe)}
           <div className="mid">
@@ -755,13 +956,36 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
           </div>
           {half(me)}
           {banner ? (
-            <div key={cursor} className={`banner banner-${ev!.t} ${ev!.t === 'victory' && ev!.p !== me ? 'lost' : ''}`}>
+            <div key={cursor} className={`banner banner-${ev!.t} ${ev!.t === 'victory' && ev!.p !== me && !spectate ? 'lost' : ''}`}>
               {ev!.t === 'trigger' ? <img src={img(m.s.cards[ev!.uid!], view)} alt="" /> : null}
               <div>
                 <strong>{banner.big}</strong>
                 {banner.small ? <span>{banner.small}</span> : null}
               </div>
             </div>
+          ) : null}
+          {star ? (
+            <div key={`star${cursor}`} className={`star-entry ${ev!.p === me ? 'mine' : 'theirs'}`} onClick={() => setCursor((c) => c + 1)}>
+              <div className="star-stage">
+                <i className="star-ring" />
+                <div className="star-card">
+                  <img src={img(star, view, true)} alt="" />
+                  <i className="star-shine" />
+                </div>
+              </div>
+              <div className="star-name">
+                <strong>{DEFS.get(star)!.name}</strong>
+                <span>{nm(ev!.p!)} · Level {DEFS.get(star)!.cost} · {DEFS.get(star)!.power.toLocaleString()} Power</span>
+              </div>
+            </div>
+          ) : null}
+          {heavy ? (
+            <div key={`hit${cursor}`} className={`hit-flash ${ev!.p === me ? 'mine' : 'theirs'}`} aria-hidden="true">
+              {(ev!.n ?? 0) >= 2 ? <strong>Double Damage</strong> : null}
+            </div>
+          ) : null}
+          {emotes?.bubble ? (
+            <div key={emotes.bubble.key} className={`emote-bubble ${emotes.bubble.side === me ? 'mine' : 'theirs'}`} role="status">{emotes.bubble.text}</div>
           ) : null}
           {mine && mine.kind === 'battle' ? (() => {
             const line = v.line
@@ -825,7 +1049,7 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
         <div className="prompt" aria-live="polite">
           {over ? (
             <>
-              <p className="result">{m.s.winner === me ? 'You win.' : 'You lose.'} <span>{m.s.reason}</span></p>
+              <p className="result">{spectate ? `${m.s.winner != null ? nm(m.s.winner as Side) : 'Nobody'} wins.` : m.s.winner === me ? 'You win.' : 'You lose.'} <span>{m.s.reason}</span></p>
               <div className="choices">
                 {after}
               </div>
@@ -932,19 +1156,22 @@ export function Table({ m, me, view, version, onAct, manualPay, onPay, cpu, wait
         </div>
       ) : null}
       {over && resultOpen ? (
-        <div className={`shade result-shade ${m.s.winner === me ? 'won' : 'lost'}`} onClick={() => setResultOpen(false)}>
+        <div className={`shade result-shade ${spectate || m.s.winner === me ? 'won' : 'lost'}`} onClick={() => setResultOpen(false)}>
           <div className="result-pop" onClick={(e) => e.stopPropagation()}>
             <i className="rays" />
-            <h2>{m.s.winner === me ? 'Victory' : 'Defeat'}</h2>
+            <h2>{spectate ? (m.s.winner != null ? `${nm(m.s.winner as Side)} wins` : 'Match over') : m.s.winner === me ? 'Victory' : 'Defeat'}</h2>
             <p>{m.s.reason}</p>
             {tutor ? <p className="result-note">That is the whole game. Try the other Start Deck, build your own deck in the deck builder, or play a friend with a room code.</p> : null}
             <dl>
               <div><dt>Rounds</dt><dd>{v.round}</dd></div>
-              <div><dt>Your Hearts</dt><dd>{v.ps[me].hearts.length}</dd></div>
-              <div><dt>Their Hearts</dt><dd>{v.ps[foe].hearts.length}</dd></div>
+              <div><dt>{spectate ? nm(me) : 'You'} dealt</dt><dd>{stats.dealt}</dd></div>
+              <div><dt>{spectate ? nm(foe) : 'They'} dealt</dt><dd>{stats.taken}</dd></div>
+              <div><dt>Biggest hit</dt><dd>{stats.biggest}</dd></div>
             </dl>
             <div className="opening-actions">
               {after}
+              {replay && onWatch && !spectate ? <button className="ghost" onClick={() => onWatch({ ...replay, answers: [...replay.answers], when: Date.now(), winner: null, vs: '' })}>Watch replay</button> : null}
+              {replay && !spectate ? <button className="ghost" onClick={shareReplay}>{copied || 'Copy replay link'}</button> : null}
               <button className="ghost" onClick={() => setResultOpen(false)}>View the table</button>
             </div>
           </div>
